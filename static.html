@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Static Electricity</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0f172a;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #f1f5f9;
+      user-select: none;
+    }
+    .home-btn {
+    position: fixed;
+    top: 12px; left: 12px;
+    z-index: 999;
+    width: 36px; height: 36px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+    font-size: 1.1rem;
+    color: #94a3b8;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .home-btn:hover { background: #334155; border-color: #38bdf8; color: #f1f5f9; }
+  #c { display: block; cursor: grab; }
+    #c.dragging { cursor: grabbing; }
+
+    #toolbar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 86px;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 5px;
+      overflow-x: auto;
+    }
+    .pitem {
+      flex-shrink: 0;
+      width: 72px;
+      height: 72px;
+      background: #334155;
+      border: 2px solid #475569;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      font-size: 0.6rem;
+      color: #cbd5e1;
+      text-align: center;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .pitem:hover { background: #475569; border-color: #38bdf8; color: #f1f5f9; }
+    .pitem .icon { font-size: 1.55rem; line-height: 1.2; }
+    .hint {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15,23,42,0.88);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 5px 14px;
+      font-size: 0.76rem;
+      color: #64748b;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+<a href="index.html" class="home-btn" title="Home">⌂</a>
+<canvas id="c"></canvas>
+<div id="toolbar"></div>
+<div class="hint">Click palette to add · Drag to rub · Double-click to remove</div>
+
+<script>
+const canvas  = document.getElementById('c');
+const ctx     = canvas.getContext('2d');
+const BAR_H   = 86;
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight - BAR_H;
+}
+window.addEventListener('resize', () => { resize(); });
+resize();
+
+// ═══════════════════════════════════════════════════════
+// Triboelectric series — higher = more positive tendency
+// rod:true → drawn as elongated capsule
+// ═══════════════════════════════════════════════════════
+const TYPES = {
+  rabbitfur: { label:'Rabbit Fur', emoji:'🐇', series: 9,  r:28, baseE:14, color:'#c4a46b' },
+  wool:      { label:'Wool',       emoji:'🧶',  series: 7,  r:28, baseE:14, color:'#a78bfa' },
+  glassfrod: { label:'Glass Rod',  emoji:'🔵',  series: 6,  r:14, baseE: 8, color:'#93c5fd', rod:true },
+  hair:      { label:'Hair',       emoji:'💇',  series: 5,  r:26, baseE:12, color:'#fbbf24' },
+  silk:      { label:'Silk',       emoji:'🎀',  series: 3,  r:24, baseE:12, color:'#f9a8d4' },
+  paper:     { label:'Paper',      emoji:'📄',  series: 1,  r:22, baseE:10, color:'#e2e8f0' },
+  balloon:   { label:'Balloon',    emoji:'🎈',  series:-5,  r:30, baseE:14, color:'#f87171' },
+  ebonite:   { label:'Ebonite',    emoji:'⬛',  series:-7,  r:14, baseE: 8, color:'#0f172a', rod:true },
+  plastic:   { label:'Plastic Rod',emoji:'🔴',  series:-8,  r:14, baseE: 8, color:'#dc2626', rod:true },
+};
+
+// ═══════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════
+let instances = [];
+let sparks    = [];
+let labels    = []; // transient "+e" flying label
+let nextId    = 0;
+
+function mkInst(typeKey, x, y) {
+  const t = TYPES[typeKey];
+  return {
+    id: nextId++, type: typeKey,
+    x, y, vx: 0, vy: 0,
+    protons:   t.baseE,
+    electrons: t.baseE,
+    dragging: false,
+    rubTimer: 0,
+    rodAngle: -Math.PI / 5,  // rods start tilted
+  };
+}
+const ch  = i => i.protons - i.electrons;
+const rad = i => TYPES[i.type].r;
+const maxE = i => TYPES[i.type].baseE * 2;
+
+// ═══════════════════════════════════════════════════════
+// Electroscope
+// ═══════════════════════════════════════════════════════
+const scope = {
+  get x()      { return canvas.width - 92; },
+  get rodTopY(){ return canvas.height - 130; },
+  get pivotY() { return canvas.height - 80; },
+  leafAngle: 0,
+  leafTarget: 0,
+  contactQ: 0,       // charge deposited by direct contact
+  leafSign: 0,       // +1 / -1 for color
+};
+
+// ═══════════════════════════════════════════════════════
+// Ground
+// ═══════════════════════════════════════════════════════
+const GX = 80;
+const groundTopY = () => canvas.height - 120;
+const groundBotY = () => canvas.height - 20;
+
+// ═══════════════════════════════════════════════════════
+// Sparks & labels
+// ═══════════════════════════════════════════════════════
+function addSparks(x, y, n = 5) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 2 + Math.random() * 4;
+    sparks.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1 });
+  }
+}
+
+function addLabel(x, y, text, col) {
+  labels.push({ x, y, vy: -1.2, life: 1, text, col });
+}
+
+function tickParticles() {
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i];
+    s.x += s.vx; s.y += s.vy;
+    s.vx *= 0.88; s.vy *= 0.88;
+    s.life -= 0.055;
+    if (s.life <= 0) sparks.splice(i, 1);
+  }
+  for (let i = labels.length - 1; i >= 0; i--) {
+    const l = labels[i];
+    l.y += l.vy;
+    l.life -= 0.025;
+    if (l.life <= 0) labels.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const s of sparks) {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(251,191,36,${s.life.toFixed(2)})`;
+    ctx.fill();
+  }
+  for (const l of labels) {
+    ctx.font = 'bold 12px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(${l.col},${l.life.toFixed(2)})`;
+    ctx.fillText(l.text, l.x, l.y);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Rubbing
+// ═══════════════════════════════════════════════════════
+const RUB_INTERVAL = 9; // frames between transfers
+
+function handleRubbing(dragged) {
+  for (const other of instances) {
+    if (other === dragged || other.dragging) continue;
+    const d = Math.hypot(dragged.x - other.x, dragged.y - other.y);
+    if (d >= rad(dragged) + rad(other) - 8) {
+      if (other !== dragged) other._rubbing = false;
+      continue;
+    }
+    dragged.rubTimer++;
+    const mx = (dragged.x + other.x) / 2;
+    const my = (dragged.y + other.y) / 2;
+
+    if (dragged.rubTimer % RUB_INTERVAL === 0) {
+      addSparks(mx, my);
+      const sa = TYPES[dragged.type].series;
+      const sb = TYPES[other.type].series;
+      if (sa > sb) {
+        // dragged loses electron → other gains
+        if (dragged.electrons > 2 && other.electrons < maxE(other)) {
+          dragged.electrons--;
+          other.electrons++;
+          addLabel(mx, my - 12, '−e →', '129,140,248');
+        }
+      } else if (sb > sa) {
+        // other loses electron → dragged gains
+        if (other.electrons > 2 && dragged.electrons < maxE(dragged)) {
+          other.electrons--;
+          dragged.electrons++;
+          addLabel(mx, my - 12, '← −e', '129,140,248');
+        }
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Grounding
+// ═══════════════════════════════════════════════════════
+function checkGround() {
+  for (const inst of instances) {
+    if (inst.dragging) continue;
+    const d = Math.hypot(inst.x - GX, inst.y - (groundTopY() + 10));
+    if (d < rad(inst) + 24) {
+      if (inst.electrons < inst.protons) inst.electrons++;
+      else if (inst.electrons > inst.protons) inst.electrons--;
+      if (inst.electrons !== inst.protons && Math.random() < 0.3)
+        addSparks(GX + (Math.random() - 0.5) * 10, groundTopY() + 10);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Electroscope update
+// ═══════════════════════════════════════════════════════
+function updateScope() {
+  const sx = scope.x, ky = scope.rodTopY;
+
+  let nearestEffect = 0, nearestSign = 0;
+  for (const inst of instances) {
+    const q = ch(inst);
+    if (q === 0) continue;
+    const d = Math.hypot(inst.x - sx, inst.y - ky);
+    const eff = q / Math.max(d, 35);
+    if (Math.abs(eff) > Math.abs(nearestEffect)) {
+      nearestEffect = eff;
+      nearestSign   = Math.sign(q);
+    }
+    // Direct contact with knob
+    if (d < rad(inst) + 13) {
+      const transfer = Math.sign(q) * 0.04;
+      scope.contactQ = Math.max(-10, Math.min(10, scope.contactQ + transfer));
+      scope.leafSign  = Math.sign(scope.contactQ || q);
+    }
+  }
+
+  // Leaves spread from induction OR contact charge
+  const inductionAngle = Math.min(Math.abs(nearestEffect) * 0.07, 0.6);
+  const contactAngle   = Math.min(Math.abs(scope.contactQ) * 0.045, 0.65);
+  scope.leafTarget = Math.max(inductionAngle, contactAngle);
+
+  // If induction dominates, sign is from the nearby object
+  if (inductionAngle > contactAngle) scope.leafSign = nearestSign;
+
+  // Smooth animation
+  scope.leafAngle += (scope.leafTarget - scope.leafAngle) * 0.1;
+
+  // Slow contact charge decay
+  if (scope.contactQ > 0)      scope.contactQ -= 0.003;
+  else if (scope.contactQ < 0) scope.contactQ += 0.003;
+}
+
+// ═══════════════════════════════════════════════════════
+// Physics (Coulomb + collision + sticking + boundaries)
+// ═══════════════════════════════════════════════════════
+const K_C  = 14000;
+const DAMP = 0.92;
+const PAD  = 55;
+
+// Opposite-charged objects only attract within this distance
+const attractCutoff = () => Math.min(canvas.width, canvas.height) * 0.5;
+
+function updatePhysics() {
+  const free = instances.filter(i => !i.dragging);
+
+  for (let i = 0; i < free.length; i++) {
+    for (let j = i + 1; j < free.length; j++) {
+      const a = free[i], b = free[j];
+      const qa = ch(a), qb = ch(b);
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dRaw = Math.hypot(dx, dy);
+      const minD = rad(a) + rad(b);
+
+      // ── Solid collision / sticking ──────────────────
+      if (dRaw < minD) {
+        const d  = Math.max(dRaw, 0.1);
+        const nx = dx / d, ny = dy / d;
+        // Push apart to just-touching
+        const push = (minD - dRaw + 0.5) * 0.5;
+        a.x -= nx * push; a.y -= ny * push;
+        b.x += nx * push; b.y += ny * push;
+
+        if (qa * qb < 0) {
+          // Opposite charges → stick: blend velocities so they move together
+          const avgVx = (a.vx + b.vx) * 0.5;
+          const avgVy = (a.vy + b.vy) * 0.5;
+          a.vx = avgVx; a.vy = avgVy;
+          b.vx = avgVx; b.vy = avgVy;
+        } else {
+          // Like charges or neutral → elastic-ish bounce
+          const approach = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+          if (approach < 0) {
+            a.vx += approach * nx * 0.55; a.vy += approach * ny * 0.55;
+            b.vx -= approach * nx * 0.55; b.vy -= approach * ny * 0.55;
+          }
+        }
+        continue; // skip force calculation; objects are in contact
+      }
+
+      if (qa === 0 && qb === 0) continue;
+
+      // ── Attraction cutoff ───────────────────────────
+      // Opposite charges don't pull from across the room
+      if (qa * qb < 0 && dRaw > attractCutoff()) continue;
+
+      // ── Coulomb force (clamped at contact distance) ─
+      const d2 = Math.max(dRaw * dRaw, minD * minD);
+      const d  = Math.sqrt(d2);
+      const F  = K_C * qa * qb / d2;
+      const fx = F * dx / d, fy = F * dy / d;
+      a.vx -= fx; a.vy -= fy;
+      b.vx += fx; b.vy += fy;
+    }
+  }
+
+  for (const inst of free) {
+    inst.vx *= DAMP;
+    inst.vy *= DAMP;
+    inst.x  += inst.vx;
+    inst.y  += inst.vy;
+    const ir = rad(inst);
+    if (inst.x < ir + PAD)                   { inst.x = ir + PAD;                   inst.vx =  Math.abs(inst.vx) * 0.45; }
+    if (inst.x > canvas.width - ir - PAD)    { inst.x = canvas.width - ir - PAD;    inst.vx = -Math.abs(inst.vx) * 0.45; }
+    if (inst.y < ir + PAD)                   { inst.y = ir + PAD;                   inst.vy =  Math.abs(inst.vy) * 0.45; }
+    if (inst.y > canvas.height - ir - PAD)   { inst.y = canvas.height - ir - PAD;   inst.vy = -Math.abs(inst.vy) * 0.45; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Drawing helpers
+// ═══════════════════════════════════════════════════════
+function capsule(x, y, rw, rh, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  const rx = rw / 2, ry = rh / 2, rc = rw / 2;
+  ctx.beginPath();
+  ctx.moveTo(-rx + rc, -ry);
+  ctx.lineTo( rx - rc, -ry);
+  ctx.arc(rx - rc, 0, rc, -Math.PI/2, Math.PI/2);
+  ctx.lineTo(-rx + rc,  ry);
+  ctx.arc(-rx + rc, 0, rc, Math.PI/2, -Math.PI/2);
+  ctx.closePath();
+  ctx.restore();
+}
+
+function drawAura(x, y, r, q) {
+  if (q === 0) return;
+  const rgb = q > 0 ? '251,146,60' : '129,140,248';
+  const t   = Math.min(Math.abs(q) / 8, 1);
+  const g   = ctx.createRadialGradient(x, y, r * 0.4, x, y, r * 3.2);
+  g.addColorStop(0, `rgba(${rgb},${(t * 0.55).toFixed(2)})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.beginPath();
+  ctx.arc(x, y, r * 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+}
+
+function drawObject(inst) {
+  const t  = TYPES[inst.type];
+  const q  = ch(inst);
+  const ir = rad(inst);
+  const { x, y } = inst;
+
+  drawAura(x, y, ir, q);
+
+  ctx.save();
+  ctx.shadowBlur  = inst.dragging ? 22 : 8;
+  ctx.shadowColor = inst.dragging ? '#38bdf8' : 'rgba(0,0,0,0.5)';
+
+  if (t.rod) {
+    const rw = ir * 2 + 2, rh = ir * 4.5;
+    capsule(x, y, rw, rh, inst.rodAngle);
+    ctx.fillStyle   = t.color;
+    ctx.fill();
+    ctx.strokeStyle = inst.dragging ? '#38bdf8' : 'rgba(255,255,255,0.15)';
+    ctx.lineWidth   = inst.dragging ? 2.5 : 1;
+    ctx.stroke();
+    // Stripe highlights on rod
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth   = 1;
+    capsule(x - ir * 0.35, y, rw * 0.3, rh * 0.95, inst.rodAngle);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y, ir, 0, Math.PI * 2);
+    ctx.fillStyle   = t.color;
+    ctx.fill();
+    ctx.strokeStyle = inst.dragging ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+    ctx.lineWidth   = inst.dragging ? 2.5 : 1;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Emoji
+  ctx.font         = `${ir * (t.rod ? 1.15 : 0.9)}px serif`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(t.emoji, x, y);
+
+  // Charge badge
+  if (q !== 0) {
+    const col  = q > 0 ? '#fb923c' : '#818cf8';
+    const sign = q > 0 ? '+' : '−';
+    ctx.font         = 'bold 13px Segoe UI, sans-serif';
+    ctx.fillStyle    = col;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`${sign}${Math.abs(q)}`, x, y - ir - 4);
+  }
+
+  // Name
+  ctx.font         = '10px Segoe UI, sans-serif';
+  ctx.fillStyle    = 'rgba(148,163,184,0.75)';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(t.label, x, y + ir + 4);
+}
+
+// ═══════════════════════════════════════════════════════
+// Draw ground rod
+// ═══════════════════════════════════════════════════════
+function drawGround() {
+  const ty = groundTopY(), by = groundBotY();
+
+  ctx.font         = '11px Segoe UI, sans-serif';
+  ctx.fillStyle    = '#475569';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Ground', GX, ty - 4);
+
+  // Ball/contact at top
+  ctx.beginPath();
+  ctx.arc(GX, ty, 9, 0, Math.PI * 2);
+  ctx.fillStyle = '#64748b';
+  ctx.fill();
+
+  // Vertical rod
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth   = 5;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(GX, ty + 8);
+  ctx.lineTo(GX, by - 14);
+  ctx.stroke();
+
+  // Ground lines
+  ctx.lineWidth = 3;
+  const lws = [28, 18, 10];
+  for (let i = 0; i < 3; i++) {
+    const lw = lws[i];
+    const ly = by - 12 + i * 8;
+    ctx.beginPath();
+    ctx.moveTo(GX - lw/2, ly);
+    ctx.lineTo(GX + lw/2, ly);
+    ctx.stroke();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Draw electroscope
+// ═══════════════════════════════════════════════════════
+function drawElectroscope() {
+  const sx     = scope.x;
+  const ky     = scope.rodTopY;
+  const pivotY = scope.pivotY;
+  const ang    = scope.leafAngle;
+  const leafL  = 44;
+
+  // Determine visual properties
+  const hasContact = Math.abs(scope.contactQ) > 0.2;
+  const leafCol    = hasContact
+    ? (scope.leafSign > 0 ? '#fb923c' : '#818cf8')
+    : '#94a3b8';
+
+  // Label
+  ctx.font         = '11px Segoe UI, sans-serif';
+  ctx.fillStyle    = '#475569';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Electroscope', sx, ky - 14);
+
+  // Glass jar
+  const jTop = pivotY - 18, jH = leafL + 28, jW = 72;
+  ctx.fillStyle   = 'rgba(30,41,59,0.55)';
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  // Manual rounded-top rect
+  const rad2 = 6;
+  ctx.moveTo(sx - jW/2 + rad2, jTop);
+  ctx.lineTo(sx + jW/2 - rad2, jTop);
+  ctx.quadraticCurveTo(sx + jW/2, jTop, sx + jW/2, jTop + rad2);
+  ctx.lineTo(sx + jW/2, jTop + jH);
+  ctx.lineTo(sx - jW/2, jTop + jH);
+  ctx.lineTo(sx - jW/2, jTop + rad2);
+  ctx.quadraticCurveTo(sx - jW/2, jTop, sx - jW/2 + rad2, jTop);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Stem above jar
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth   = 4;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx, ky - 13);
+  ctx.lineTo(sx, pivotY);
+  ctx.stroke();
+
+  // Knob
+  ctx.beginPath();
+  ctx.arc(sx, ky - 13, 11, 0, Math.PI * 2);
+  ctx.fillStyle   = '#94a3b8';
+  ctx.fill();
+  if (hasContact) {
+    ctx.strokeStyle = leafCol;
+    ctx.lineWidth   = 2.5;
+    ctx.stroke();
+  }
+
+  // Foil leaves
+  ctx.strokeStyle = leafCol;
+  ctx.lineWidth   = 2.8;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx, pivotY);
+  ctx.lineTo(sx - leafL * Math.sin(ang), pivotY + leafL * Math.cos(ang));
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(sx, pivotY);
+  ctx.lineTo(sx + leafL * Math.sin(ang), pivotY + leafL * Math.cos(ang));
+  ctx.stroke();
+
+  // Sign label on knob
+  if (hasContact) {
+    const sign = scope.contactQ > 0 ? '+' : '−';
+    ctx.font         = 'bold 12px sans-serif';
+    ctx.fillStyle    = leafCol;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sign, sx, ky - 13);
+  }
+
+  // Spread angle label
+  if (ang > 0.05) {
+    const deg = Math.round(ang * 180 / Math.PI);
+    ctx.font         = '10px Segoe UI, sans-serif';
+    ctx.fillStyle    = 'rgba(148,163,184,0.6)';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${deg}°`, sx, jTop + jH + 3);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Background
+// ═══════════════════════════════════════════════════════
+function drawBg() {
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(51,65,85,0.3)';
+  ctx.lineWidth   = 1;
+  for (let x = 0; x < canvas.width;  x += 60) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 60) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Main loop
+// ═══════════════════════════════════════════════════════
+function loop() {
+  drawBg();
+
+  updatePhysics();
+  checkGround();
+  updateScope();
+  tickParticles();
+
+  const dragged = instances.find(i => i.dragging);
+  if (dragged) handleRubbing(dragged);
+  else instances.forEach(i => { i.rubTimer = 0; });
+
+  drawGround();
+  drawElectroscope();
+  for (const inst of instances) drawObject(inst);
+  drawParticles();
+
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════
+// Input — mouse
+// ═══════════════════════════════════════════════════════
+let dragInst = null, dragOX = 0, dragOY = 0;
+
+function startDrag(mx, my) {
+  for (let i = instances.length - 1; i >= 0; i--) {
+    const inst = instances[i];
+    if (Math.hypot(mx - inst.x, my - inst.y) < rad(inst) + 8) {
+      dragInst = inst;
+      inst.dragging = true;
+      inst.vx = inst.vy = 0;
+      dragOX = mx - inst.x;
+      dragOY = my - inst.y;
+      instances.splice(i, 1);
+      instances.push(inst);
+      canvas.classList.add('dragging');
+      break;
+    }
+  }
+}
+
+function moveDrag(mx, my) {
+  if (!dragInst) return;
+  dragInst.x = mx - dragOX;
+  dragInst.y = my - dragOY;
+}
+
+function endDrag() {
+  if (!dragInst) return;
+  dragInst.dragging = false;
+  dragInst.rubTimer = 0;
+  dragInst.vx = (Math.random() - 0.5) * 0.4;
+  dragInst.vy = (Math.random() - 0.5) * 0.4;
+  dragInst = null;
+  canvas.classList.remove('dragging');
+}
+
+canvas.addEventListener('mousedown',  e => startDrag(e.offsetX, e.offsetY));
+canvas.addEventListener('mousemove',  e => moveDrag(e.offsetX, e.offsetY));
+canvas.addEventListener('mouseup',    endDrag);
+canvas.addEventListener('mouseleave', endDrag);
+
+// Double-click to remove
+canvas.addEventListener('dblclick', e => {
+  const mx = e.offsetX, my = e.offsetY;
+  for (let i = instances.length - 1; i >= 0; i--) {
+    if (Math.hypot(mx - instances[i].x, my - instances[i].y) < rad(instances[i]) + 6) {
+      instances.splice(i, 1);
+      return;
+    }
+  }
+});
+
+// ── Touch ──
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const rc = canvas.getBoundingClientRect(), t = e.touches[0];
+  startDrag(t.clientX - rc.left, t.clientY - rc.top);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rc = canvas.getBoundingClientRect(), t = e.touches[0];
+  moveDrag(t.clientX - rc.left, t.clientY - rc.top);
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  endDrag();
+}, { passive: false });
+
+// ═══════════════════════════════════════════════════════
+// Palette
+// ═══════════════════════════════════════════════════════
+const toolbar = document.getElementById('toolbar');
+for (const [key, t] of Object.entries(TYPES)) {
+  const div = document.createElement('div');
+  div.className = 'pitem';
+  div.innerHTML = `<span class="icon">${t.emoji}</span><span>${t.label}</span>`;
+  div.addEventListener('click', () => {
+    const x = 160 + Math.random() * (canvas.width  - 320);
+    const y = 100 + Math.random() * (canvas.height - 220);
+    instances.push(mkInst(key, x, y));
+  });
+  toolbar.appendChild(div);
+}
+
+// ═══════════════════════════════════════════════════════
+// Boot
+// ═══════════════════════════════════════════════════════
+loop();
+</script>
+</body>
+</html>

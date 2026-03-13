@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bohr-Rutherford Diagram</title>
+  <style>
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --surface2: #334155;
+      --accent:   #38bdf8;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --border:   #334155;
+      --proton:   #f87171;
+      --neutron:  #94a3b8;
+      --electron: #60a5fa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    header { text-align: center; }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    /* ── Layout ── */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    @media (max-width: 620px) {
+      .main-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    /* ── Particle spinners ── */
+    .particle-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    .particle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .p-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .p-label {
+      flex: 1;
+      font-size: 0.9rem;
+    }
+
+    .spinner {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .spin-btn {
+      width: 28px;
+      height: 28px;
+      background: var(--surface2);
+      border: none;
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 1.15rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, color 0.12s, transform 0.08s;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .spin-btn:hover:not(:disabled) { background: var(--accent); color: #0f172a; }
+    .spin-btn:active:not(:disabled) { transform: scale(0.88); }
+    .spin-btn:disabled { opacity: 0.2; cursor: default; }
+
+    .spin-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      min-width: 2rem;
+      text-align: center;
+    }
+
+    /* ── Diagram column ── */
+    .diagram-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    .svg-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      overflow: hidden;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #diagram {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* ── Element info ── */
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+    }
+
+    .elem-display {
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.85rem;
+      transition: color 0.3s;
+    }
+
+    .elem-display.neutral  { color: var(--muted); }
+    .elem-display.cation   { color: #fb923c; }
+    .elem-display.anion    { color: #a78bfa; }
+    .elem-display.neutral-atom { color: var(--text); }
+
+    .stats-row {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+    }
+
+    .stat-val  { font-size: 1.1rem; font-weight: 700; }
+    .stat-lbl  {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+    }
+    .home-btn {
+      position: fixed;
+      top: 12px; left: 12px;
+      z-index: 999;
+      width: 36px; height: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none;
+      font-size: 1.1rem;
+      color: var(--muted);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .home-btn:hover { background: var(--border); border-color: var(--accent); color: var(--text); }
+  </style>
+</head>
+<body>
+<a href="index.html" class="home-btn" title="Home">⌂</a>
+<div class="container">
+
+  <header>
+    <h1>⚛ Bohr-Rutherford Diagram</h1>
+    <p class="subtitle">Add subatomic particles to build an atom or ion</p>
+  </header>
+
+  <div class="main-layout">
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="card-label">Subatomic Particles</div>
+      <div class="particle-rows">
+
+        <div class="particle-row">
+          <div class="p-dot" style="background:var(--proton)"></div>
+          <span class="p-label">Protons</span>
+          <div class="spinner">
+            <button class="spin-btn" id="p-dn">−</button>
+            <span class="spin-val"  id="p-v">0</span>
+            <button class="spin-btn" id="p-up">+</button>
+          </div>
+        </div>
+
+        <div class="particle-row">
+          <div class="p-dot" style="background:var(--neutron)"></div>
+          <span class="p-label">Neutrons</span>
+          <div class="spinner">
+            <button class="spin-btn" id="n-dn">−</button>
+            <span class="spin-val"  id="n-v">0</span>
+            <button class="spin-btn" id="n-up">+</button>
+          </div>
+        </div>
+
+        <div class="particle-row">
+          <div class="p-dot" style="background:var(--electron)"></div>
+          <span class="p-label">Electrons</span>
+          <div class="spinner">
+            <button class="spin-btn" id="e-dn">−</button>
+            <span class="spin-val"  id="e-v">0</span>
+            <button class="spin-btn" id="e-up">+</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Diagram + info -->
+    <div class="diagram-col">
+
+      <div class="svg-wrap">
+        <svg id="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="-180 -180 360 360">
+          <defs>
+            <radialGradient id="nucGrad" cx="38%" cy="32%" r="65%">
+              <stop offset="0%"   stop-color="#fde68a"/>
+              <stop offset="60%"  stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#b45309"/>
+            </radialGradient>
+            <radialGradient id="eGrad" cx="35%" cy="30%" r="65%">
+              <stop offset="0%"   stop-color="#bae6fd"/>
+              <stop offset="100%" stop-color="#2563eb"/>
+            </radialGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="nucGlow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- populated by JS -->
+        </svg>
+      </div>
+
+      <div class="info-card">
+        <div class="elem-display neutral" id="elem-display">—</div>
+        <div class="stats-row">
+          <div class="stat">
+            <span class="stat-val" id="s-mass">0</span>
+            <span class="stat-lbl">Mass Number</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val" style="color:var(--proton)"   id="s-p">0</span>
+            <span class="stat-lbl">Protons</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val" style="color:var(--neutron)"  id="s-n">0</span>
+            <span class="stat-lbl">Neutrons</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val" style="color:var(--electron)" id="s-e">0</span>
+            <span class="stat-lbl">Electrons</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val" id="s-chg">0</span>
+            <span class="stat-lbl">Charge</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────────────────────
+// Data
+// ────────────────────────────────────────────────────────────────
+const NAMES = [
+  null,
+  'Hydrogen','Helium','Lithium','Beryllium','Boron',
+  'Carbon','Nitrogen','Oxygen','Fluorine','Neon',
+  'Sodium','Magnesium','Aluminum','Silicon','Phosphorus',
+  'Sulfur','Chlorine','Argon','Potassium','Calcium',
+  'Scandium','Titanium','Vanadium','Chromium','Manganese',
+  'Iron','Cobalt','Nickel','Copper','Zinc',
+  'Gallium','Germanium','Arsenic','Selenium','Bromine',
+  'Krypton','Rubidium','Strontium','Yttrium','Zirconium',
+  'Niobium','Molybdenum','Technetium','Ruthenium','Rhodium',
+  'Palladium','Silver','Cadmium','Indium','Tin',
+  'Antimony','Tellurium','Iodine','Xenon','Cesium',
+  'Barium','Lanthanum','Cerium','Praseodymium','Neodymium',
+  'Promethium','Samarium','Europium','Gadolinium','Terbium',
+  'Dysprosium','Holmium','Erbium','Thulium','Ytterbium',
+  'Lutetium','Hafnium','Tantalum','Tungsten','Rhenium',
+  'Osmium','Iridium','Platinum','Gold','Mercury',
+  'Thallium','Lead','Bismuth','Polonium','Astatine',
+  'Radon','Francium','Radium','Actinium','Thorium',
+  'Protactinium','Uranium','Neptunium','Plutonium','Americium',
+  'Curium','Berkelium','Californium','Einsteinium','Fermium',
+  'Mendelevium','Nobelium','Lawrencium','Rutherfordium','Dubnium',
+  'Seaborgium','Bohrium','Hassium','Meitnerium','Darmstadtium',
+  'Roentgenium','Copernicium','Nihonium','Flerovium','Moscovium',
+  'Livermorium','Tennessine','Oganesson',
+];
+
+// Electron shell max capacities (simplified Bohr model, sums to 118)
+const SHELL_CAP = [2, 8, 18, 32, 32, 18, 8];
+
+// ────────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────────
+let P = 0, N = 0, E = 0;
+
+// ────────────────────────────────────────────────────────────────
+// Shell distribution
+// ────────────────────────────────────────────────────────────────
+function distribute(n) {
+  const shells = [];
+  let rem = n;
+  for (let i = 0; i < SHELL_CAP.length && rem > 0; i++) {
+    const c = Math.min(rem, SHELL_CAP[i]);
+    shells.push(c);
+    rem -= c;
+  }
+  return shells;
+}
+
+// ────────────────────────────────────────────────────────────────
+// SVG helpers
+// ────────────────────────────────────────────────────────────────
+const NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+}
+
+function svgTxt(str, attrs) {
+  const t = svgEl('text', {
+    'text-anchor': 'middle',
+    'dominant-baseline': 'central',
+    'font-family': "'Segoe UI', system-ui, sans-serif",
+    ...attrs,
+  });
+  t.textContent = str;
+  return t;
+}
+
+// ────────────────────────────────────────────────────────────────
+// Render
+// ────────────────────────────────────────────────────────────────
+const diagramSVG = document.getElementById('diagram');
+
+function render() {
+  // Remove all children except <defs>
+  [...diagramSVG.children].forEach(c => { if (c.tagName !== 'defs') c.remove(); });
+
+  const shells  = distribute(E);
+  const nShells = shells.length;
+
+  // Sizing
+  const nucR     = Math.max(34, Math.min(52, 34 + (P + N) * 0.28));
+  const shell1R  = nucR + 48;
+  const gap      = nShells <= 3 ? 62 : nShells <= 5 ? 54 : 46;
+  const outerR   = nShells > 0 ? shell1R + (nShells - 1) * gap + 18 : nucR + 18;
+  const vb       = Math.ceil(outerR) + 14;
+
+  diagramSVG.setAttribute('viewBox', `${-vb} ${-vb} ${vb * 2} ${vb * 2}`);
+
+  // ── Shell rings ──
+  shells.forEach((_, i) => {
+    const r = shell1R + i * gap;
+    diagramSVG.appendChild(svgEl('circle', {
+      cx: 0, cy: 0, r,
+      fill: 'none',
+      stroke: '#334155',
+      'stroke-width': 1.5,
+      'stroke-dasharray': '5 4',
+    }));
+    // Shell label  (n = 1, 2…)
+    diagramSVG.appendChild(svgTxt(`n=${i + 1}`, {
+      x: r + 2, y: -7,
+      'text-anchor': 'start',
+      'font-size': 9,
+      fill: '#475569',
+    }));
+  });
+
+  // ── Electrons ──
+  shells.forEach((count, si) => {
+    const r = shell1R + si * gap;
+    for (let j = 0; j < count; j++) {
+      const angle = (2 * Math.PI * j / count) - Math.PI / 2;
+      const cx = +(r * Math.cos(angle)).toFixed(3);
+      const cy = +(r * Math.sin(angle)).toFixed(3);
+
+      // Soft glow halo
+      diagramSVG.appendChild(svgEl('circle', {
+        cx, cy, r: 9,
+        fill: 'rgba(96,165,250,0.18)',
+      }));
+      // Electron dot
+      diagramSVG.appendChild(svgEl('circle', {
+        cx, cy, r: 5.5,
+        fill: 'url(#eGrad)',
+        filter: 'url(#glow)',
+      }));
+    }
+  });
+
+  // ── Nucleus ──
+  // Ambient glow behind nucleus
+  diagramSVG.appendChild(svgEl('circle', {
+    cx: 0, cy: 0, r: nucR + 10,
+    fill: 'rgba(251,191,36,0.10)',
+  }));
+  // Main nucleus circle
+  diagramSVG.appendChild(svgEl('circle', {
+    cx: 0, cy: 0, r: nucR,
+    fill: 'url(#nucGrad)',
+    filter: 'url(#nucGlow)',
+  }));
+
+  // Text inside nucleus
+  const fontSize = Math.max(9, Math.min(15, nucR * 0.31));
+  if (P > 0 && N > 0) {
+    diagramSVG.appendChild(svgTxt(`${P}p⁺`, {
+      x: 0, y: -(nucR * 0.27),
+      'font-size': fontSize, 'font-weight': '700', fill: '#1c1917',
+    }));
+    diagramSVG.appendChild(svgTxt(`${N}n⁰`, {
+      x: 0, y:  (nucR * 0.27),
+      'font-size': fontSize, 'font-weight': '700', fill: '#1c1917',
+    }));
+  } else if (P > 0) {
+    diagramSVG.appendChild(svgTxt(`${P}p⁺`, {
+      x: 0, y: 0,
+      'font-size': fontSize + 1, 'font-weight': '700', fill: '#1c1917',
+    }));
+  } else if (N > 0) {
+    diagramSVG.appendChild(svgTxt(`${N}n⁰`, {
+      x: 0, y: 0,
+      'font-size': fontSize + 1, 'font-weight': '700', fill: '#1c1917',
+    }));
+  } else {
+    // Empty nucleus placeholder
+    diagramSVG.appendChild(svgTxt('?', {
+      x: 0, y: 0, 'font-size': 18, 'font-weight': '700', fill: '#78716c',
+    }));
+  }
+
+  updateLabel();
+}
+
+// ────────────────────────────────────────────────────────────────
+// Label
+// ────────────────────────────────────────────────────────────────
+function fmtCharge(c) {
+  if (c === 0)  return '';
+  const mag = Math.abs(c);
+  return (c > 0 ? '+' : '-') + (mag === 1 ? '' : mag);
+}
+
+function updateLabel() {
+  const mass   = P + N;
+  const charge = P - E;
+  const disp   = document.getElementById('elem-display');
+
+  let text, cls;
+
+  if (P === 0 && N === 0 && E === 0) {
+    text = '—';
+    cls  = 'neutral';
+  } else if (P === 0) {
+    text = E > 0 ? `Free electrons (×${E})` : `Free neutrons (×${N})`;
+    cls  = 'neutral';
+  } else {
+    const name  = (P >= 1 && P <= 118) ? NAMES[P] : 'Unknown';
+    const cStr  = fmtCharge(charge);
+    text = `[${name}-${mass}]${cStr}`;
+    cls  = charge > 0 ? 'cation' : charge < 0 ? 'anion' : 'neutral-atom';
+  }
+
+  disp.textContent = text;
+  disp.className   = `elem-display ${cls}`;
+
+  document.getElementById('s-mass').textContent = P + N;
+  document.getElementById('s-p').textContent    = P;
+  document.getElementById('s-n').textContent    = N;
+  document.getElementById('s-e').textContent    = E;
+
+  const chgEl  = document.getElementById('s-chg');
+  const charge2 = P - E;
+  chgEl.textContent = charge2 === 0 ? '0' : (charge2 > 0 ? `+${charge2}` : `${charge2}`);
+  chgEl.style.color = charge2 > 0 ? '#fb923c' : charge2 < 0 ? '#a78bfa' : 'var(--muted)';
+}
+
+// ────────────────────────────────────────────────────────────────
+// Controls
+// ────────────────────────────────────────────────────────────────
+function refreshUI() {
+  document.getElementById('p-v').textContent = P;
+  document.getElementById('n-v').textContent = N;
+  document.getElementById('e-v').textContent = E;
+  document.getElementById('p-dn').disabled = P <= 0;
+  document.getElementById('n-dn').disabled = N <= 0;
+  document.getElementById('e-dn').disabled = E <= 0;
+  document.getElementById('p-up').disabled = P >= 118;
+  document.getElementById('e-up').disabled = E >= 118;
+}
+
+function update() { refreshUI(); render(); }
+
+document.getElementById('p-up').addEventListener('click', () => { if (P < 118) { P++; update(); } });
+document.getElementById('p-dn').addEventListener('click', () => { if (P > 0)   { P--; update(); } });
+document.getElementById('n-up').addEventListener('click', () => { N++; update(); });
+document.getElementById('n-dn').addEventListener('click', () => { if (N > 0) { N--; update(); } });
+document.getElementById('e-up').addEventListener('click', () => { if (E < 118) { E++; update(); } });
+document.getElementById('e-dn').addEventListener('click', () => { if (E > 0)   { E--; update(); } });
+
+// Boot
+update();
+</script>
+</body>
+</html>
