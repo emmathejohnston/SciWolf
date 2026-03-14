@@ -387,6 +387,69 @@ function distribute(n) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Electron placement — N-E-S-W cardinal first (singles),
+// then pair each in the same order; extend with 8 positions at
+// 22.5° offsets for larger shells.
+//
+// Fill rule: exhaust each direction group (all singles → all pairs)
+// before starting the next group. This ensures orbit 2 shows
+// paired electrons at all 4 cardinal spots when full.
+//
+// Orbit 1 special case: only N and S (2 max).
+// ────────────────────────────────────────────────────────────────
+const deg = d => d * Math.PI / 180;
+
+// N, E, S, W
+const DIRS_CARD = [deg(-90), deg(0), deg(90), deg(180)];
+// 8 positions at 22.5° offsets from the cardinals
+const DIRS_EXT  = [
+  deg(-67.5), deg(-22.5), deg(22.5),  deg(67.5),
+  deg(112.5), deg(157.5), deg(-157.5), deg(-112.5),
+];
+// Orbit 1 only: N and S
+const DIRS_1    = [deg(-90), deg(90)];
+
+// Returns [{cx, cy}] for every electron in a shell.
+// shellIndex 0 = first orbit (N/S only); all others use CARD then EXT.
+function shellElectronPositions(shellIndex, count, r) {
+  const perpOff = 4.2;
+
+  // Groups to use for this orbit, in fill priority order
+  const groups = shellIndex === 0 ? [DIRS_1] : [DIRS_CARD, DIRS_EXT];
+
+  // Build an ordered slot list: for each group, emit all singles first,
+  // then all pairs — so a group is fully paired before the next begins.
+  const slots = []; // {a, pass}  pass=0 → single, pass=1 → pair
+  for (const g of groups) {
+    for (const a of g) slots.push({ a, pass: 0 });
+    for (const a of g) slots.push({ a, pass: 1 });
+  }
+
+  // Count how many electrons will land on each angle (first `count` slots)
+  const occ = new Map();
+  for (let i = 0; i < count && i < slots.length; i++) {
+    const a = slots[i].a;
+    occ.set(a, (occ.get(a) || 0) + 1);
+  }
+
+  const out = [];
+  for (let i = 0; i < count && i < slots.length; i++) {
+    const { a, pass } = slots[i];
+    let cx = r * Math.cos(a);
+    let cy = r * Math.sin(a);
+
+    if (occ.get(a) === 2) {
+      // Offset tangentially so paired dots are side-by-side
+      const sign = pass === 0 ? 1 : -1;
+      cx += -Math.sin(a) * perpOff * sign;
+      cy +=  Math.cos(a) * perpOff * sign;
+    }
+    out.push({ cx: +cx.toFixed(3), cy: +cy.toFixed(3) });
+  }
+  return out;
+}
+
+// ────────────────────────────────────────────────────────────────
 // SVG helpers
 // ────────────────────────────────────────────────────────────────
 const NS = 'http://www.w3.org/2000/svg';
@@ -450,12 +513,9 @@ function render() {
 
   // ── Electrons ──
   shells.forEach((count, si) => {
-    const r = shell1R + si * gap;
-    for (let j = 0; j < count; j++) {
-      const angle = (2 * Math.PI * j / count) - Math.PI / 2;
-      const cx = +(r * Math.cos(angle)).toFixed(3);
-      const cy = +(r * Math.sin(angle)).toFixed(3);
-
+    const r     = shell1R + si * gap;
+    const spots = shellElectronPositions(si, count, r);
+    for (const { cx, cy } of spots) {
       // Soft glow halo
       diagramSVG.appendChild(svgEl('circle', {
         cx, cy, r: 9,

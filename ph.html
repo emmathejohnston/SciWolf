@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pH Indicator Lab – Sci Wolf</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --border:  #334155;
+      --text:    #f1f5f9;
+      --sub:     #94a3b8;
+      --accent:  #38bdf8;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      user-select: none;
+    }
+
+    /* ── Home button ───────────────────────────── */
+    .home-btn {
+      position: fixed; top: 12px; left: 12px; z-index: 999;
+      width: 36px; height: 36px;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; font-size: 1.1rem; color: #94a3b8;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .home-btn:hover { background: #334155; border-color: #38bdf8; color: #f1f5f9; }
+
+    /* ── App shell ─────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 10px 60px 8px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .header p {
+      font-size: 0.78rem;
+      color: var(--sub);
+      margin-top: 2px;
+    }
+
+    /* ── Main row ──────────────────────────────── */
+    .main-row {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Panels ────────────────────────────────── */
+    .panel {
+      width: 200px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 12px 10px;
+      gap: 8px;
+    }
+    .panel.right {
+      border-right: none;
+      border-left: 1px solid var(--border);
+    }
+    .panel-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--sub);
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    /* ── Substance items ───────────────────────── */
+    .substance-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: grab;
+      transition: border-color 0.15s, background 0.15s;
+      font-size: 0.78rem;
+    }
+    .substance-item:hover { border-color: var(--accent); background: #1a2840; }
+    .substance-item:active { cursor: grabbing; }
+    .substance-item .s-emoji { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+    .substance-item .s-info { display: flex; flex-direction: column; min-width: 0; }
+    .substance-item .s-name { color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .substance-item .s-ph { color: var(--sub); font-size: 0.7rem; }
+
+    /* ── Indicator items ───────────────────────── */
+    .indicator-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: grab;
+      transition: border-color 0.15s, background 0.15s;
+      font-size: 0.78rem;
+    }
+    .indicator-item:hover { border-color: var(--accent); background: #1a2840; }
+    .indicator-item:active { cursor: grabbing; }
+    .indicator-swatch {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15);
+      overflow: hidden;
+      position: relative;
+    }
+    .indicator-swatch::before, .indicator-swatch::after {
+      content: '';
+      position: absolute;
+      width: 50%; height: 100%;
+    }
+    .indicator-swatch::before { left: 0; transform: skewX(-8deg) translateX(-4px); }
+    .indicator-swatch::after  { right: 0; transform: skewX(-8deg) translateX(4px); }
+    .indicator-info { display: flex; flex-direction: column; min-width: 0; }
+    .indicator-name { color: var(--text); font-weight: 600; font-size: 0.78rem; }
+    .indicator-desc { color: var(--sub); font-size: 0.67rem; line-height: 1.3; }
+
+    /* ── pH Meter widget ───────────────────────── */
+    .ph-meter-section {
+      margin-top: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .ph-meter-widget {
+      cursor: grab;
+      background: #0a0f1a;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      padding: 10px 8px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.15s;
+    }
+    .ph-meter-widget:hover { border-color: #4ade80; }
+    .ph-meter-widget:active { cursor: grabbing; }
+    .ph-meter-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #4ade80;
+    }
+    .ph-readout {
+      font-family: 'Courier New', monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #4ade80;
+      text-shadow: 0 0 10px rgba(74,222,128,0.6);
+      background: #000;
+      padding: 4px 12px;
+      border-radius: 4px;
+      border: 1px solid #1a3a1a;
+      letter-spacing: 0.05em;
+      min-width: 80px;
+      text-align: center;
+    }
+    .ph-probe {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+    .ph-probe-body {
+      width: 12px; height: 28px;
+      background: linear-gradient(to bottom, #94a3b8, #64748b);
+      border-radius: 3px 3px 0 0;
+    }
+    .ph-probe-tip {
+      width: 6px; height: 10px;
+      background: linear-gradient(to bottom, #64748b, #1e3a2f);
+      border-radius: 0 0 3px 3px;
+    }
+    .ph-meter-hint {
+      font-size: 0.62rem;
+      color: var(--sub);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    /* ── Center area ───────────────────────────── */
+    .center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      gap: 16px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ── Spot plate ────────────────────────────── */
+    .spot-plate-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .spot-plate {
+      background: #d1d5db;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.4);
+      display: grid;
+      grid-template-columns: repeat(4, 72px);
+      grid-template-rows: repeat(3, 72px);
+      gap: 12px;
+    }
+
+    .well {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      border: 2px dashed #9ca3af;
+      box-shadow: inset 0 3px 7px rgba(0,0,0,0.28), inset 0 1px 3px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      cursor: default;
+      overflow: hidden;
+    }
+    .well.filled {
+      border-style: solid;
+      border-color: rgba(255,255,255,0.2);
+    }
+    .well.drag-over {
+      box-shadow: inset 0 3px 7px rgba(0,0,0,0.28), 0 0 0 3px var(--accent), 0 0 12px rgba(56,189,248,0.5);
+      border-color: var(--accent);
+      border-style: solid;
+    }
+    .well-name {
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.2;
+      padding: 0 4px;
+      pointer-events: none;
+      position: absolute;
+      bottom: 8px;
+      width: 100%;
+      text-align: center;
+    }
+    /* Paper strips shown inside wells */
+    .well-strips {
+      position: absolute;
+      top: 9px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      pointer-events: none;
+    }
+    .well-strip {
+      width: 9px; height: 30px;
+      border-radius: 3px 3px 4px 4px;
+      border: 1px solid rgba(0,0,0,0.25);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.35), 0 1px 2px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+
+    .clear-btn {
+      padding: 7px 20px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--sub);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .clear-btn:hover {
+      background: #7f1d1d;
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
+
+    /* ── pH Scale bar ──────────────────────────── */
+    .ph-scale {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ph-scale-bar {
+      height: 18px;
+      border-radius: 9px;
+      background: linear-gradient(to right,
+        #dc2626 0%,
+        #ea580c 14.3%,
+        #ca8a04 28.6%,
+        #84cc16 42.9%,
+        #16a34a 50%,
+        #0284c7 64.3%,
+        #4f46e5 78.6%,
+        #7c3aed 100%
+      );
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    .ph-scale-labels {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 2px;
+    }
+    .ph-scale-label {
+      font-size: 0.68rem;
+      color: var(--sub);
+      font-weight: 600;
+    }
+    .ph-scale-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--sub);
+      text-align: center;
+    }
+
+    /* ── Drag ghost ────────────────────────────── */
+    #drag-ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.88;
+      transform: translate(-50%, -50%) scale(0.9);
+      display: none;
+    }
+    .ghost-substance {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 20px rgba(56,189,248,0.3);
+      white-space: nowrap;
+    }
+    .ghost-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border: 2px solid #a78bfa;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 20px rgba(167,139,250,0.3);
+      white-space: nowrap;
+    }
+    .ghost-meter {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: #0a0f1a;
+      border: 2px solid #4ade80;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 20px rgba(74,222,128,0.3);
+      white-space: nowrap;
+      color: #4ade80;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ── pH tooltip (meter hover) ──────────────── */
+    #ph-tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9998;
+      display: none;
+      background: #0a0f1a;
+      border: 1px solid #4ade80;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: #4ade80;
+      text-shadow: 0 0 8px rgba(74,222,128,0.5);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<a href="index.html" class="home-btn" title="Home">⌂</a>
+
+<div class="app">
+  <div class="header">
+    <h1>🧪 pH Indicator Lab</h1>
+    <p>Drag a substance into a well, then drag an indicator or pH meter onto it to observe the result. Double-click a well to clear it.</p>
+  </div>
+
+  <div class="main-row">
+
+    <!-- Left panel: substances -->
+    <div class="panel left" id="substances-panel">
+      <div class="panel-title">Household Substances</div>
+      <!-- substance items injected by JS -->
+    </div>
+
+    <!-- Center: spot plate + scale -->
+    <div class="center">
+      <div class="spot-plate-wrapper">
+        <div class="spot-plate" id="spot-plate">
+          <!-- wells injected by JS -->
+        </div>
+        <button class="clear-btn" id="clear-btn">Clear All Wells</button>
+      </div>
+      <div class="ph-scale">
+        <div class="ph-scale-title">pH Scale</div>
+        <div class="ph-scale-bar"></div>
+        <div class="ph-scale-labels">
+          <span class="ph-scale-label">0</span>
+          <span class="ph-scale-label">2</span>
+          <span class="ph-scale-label">4</span>
+          <span class="ph-scale-label">7</span>
+          <span class="ph-scale-label">9</span>
+          <span class="ph-scale-label">11</span>
+          <span class="ph-scale-label">14</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel: indicators + pH meter -->
+    <div class="panel right" id="indicators-panel">
+      <div class="panel-title">pH Indicators</div>
+      <!-- indicator items injected by JS -->
+      <div class="ph-meter-section">
+        <div class="panel-title" style="margin-bottom:8px;">pH Meter</div>
+        <div class="ph-meter-widget" id="ph-meter-widget">
+          <div class="ph-meter-label">pH Meter</div>
+          <div class="ph-readout" id="ph-readout">--.-</div>
+          <div class="ph-probe">
+            <div class="ph-probe-body"></div>
+            <div class="ph-probe-tip"></div>
+          </div>
+          <div class="ph-meter-hint">Drag onto a filled well</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Drag ghost -->
+<div id="drag-ghost"></div>
+<!-- pH tooltip -->
+<div id="ph-tooltip" id="ph-tooltip"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Data ───────────────────────────────────────────────────────────────────
+
+  const SUBSTANCES = [
+    { id: 'lemon',   name: 'Lemon Juice',   pH: 2.0,  color: '#fef08a', textColor: '#713f12', emoji: '🍋' },
+    { id: 'vinegar', name: 'Vinegar',        pH: 3.0,  color: '#fde68a', textColor: '#713f12', emoji: '🫙' },
+    { id: 'soda',    name: 'Soda Pop',       pH: 3.5,  color: '#fed7aa', textColor: '#7c2d12', emoji: '🥤' },
+    { id: 'oj',      name: 'Orange Juice',   pH: 3.8,  color: '#fb923c', textColor: '#431407', emoji: '🍊' },
+    { id: 'coffee',  name: 'Coffee',         pH: 5.0,  color: '#78350f', textColor: '#fef3c7', emoji: '☕' },
+    { id: 'milk',    name: 'Milk',           pH: 6.5,  color: '#f1f5f9', textColor: '#475569', emoji: '🥛' },
+    { id: 'water',   name: 'Water',          pH: 7.0,  color: '#bae6fd', textColor: '#0c4a6e', emoji: '💧' },
+    { id: 'baking',  name: 'Baking Soda',    pH: 8.5,  color: '#e0f2fe', textColor: '#0369a1', emoji: '🥄' },
+    { id: 'soap',    name: 'Hand Soap',       pH: 9.5,  color: '#ddd6fe', textColor: '#4c1d95', emoji: '🧴' },
+    { id: 'antacid', name: 'Antacid',        pH: 10.5, color: '#e0e7ff', textColor: '#312e81', emoji: '💊' },
+    { id: 'bleach',  name: 'Bleach',         pH: 12.5, color: '#dcfce7', textColor: '#14532d', emoji: '🫧' },
+    { id: 'drain',   name: 'Drain Cleaner',  pH: 13.5, color: '#d1fae5', textColor: '#064e3b', emoji: '⚗️' },
+  ];
+
+  const INDICATORS = [
+    {
+      id: 'RL', name: 'Red Litmus',
+      type: 'paper',
+      desc: 'Paper strip · stays red / turns blue',
+      acidColor: '#ef4444', baseColor: '#3b82f6',
+      getColor(pH) { return pH < 7 ? '#ef4444' : '#3b82f6'; },
+      resultText(pH) { return pH < 7 ? 'Red (acid)' : 'Blue (base)'; },
+    },
+    {
+      id: 'BL', name: 'Blue Litmus',
+      type: 'paper',
+      desc: 'Paper strip · turns red / stays blue',
+      acidColor: '#ef4444', baseColor: '#3b82f6',
+      getColor(pH) { return pH < 7 ? '#ef4444' : '#3b82f6'; },
+      resultText(pH) { return pH < 7 ? 'Red (acid)' : 'Blue (base)'; },
+    },
+    {
+      id: 'UI', name: 'Universal',
+      type: 'paper',
+      desc: 'Paper strip · full pH colour range',
+      acidColor: '#dc2626', baseColor: '#7c3aed',
+      getColor(pH) {
+        if (pH <= 2)  return '#dc2626';
+        if (pH <= 3)  return '#ea580c';
+        if (pH <= 5)  return '#ca8a04';
+        if (pH <= 6)  return '#84cc16';
+        if (pH <= 7.5) return '#16a34a';
+        if (pH <= 9)  return '#0284c7';
+        if (pH <= 11) return '#4f46e5';
+        return '#7c3aed';
+      },
+      resultText(pH) {
+        if (pH <= 2)  return 'Red (strong acid)';
+        if (pH <= 3)  return 'Orange (acid)';
+        if (pH <= 5)  return 'Yellow (weak acid)';
+        if (pH <= 6)  return 'Yellow-green (near neutral)';
+        if (pH <= 7.5) return 'Green (neutral)';
+        if (pH <= 9)  return 'Blue (weak base)';
+        if (pH <= 11) return 'Indigo (base)';
+        return 'Violet (strong base)';
+      },
+    },
+    {
+      id: 'Ph', name: 'Phenolphthalein',
+      type: 'liquid',
+      desc: 'Solution · colourless→pink at pH 8.2',
+      acidColor: 'transparent', baseColor: '#ec4899',
+      getColor(pH) { return pH < 8.2 ? null : '#ec4899'; },
+      resultText(pH) { return pH < 8.2 ? 'Colourless (acid/neutral)' : 'Pink (base)'; },
+    },
+    {
+      id: 'BB', name: 'Bromophenol Blue',
+      type: 'liquid',
+      desc: 'Solution · yellow→purple across pH 3–5',
+      acidColor: '#eab308', baseColor: '#7c3aed',
+      getColor(pH) {
+        if (pH < 3.0) return '#eab308';
+        if (pH < 4.6) return '#84cc16';
+        return '#7c3aed';
+      },
+      resultText(pH) {
+        if (pH < 3.0) return 'Yellow (strong acid)';
+        if (pH < 4.6) return 'Yellow-green (transition)';
+        return 'Blue-purple (base/neutral)';
+      },
+    },
+  ];
+
+  const NUM_WELLS = 12;
+
+  // well state: { substanceId, indicators: [{indicatorId, color}] }
+  const wellState = Array.from({ length: NUM_WELLS }, () => ({ substanceId: null, indicators: [] }));
+
+  // ── DOM references ─────────────────────────────────────────────────────────
+  const substancesPanel = document.getElementById('substances-panel');
+  const indicatorsPanel = document.getElementById('indicators-panel');
+  const spotPlate       = document.getElementById('spot-plate');
+  const clearBtn        = document.getElementById('clear-btn');
+  const dragGhost       = document.getElementById('drag-ghost');
+  const phReadout       = document.getElementById('ph-readout');
+  const phMeterWidget   = document.getElementById('ph-meter-widget');
+  const phTooltip       = document.getElementById('ph-tooltip');
+
+  // ── Build substance items ──────────────────────────────────────────────────
+  SUBSTANCES.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'substance-item';
+    el.dataset.substanceId = s.id;
+    el.innerHTML = `
+      <span class="s-emoji">${s.emoji}</span>
+      <span class="s-info">
+        <span class="s-name">${s.name}</span>
+        <span class="s-ph">pH ${s.pH.toFixed(1)}</span>
+      </span>`;
+    el.addEventListener('mousedown', e => startDrag(e, 'substance', s));
+    substancesPanel.appendChild(el);
+  });
+
+  // ── Build indicator items ──────────────────────────────────────────────────
+  INDICATORS.forEach(ind => {
+    const el = document.createElement('div');
+    el.className = 'indicator-item';
+    el.dataset.indicatorId = ind.id;
+
+    const acidBg = ind.acidColor === 'transparent' ? 'rgba(255,255,255,0.06)' : ind.acidColor;
+    const baseBg = ind.baseColor;
+    const swatchHtml = ind.type === 'paper'
+      ? `<div style="width:10px;height:30px;border-radius:3px 3px 4px 4px;background:linear-gradient(to bottom,${acidBg},${baseBg});border:1px solid rgba(255,255,255,0.2);flex-shrink:0;box-shadow:inset 0 1px 2px rgba(255,255,255,0.25);"></div>`
+      : `<div class="indicator-swatch"><div style="position:absolute;inset:0;background:linear-gradient(135deg,${acidBg} 50%,${baseBg} 50%);border-radius:50%;"></div></div>`;
+
+    el.innerHTML = `
+      ${swatchHtml}
+      <span class="indicator-info">
+        <span class="indicator-name">${ind.name}</span>
+        <span class="indicator-desc">${ind.desc}</span>
+      </span>`;
+    el.addEventListener('mousedown', e => startDrag(e, 'indicator', ind));
+
+    // Insert before the ph-meter-section
+    const meterSection = indicatorsPanel.querySelector('.ph-meter-section');
+    indicatorsPanel.insertBefore(el, meterSection);
+  });
+
+  // ── Build wells ────────────────────────────────────────────────────────────
+  for (let i = 0; i < NUM_WELLS; i++) {
+    const well = document.createElement('div');
+    well.className = 'well';
+    well.dataset.wellIndex = i;
+    well.innerHTML = `
+      <div class="well-strips" data-strips="${i}"></div>
+      <div class="well-name" data-wname="${i}"></div>`;
+    well.addEventListener('dblclick', () => clearWell(i));
+    spotPlate.appendChild(well);
+  }
+
+  // ── Clear all ──────────────────────────────────────────────────────────────
+  clearBtn.addEventListener('click', () => {
+    for (let i = 0; i < NUM_WELLS; i++) clearWell(i);
+  });
+
+  function clearWell(i) {
+    wellState[i].substanceId = null;
+    wellState[i].indicators = [];
+    renderWell(i);
+  }
+
+  // ── Render a well ──────────────────────────────────────────────────────────
+  function renderWell(i) {
+    const well     = spotPlate.children[i];
+    const state    = wellState[i];
+    const nameEl   = well.querySelector('[data-wname]');
+    const stripsEl = well.querySelector('[data-strips]');
+
+    if (!state.substanceId) {
+      well.classList.remove('filled');
+      well.style.background  = '';
+      well.style.borderColor = '';
+      well.style.borderStyle = '';
+      nameEl.textContent = '';
+      nameEl.style.color = '';
+      stripsEl.innerHTML = '';
+      return;
+    }
+
+    const sub = SUBSTANCES.find(s => s.id === state.substanceId);
+    well.classList.add('filled');
+    well.style.borderColor = 'rgba(255,255,255,0.25)';
+    well.style.borderStyle = 'solid';
+
+    // Start with substance colour; liquid indicators blend into it
+    let bgColor = sub.color;
+    const liquidEntries = state.indicators.filter(e =>
+      INDICATORS.find(x => x.id === e.indicatorId).type === 'liquid');
+    for (const entry of liquidEntries) {
+      if (entry.color) bgColor = blendColors(bgColor, entry.color, 0.50);
+    }
+
+    well.style.background  = bgColor;
+    nameEl.textContent     = sub.name;
+    nameEl.style.color     = isLightColor(bgColor) ? sub.textColor : '#f1f5f9';
+
+    // Paper strips
+    stripsEl.innerHTML = '';
+    const paperEntries = state.indicators.filter(e =>
+      INDICATORS.find(x => x.id === e.indicatorId).type === 'paper');
+    for (const entry of paperEntries) {
+      const ind   = INDICATORS.find(x => x.id === entry.indicatorId);
+      const strip = document.createElement('div');
+      strip.className = 'well-strip';
+      strip.style.background = entry.color || '#94a3b8';
+      strip.title = `${ind.id}: ${entry.resultText}`;
+      stripsEl.appendChild(strip);
+    }
+  }
+
+  function parseColor(c) {
+    if (!c || c === 'transparent') return [220, 220, 220];
+    if (c.startsWith('#')) {
+      const h = c.replace('#', '');
+      if (h.length === 6) return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    }
+    const m = c.match(/\d+/g);
+    if (m && m.length >= 3) return [+m[0], +m[1], +m[2]];
+    return [200, 200, 200];
+  }
+
+  function blendColors(c1, c2, t) {
+    const [r1,g1,b1] = parseColor(c1);
+    const [r2,g2,b2] = parseColor(c2);
+    return `rgb(${Math.round(r1*(1-t)+r2*t)},${Math.round(g1*(1-t)+g2*t)},${Math.round(b1*(1-t)+b2*t)})`;
+  }
+
+  function isLightColor(c) {
+    const [r,g,b] = parseColor(c);
+    return (r*0.299 + g*0.587 + b*0.114) > 160;
+  }
+
+  // ── Drag machinery ─────────────────────────────────────────────────────────
+  let dragging = null; // { type, data, startX, startY }
+  let lastHoveredWell = null;
+
+  function startDrag(e, type, data) {
+    e.preventDefault();
+    dragging = { type, data };
+
+    // Build ghost
+    dragGhost.innerHTML = '';
+    if (type === 'substance') {
+      dragGhost.innerHTML = `
+        <div class="ghost-substance">
+          <span>${data.emoji}</span>
+          <span>${data.name}</span>
+        </div>`;
+    } else if (type === 'indicator') {
+      if (data.type === 'paper') {
+        // Show a little strip with acid→base gradient
+        dragGhost.innerHTML = `
+          <div class="ghost-indicator">
+            <div style="width:9px;height:24px;border-radius:3px 3px 4px 4px;background:linear-gradient(to bottom,${data.acidColor === 'transparent' ? '#94a3b8' : data.acidColor},${data.baseColor});border:1px solid rgba(255,255,255,0.3);flex-shrink:0;"></div>
+            <span>${data.name}</span>
+          </div>`;
+      } else {
+        const acidBg = data.acidColor === 'transparent' ? 'rgba(255,255,255,0.1)' : data.acidColor;
+        dragGhost.innerHTML = `
+          <div class="ghost-indicator">
+            <div style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,${acidBg} 50%,${data.baseColor} 50%);border:1px solid rgba(255,255,255,0.3);flex-shrink:0;"></div>
+            <span>${data.name}</span>
+          </div>`;
+      }
+    } else if (type === 'meter') {
+      dragGhost.innerHTML = `<div class="ghost-meter">⚡ pH Meter</div>`;
+    }
+
+    dragGhost.style.left    = e.clientX + 'px';
+    dragGhost.style.top     = e.clientY + 'px';
+    dragGhost.style.display = 'block';
+  }
+
+  phMeterWidget.addEventListener('mousedown', e => {
+    startDrag(e, 'meter', {});
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+
+    dragGhost.style.left = e.clientX + 'px';
+    dragGhost.style.top  = e.clientY + 'px';
+
+    // Highlight well under cursor
+    dragGhost.style.display = 'none';
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    dragGhost.style.display = 'block';
+
+    const wellEl = el ? el.closest('.well') : null;
+
+    if (lastHoveredWell && lastHoveredWell !== wellEl) {
+      lastHoveredWell.classList.remove('drag-over');
+    }
+    if (wellEl) {
+      wellEl.classList.add('drag-over');
+      lastHoveredWell = wellEl;
+
+      // pH meter tooltip
+      if (dragging.type === 'meter') {
+        const wi = parseInt(wellEl.dataset.wellIndex);
+        const ws = wellState[wi];
+        if (ws.substanceId) {
+          const sub = SUBSTANCES.find(s => s.id === ws.substanceId);
+          phTooltip.textContent = `pH ${sub.pH.toFixed(1)}  ${sub.name}`;
+          phTooltip.style.display = 'block';
+          phTooltip.style.left = (e.clientX + 16) + 'px';
+          phTooltip.style.top  = (e.clientY - 10) + 'px';
+        } else {
+          phTooltip.style.display = 'none';
+        }
+      }
+    } else {
+      lastHoveredWell = null;
+      phTooltip.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!dragging) return;
+
+    phTooltip.style.display = 'none';
+    dragGhost.style.display = 'none';
+    if (lastHoveredWell) lastHoveredWell.classList.remove('drag-over');
+
+    // Find well under cursor
+    dragGhost.style.display = 'none';
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+
+    const wellEl = el ? el.closest('.well') : null;
+
+    if (wellEl) {
+      const wi = parseInt(wellEl.dataset.wellIndex);
+      applyToWell(wi, dragging.type, dragging.data);
+    }
+
+    dragging     = null;
+    lastHoveredWell = null;
+  });
+
+  function applyToWell(wi, type, data) {
+    const ws = wellState[wi];
+
+    if (type === 'substance') {
+      ws.substanceId = data.id;
+      ws.indicators  = [];
+      renderWell(wi);
+
+    } else if (type === 'indicator') {
+      if (!ws.substanceId) return; // no substance → ignore
+      const sub   = SUBSTANCES.find(s => s.id === ws.substanceId);
+      const color = data.getColor(sub.pH);
+      const rText = data.resultText(sub.pH);
+      ws.indicators.push({ indicatorId: data.id, color, resultText: rText });
+      renderWell(wi);
+
+    } else if (type === 'meter') {
+      if (!ws.substanceId) return;
+      const sub = SUBSTANCES.find(s => s.id === ws.substanceId);
+      phReadout.textContent = sub.pH.toFixed(1);
+      phReadout.style.color       = '#4ade80';
+      phReadout.style.textShadow  = '0 0 12px rgba(74,222,128,0.8)';
+
+      // Reset after 3 seconds
+      clearTimeout(phReadout._timer);
+      phReadout._timer = setTimeout(() => {
+        phReadout.textContent      = '--.-';
+        phReadout.style.color      = '#4ade80';
+        phReadout.style.textShadow = '0 0 10px rgba(74,222,128,0.6)';
+      }, 3000);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
