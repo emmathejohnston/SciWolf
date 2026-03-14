@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forest Succession — Sci Wolf</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f172a;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #f1f5f9;
+  }
+  canvas { display: block; }
+
+  /* Home button */
+  #home-btn {
+    position: fixed; top: 12px; left: 12px; z-index: 100;
+    width: 36px; height: 36px;
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 9px; display: flex; align-items: center;
+    justify-content: center; text-decoration: none;
+    font-size: 1.1rem; color: #94a3b8;
+    transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  }
+  #home-btn:hover {
+    color: #38bdf8; border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56,189,248,0.25);
+  }
+
+  /* Info card overlay */
+  #info-card {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 14px; padding: 24px 28px;
+    max-width: 340px; width: 90%;
+    z-index: 200; display: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  #info-card.visible { display: block; }
+  #info-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 2px; }
+  #info-latin { font-size: 0.82rem; color: #94a3b8; font-style: italic; margin-bottom: 10px; }
+  #info-desc { font-size: 0.85rem; color: #cbd5e1; line-height: 1.55; margin-bottom: 10px; }
+  #info-edible {
+    font-size: 0.83rem; padding: 8px 12px;
+    border-radius: 8px; line-height: 1.5;
+  }
+  #info-edible.good { background: rgba(34,197,94,0.12); color: #4ade80; }
+  #info-edible.bad  { background: rgba(239,68,68,0.12);  color: #f87171; }
+  #info-harvest {
+    display: none; margin-top: 10px; width: 100%;
+    padding: 9px 0; border-radius: 8px;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  #info-harvest:hover { opacity: 0.8; }
+  #info-harvest.good    { background: rgba(34,197,94,0.15);   border: 1px solid rgba(34,197,94,0.35);   color: #4ade80; }
+  #info-harvest.bad     { background: rgba(239,68,68,0.15);   border: 1px solid rgba(239,68,68,0.35);   color: #f87171; }
+  #info-harvest.neutral { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.35); color: #94a3b8; }
+  #info-cutdown {
+    display: none; margin-top: 6px; width: 100%;
+    padding: 9px 0; border-radius: 8px;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    transition: opacity 0.15s;
+    background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.35); color: #94a3b8;
+  }
+  #info-cutdown:hover { opacity: 0.8; }
+  #info-close-hint {
+    margin-top: 12px; font-size: 0.72rem;
+    color: #475569; text-align: center;
+  }
+</style>
+</head>
+<body>
+<a href="index.html" id="home-btn">⌂</a>
+
+<canvas id="c"></canvas>
+
+<div id="info-card">
+  <div id="info-name"></div>
+  <div id="info-latin"></div>
+  <div id="info-desc"></div>
+  <div id="info-edible"></div>
+  <button id="info-harvest"></button>
+  <button id="info-cutdown"></button>
+  <div id="info-close-hint">click outside to close</div>
+</div>
+
+<script>
+'use strict';
+
+// ── Canvas setup ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+const WORLD_W = 4000;
+
+// Deterministic pseudo-random — stable per plant+element, no flicker
+function prand(seed, idx) {
+  let s = ((seed * 1664525 + idx * 22695477 + 1013904223) | 0) >>> 0;
+  s ^= s >>> 16; s = (Math.imul(s, 0x45d9f3b) | 0) >>> 0; s ^= s >>> 16;
+  return s / 0xFFFFFFFF;
+}
+
+// ── Time ─────────────────────────────────────────────────────────────────────
+let year    = 0;
+let paused  = false;
+const SPEEDS = [0.0625, 1, 4];
+let speedIdx = 0; // starts at ×1 (1 season ≈ 4 s, 1 year ≈ 16 s)
+let speed = SPEEDS[speedIdx];
+
+// ── Camera ───────────────────────────────────────────────────────────────────
+let camX = 0;
+
+// ── Ground ───────────────────────────────────────────────────────────────────
+function groundY(x) {
+  return canvas.height * 0.72
+    + Math.sin(x * 0.0018) * 22
+    + Math.sin(x * 0.0041) * 11
+    + Math.sin(x * 0.00097) * 35;
+}
+
+// ── Species Definitions ──────────────────────────────────────────────────────
+const SPECIES = {};
+
+function defSpecies(id, data) { SPECIES[id] = { id, ...data }; }
+
+// Helper draw functions
+function drawCircle(ctx, x, y, r, color) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+  ctx.fillStyle = color; ctx.fill();
+}
+
+// ── PIONEERS ─────────────────────────────────────────────────────────────────
+
+defSpecies('lichen', {
+  name: 'Crustose Lichen', latin: 'Xanthoria parietina',
+  kingdom: 'fungi+algae', layer: 'ground',
+  era: 'pioneer', coverMin: 0, coverMax: 0.10,
+  maxAge: 80, matureAge: 3, heightPx: 4,
+  spreadPerYear: 1.2, spreadRadius: 60,
+  edible: null,
+  info: "One of the first colonists of bare rock and soil. Lichens are a partnership between fungi and algae, slowly breaking down rock into soil.",
+  draw(ctx, x, gy, t, season, phase) {
+    const s = 6 + t * 14;
+    const colors = ['#c9a227','#9ab05a','#7d9b45','#d4b03a'];
+    for (let i = 0; i < 5; i++) {
+      const ox = Math.sin(i * 2.1) * s * 0.8;
+      const oy = Math.cos(i * 1.7) * s * 0.3;
+      const r  = (3 + Math.sin(i) * 2) * t;
+      ctx.beginPath();
+      ctx.ellipse(x + ox, gy + oy, r * 1.6, r * 0.9, i * 0.5, 0, Math.PI*2);
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+});
+
+defSpecies('moss', {
+  name: 'Cushion Moss', latin: 'Polytrichum commune',
+  kingdom: 'plant', layer: 'ground',
+  era: 'pioneer', coverMin: 0, coverMax: 0.15,
+  maxAge: 40, matureAge: 2, heightPx: 8,
+  spreadPerYear: 1.0, spreadRadius: 50,
+  edible: null,
+  info: "Mosses hold moisture and create the first thin organic layer — the very beginning of soil. Hundreds of invertebrates shelter here.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const w = (8 + t * 18);
+    const h = (3 + t * 8);
+    const green = season === 3 ? '#4a6741' : '#4a7c3f';
+    ctx.beginPath();
+    ctx.ellipse(x, gy - h * 0.5, w, h, 0, Math.PI, Math.PI*2);
+    ctx.fillStyle = green; ctx.fill();
+    // bristle textures
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * w/4, gy - h * 0.5);
+      ctx.lineTo(x + i * w/4 + (prand(id, i+3)-0.5)*2, gy - h - 3 * t);
+      ctx.strokeStyle = '#3d6b35'; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+  }
+});
+
+defSpecies('dandelion', {
+  name: 'Dandelion', latin: 'Taraxacum officinale',
+  kingdom: 'plant', layer: 'ground',
+  era: 'pioneer', coverMin: 0, coverMax: 0.25,
+  maxAge: 5, matureAge: 1, heightPx: 22,
+  spreadPerYear: 2.0, spreadRadius: 120,
+  edible: { part: 'leaves & flowers', restore: 0.08, poisonous: false, flavor: 'Bitter, nutritious. The flowers taste faintly of honey.' },
+  info: "An opportunist and a healer. Dandelions mine deep minerals with long taproots, and their pollen is one of the first insect foods of spring.",
+  draw(ctx, x, gy, t, season, phase) {
+    // Rosette
+    const lw = 10 * t;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(x, gy);
+      ctx.quadraticCurveTo(
+        x + Math.cos(a) * lw * 0.6, gy + Math.sin(a) * lw * 0.4 - 4,
+        x + Math.cos(a) * lw,       gy + Math.sin(a) * lw * 0.5 - 2
+      );
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#5a8f3c'; ctx.stroke();
+    }
+    if (t > 0.5) {
+      const sh = 18 * t;
+      // stem
+      ctx.beginPath(); ctx.moveTo(x, gy - 4); ctx.lineTo(x, gy - sh);
+      ctx.strokeStyle = '#6aaf3a'; ctx.lineWidth = 1.2; ctx.stroke();
+      if (season === 2) {
+        // seed clock — white puffball
+        drawCircle(ctx, x, gy - sh, 7 * t, 'rgba(255,255,255,0.8)');
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(a) * 4, gy - sh + Math.sin(a) * 4);
+          ctx.lineTo(x + Math.cos(a) * 9, gy - sh + Math.sin(a) * 9);
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
+        }
+      } else if (season === 0 || season === 1) {
+        // yellow flower
+        for (let i = 0; i < 14; i++) {
+          const a = (i / 14) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.ellipse(x + Math.cos(a)*5*t, gy-sh+Math.sin(a)*5*t, 2.5*t, 1.5*t, a, 0, Math.PI*2);
+          ctx.fillStyle = '#f5d433'; ctx.fill();
+        }
+        drawCircle(ctx, x, gy - sh, 3 * t, '#e8a020');
+      }
+    }
+  }
+});
+
+defSpecies('fireweed', {
+  name: 'Rosebay Willowherb', latin: 'Chamerion angustifolium',
+  kingdom: 'plant', layer: 'ground',
+  era: 'pioneer', coverMin: 0, coverMax: 0.20,
+  maxAge: 6, matureAge: 2, heightPx: 80,
+  spreadPerYear: 1.5, spreadRadius: 100,
+  edible: { part: 'young shoots', restore: 0.10, poisonous: false, flavor: 'Mildly sweet, slightly mucilaginous. Good raw in spring.' },
+  info: "The pioneer of burnt and disturbed ground. Fireweed can colonise a fresh clearing within weeks, its seeds carried miles on the wind.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 70 * t;
+    // main stem
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
+    ctx.strokeStyle = '#6b8f4a'; ctx.lineWidth = 1.8; ctx.stroke();
+    // leaves
+    for (let i = 2; i < 8; i++) {
+      const ly = gy - (h * i / 9);
+      const side = i % 2 === 0 ? 1 : -1;
+      ctx.beginPath();
+      ctx.moveTo(x, ly);
+      ctx.quadraticCurveTo(x + side*14*t, ly - 3, x + side*20*t, ly + 2);
+      ctx.strokeStyle = '#5a8040'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+    if (t > 0.6) {
+      if (season === 2) {
+        // fluffy seed tufts
+        for (let i = 0; i < 6; i++) {
+          const ty = gy - h + i * 7 * t;
+          drawCircle(ctx, x + (prand(id, i)-0.5)*4, ty, 3.5, 'rgba(255,255,255,0.75)');
+        }
+      } else if (season === 1 || season === 0) {
+        // magenta flowers
+        for (let i = 0; i < 7; i++) {
+          const fy = gy - h + i * 8 * t;
+          for (let p = 0; p < 4; p++) {
+            const pa = (p/4)*Math.PI*2;
+            ctx.beginPath();
+            ctx.ellipse(x+Math.cos(pa)*5, fy+Math.sin(pa)*4, 3.5, 2.5, pa, 0, Math.PI*2);
+            ctx.fillStyle = '#c2387a'; ctx.fill();
+          }
+        }
+      }
+    }
+  }
+});
+
+// ── EARLY SUCCESSION ──────────────────────────────────────────────────────────
+
+defSpecies('grass', {
+  name: 'Bunchgrass', latin: 'Deschampsia cespitosa',
+  kingdom: 'plant', layer: 'ground',
+  era: 'early', coverMin: 0, coverMax: 0.35,
+  maxAge: 15, matureAge: 3, heightPx: 35,
+  spreadPerYear: 0.8, spreadRadius: 80,
+  edible: { part: 'seeds', restore: 0.05, poisonous: false, flavor: 'Starchy, like a thin oat.' },
+  info: "Grasses stabilise soil with dense fibrous roots. A single tussock may host dozens of invertebrate species.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 30 * t;
+    const col = season === 3 ? '#8a9e6a' : '#7ab648';
+    const blades = 9;
+    for (let i = 0; i < blades; i++) {
+      const ox = (i - blades/2) * 4;
+      const sway = Math.sin(Date.now()*0.001 + i * 0.9) * 3;
+      ctx.beginPath();
+      ctx.moveTo(x + ox, gy);
+      ctx.quadraticCurveTo(x + ox + sway, gy - h*0.6, x + ox + sway*2, gy - h);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.3; ctx.stroke();
+    }
+    // seed heads in summer
+    if ((season === 1 || season === 2) && t > 0.6) {
+      for (let i = -2; i <= 2; i++) {
+        const ox = i * 4;
+        const sway = Math.sin(Date.now()*0.001 + i) * 3;
+        ctx.beginPath();
+        ctx.moveTo(x+ox+sway*2, gy-h);
+        ctx.lineTo(x+ox+sway*2, gy-h-6);
+        ctx.strokeStyle = '#c8b870'; ctx.lineWidth = 0.8; ctx.stroke();
+      }
+    }
+  }
+});
+
+defSpecies('yarrow', {
+  name: 'Yarrow', latin: 'Achillea millefolium',
+  kingdom: 'plant', layer: 'ground',
+  era: 'early', coverMin: 0, coverMax: 0.35,
+  maxAge: 8, matureAge: 2, heightPx: 45,
+  spreadPerYear: 0.7, spreadRadius: 70,
+  edible: { part: 'leaves', restore: 0.07, poisonous: false, flavor: 'Intensely aromatic, bitter. Used to staunch wounds for millennia.' },
+  info: "A medicine chest in a plant. Yarrow attracts over 70 species of insect and accumulates potassium, enriching the soil when it dies.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 40 * t;
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
+    ctx.strokeStyle = '#7a9e6a'; ctx.lineWidth = 1.5; ctx.stroke();
+    // feathery leaves
+    for (let i = 2; i < 6; i++) {
+      const ly = gy - h * i / 7;
+      for (let side = -1; side <= 1; side += 2) {
+        for (let j = 0; j < 4; j++) {
+          ctx.beginPath();
+          ctx.moveTo(x + side*2, ly);
+          ctx.lineTo(x + side*(6+j*3)*t, ly - j*2);
+          ctx.strokeStyle = '#8aae5a'; ctx.lineWidth = 0.7; ctx.stroke();
+        }
+      }
+    }
+    // flat-topped white flower
+    if (t > 0.7 && (season === 1 || season === 0)) {
+      const fw = 14 * t;
+      for (let i = 0; i < 20; i++) {
+        const fx = x + (prand(id, i)-0.5)*fw;
+        const fy = gy - h + (prand(id, i+100)-0.5)*4;
+        drawCircle(ctx, fx, fy, 1.2, '#f0f0e8');
+      }
+      ctx.beginPath();
+      ctx.ellipse(x, gy-h, fw, 3, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(230,230,210,0.3)'; ctx.fill();
+    }
+  }
+});
+
+defSpecies('blackberry', {
+  name: 'Blackberry', latin: 'Rubus fruticosus',
+  kingdom: 'plant', layer: 'shrub',
+  era: 'early', coverMin: 0, coverMax: 0.55,
+  maxAge: 20, matureAge: 5, heightPx: 90,
+  spreadPerYear: 0.6, spreadRadius: 90,
+  edible: { part: 'berries', restore: 0.22, poisonous: false, flavor: 'Sweet-tart, deeply satisfying. One of the great free foods.' },
+  info: "Blackberry is simultaneously nurse, armour, and larder. Its dense thicket shelters tree seedlings from deer, while feeding birds who spread those seedlings' seeds.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 75 * t;
+    // arching canes
+    for (let c = -1; c <= 1; c++) {
+      ctx.beginPath();
+      ctx.moveTo(x + c*8, gy);
+      ctx.bezierCurveTo(
+        x + c*25, gy - h*0.4,
+        x + c*10, gy - h*0.8,
+        x + c*20, gy - h
+      );
+      ctx.strokeStyle = '#5a3e2b'; ctx.lineWidth = 2.5; ctx.stroke();
+      // leaves
+      for (let i = 0; i < 5; i++) {
+        const p = i / 5;
+        const lx = x + c*(8+(p*12));
+        const ly = gy - h * (p*0.9 + 0.05);
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, 8*t, 5*t, c*0.4, 0, Math.PI*2);
+        ctx.fillStyle = season === 3 ? '#4a6020' : '#6a9030'; ctx.fill();
+      }
+    }
+    // berries/flowers
+    if (t > 0.6) {
+      if (season === 1) {
+        // white flowers
+        for (let i = 0; i < 6; i++) {
+          const bx = x + (prand(id, i)-0.5)*30*t;
+          const by = gy - h*0.7 - prand(id, i+10)*h*0.2;
+          for (let p = 0; p < 5; p++) {
+            const pa = (p/5)*Math.PI*2;
+            ctx.beginPath(); ctx.arc(bx+Math.cos(pa)*4,by+Math.sin(pa)*4,2.5,0,Math.PI*2);
+            ctx.fillStyle='#f0f0f0'; ctx.fill();
+          }
+        }
+      } else if (season === 2) {
+        for (let i = 0; i < 10; i++) {
+          const bx = x + (prand(id, i+20)-0.5)*28*t;
+          const by = gy - h*0.5 - prand(id, i+30)*h*0.3;
+          drawCircle(ctx, bx, by, 4.5, '#1a0a2e');
+          drawCircle(ctx, bx-1, by-1, 1.5, 'rgba(100,60,160,0.5)');
+        }
+      }
+    }
+  }
+});
+
+defSpecies('birch', {
+  name: 'Silver Birch', latin: 'Betula pendula',
+  kingdom: 'plant', layer: 'canopy',
+  era: 'early', coverMin: 0, coverMax: 0.45,
+  maxAge: 80, matureAge: 14, heightPx: 220,
+  spreadPerYear: 0.3, spreadRadius: 150,
+  edible: { part: 'sap (spring)', restore: 0.15, poisonous: false, flavor: 'Faintly sweet, watery. Drink it straight from the tree in early spring.' },
+  info: "The birch is a pioneer tree — fast-growing, light-hungry, short-lived. Its roots partner with fungi and its canopy shelters the next generation of trees that will eventually replace it.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 210 * t;
+    const tw = 5 + t * 4;
+    // trunk
+    ctx.beginPath(); ctx.moveTo(x - tw/2, gy); ctx.lineTo(x - tw/2, gy - h);
+    ctx.lineTo(x + tw/2, gy - h); ctx.lineTo(x + tw/2, gy);
+    ctx.fillStyle = '#dde8d0'; ctx.fill();
+    // bark markings
+    for (let i = 0; i < 8; i++) {
+      const by = gy - h * (0.1 + i * 0.1);
+      ctx.beginPath();
+      ctx.rect(x - tw/2, by, tw, 2);
+      ctx.fillStyle = 'rgba(40,30,20,0.4)'; ctx.fill();
+    }
+    if (t < 0.15) return; // just a twig
+    // branches and foliage
+    const leafCol = season === 0 ? '#c8e860' : season === 1 ? '#6aae40' : season === 2 ? '#d4a820' : null;
+    const branchCols = ['#5a4030','#6a5040'];
+    for (let b = 0; b < 6; b++) {
+      const bh = gy - h * (0.35 + b * 0.1);
+      const side = b % 2 === 0 ? 1 : -1;
+      const blen = (30 + b*8) * t;
+      // pendulous branch
+      ctx.beginPath();
+      ctx.moveTo(x, bh);
+      ctx.quadraticCurveTo(x + side * blen * 0.6, bh - 8, x + side * blen, bh + 15);
+      ctx.strokeStyle = branchCols[b%2]; ctx.lineWidth = 1.5; ctx.stroke();
+      // foliage clouds
+      if (leafCol && season !== 3) {
+        for (let c = 0; c < 4; c++) {
+          const cx2 = x + side*(blen*0.4 + c*blen*0.15);
+          const cy2 = bh + c*5 - 5;
+          ctx.beginPath(); ctx.arc(cx2, cy2, 15*t, 0, Math.PI*2);
+          ctx.fillStyle = leafCol; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+        }
+      }
+    }
+    // crown
+    if (season !== 3 && leafCol && t > 0.3) {
+      ctx.beginPath();
+      ctx.arc(x, gy - h * 0.85, 34*t, 0, Math.PI*2);
+      ctx.fillStyle = leafCol; ctx.globalAlpha = 0.8; ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+});
+
+defSpecies('rowan', {
+  name: 'Rowan', latin: 'Sorbus aucuparia',
+  kingdom: 'plant', layer: 'canopy',
+  era: 'early', coverMin: 0, coverMax: 0.75,
+  maxAge: 80, matureAge: 10, heightPx: 140,
+  spreadPerYear: 0.25, spreadRadius: 120,
+  edible: { part: 'berries (cooked)', restore: 0.12, poisonous: false, flavor: 'Astringent raw, but rich and complex when cooked. High in vitamin C.' },
+  info: "The rowan is a tree of edges — found at forest margins and high altitudes where little else grows. Its berries are one of the most important foods for birds entering the hungry winter months.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 130 * t;
+    const tw = 4 + t*3;
+    // trunk
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle = '#7a6050'; ctx.lineWidth = tw; ctx.stroke();
+    if (t < 0.2) return;
+    const leafCol = season === 0 ? '#b8e040' : season === 1 ? '#5a9830' : season === 2 ? '#d08020' : null;
+    // pinnate leaf clusters
+    for (let b = 0; b < 5; b++) {
+      const bh = gy - h*(0.4 + b*0.12);
+      const side = b%2===0?1:-1;
+      const blen = 20 + b*8;
+      ctx.beginPath(); ctx.moveTo(x,bh); ctx.lineTo(x+side*blen*t,bh-8);
+      ctx.strokeStyle='#6a5040'; ctx.lineWidth=1.8; ctx.stroke();
+      if (leafCol && season!==3) {
+        for (let li = 0; li < 5; li++) {
+          const lx = x + side*(blen*li/6)*t;
+          const ly = bh - 8*(li/5);
+          ctx.beginPath(); ctx.ellipse(lx,ly,6*t,3.5*t,side*0.3,0,Math.PI*2);
+          ctx.fillStyle=leafCol; ctx.fill();
+        }
+      }
+    }
+    // berries in late summer/autumn
+    if ((season===1||season===2) && t>0.5) {
+      for (let i=0;i<12;i++) {
+        const bx=x+(prand(id,i)-0.5)*40*t;
+        const by=gy-h*0.6-prand(id,i+50)*h*0.3;
+        drawCircle(ctx,bx,by,3.5,'#e84020');
+      }
+    }
+    // spring white flowers
+    if (season===0 && t>0.5) {
+      for (let i=0;i<8;i++) {
+        const fx=x+(prand(id,i+60)-0.5)*35*t;
+        const fy=gy-h*0.5-prand(id,i+70)*h*0.4;
+        ctx.beginPath(); ctx.arc(fx,fy,4*t,0,Math.PI*2);
+        ctx.fillStyle='rgba(250,248,240,0.9)'; ctx.fill();
+      }
+    }
+  }
+});
+
+// ── MID SUCCESSION ────────────────────────────────────────────────────────────
+
+defSpecies('hazel', {
+  name: 'Hazel', latin: 'Corylus avellana',
+  kingdom: 'plant', layer: 'shrub',
+  era: 'mid', coverMin: 0.10, coverMax: 0.85,
+  maxAge: 80, matureAge: 12, heightPx: 120,
+  spreadPerYear: 0.3, spreadRadius: 100,
+  edible: { part: 'nuts', restore: 0.30, poisonous: false, flavor: 'Rich, creamy. One of the most calorie-dense wild foods. Worth the search.' },
+  info: "Hazel has fed humans and animals for thousands of years. It supports over 70 species of insect. Coppiced hazel grows back vigorously and was the structural material of ancient buildings.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 110 * t;
+    const stems = 5;
+    const leafCol = season===0?'#b0d840': season===1?'#50902a': season===2?'#c07018': null;
+    for (let s=0;s<stems;s++) {
+      const ox = (s-2)*10*t;
+      const lean = (s-2)*8;
+      ctx.beginPath(); ctx.moveTo(x+ox,gy); ctx.quadraticCurveTo(x+ox+lean*0.5,gy-h*0.6,x+ox+lean,gy-h);
+      ctx.strokeStyle='#7a6040'; ctx.lineWidth=3+t*2; ctx.stroke();
+      if (season!==3 && leafCol && t>0.2) {
+        // round leaves
+        for (let l=3;l<8;l++) {
+          const p=l/9;
+          const lx=x+ox+lean*p*0.8;
+          const ly=gy-h*p;
+          ctx.beginPath(); ctx.arc(lx,ly,8*t,0,Math.PI*2);
+          ctx.fillStyle=leafCol; ctx.globalAlpha=0.8; ctx.fill(); ctx.globalAlpha=1;
+        }
+      }
+    }
+    // catkins in spring
+    if (season===0 && t>0.3) {
+      for (let i=0;i<4;i++) {
+        const cx=x+(i-1.5)*15*t;
+        const cy=gy-h*0.6;
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy+20*t);
+        ctx.strokeStyle='#c8b830'; ctx.lineWidth=3; ctx.stroke();
+      }
+    }
+    // hazelnuts in autumn
+    if (season===2 && t>0.5) {
+      for (let i=0;i<6;i++) {
+        const nx=x+(prand(id,i+80)-0.5)*50*t;
+        const ny=gy-h*0.4-prand(id,i+90)*h*0.3;
+        drawCircle(ctx,nx,ny,5,'#8b6030');
+        ctx.beginPath(); ctx.arc(nx,ny,5,0,Math.PI*2);
+        ctx.strokeStyle='#5a4020'; ctx.lineWidth=1; ctx.stroke();
+      }
+    }
+  }
+});
+
+defSpecies('hawthorn', {
+  name: 'Hawthorn', latin: 'Crataegus monogyna',
+  kingdom: 'plant', layer: 'shrub',
+  era: 'mid', coverMin: 0.05, coverMax: 1.0,
+  maxAge: 400, matureAge: 25, heightPx: 110,
+  spreadPerYear: 0.2, spreadRadius: 80,
+  edible: { part: 'haws & young leaves', restore: 0.15, poisonous: false, flavor: 'Haws are mealy and slightly sweet. Young leaves are mild and pleasant.' },
+  info: "One of Britain's oldest native trees, hawthorn can live for centuries. Its dense thorny growth is impenetrable to livestock but irresistible to nesting birds.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 100*t;
+    const tw = 6+t*5;
+    // gnarled trunk
+    ctx.beginPath();
+    ctx.moveTo(x-tw/2,gy);
+    ctx.quadraticCurveTo(x+5,gy-h*0.4,x-tw/2,gy-h);
+    ctx.lineWidth=tw; ctx.strokeStyle='#5a4030'; ctx.stroke();
+    if (t<0.15) return;
+    const leafCol = season===0?'#60b030': season===1?'#3a7820': season===2?'#8a5015': null;
+    // dense gnarly crown
+    for (let b=0;b<8;b++) {
+      const a = (b/8)*Math.PI*1.8 - 0.9;
+      const br = (25+b*4)*t;
+      const bx = x+Math.cos(a)*br;
+      const by = gy-h*0.5+Math.sin(a)*br*0.4;
+      if (season!==3 && leafCol) {
+        ctx.beginPath(); ctx.arc(bx,by,12*t,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+      } else {
+        ctx.beginPath(); ctx.moveTo(x,gy-h*0.5);
+        ctx.lineTo(bx,by);
+        ctx.strokeStyle='#5a3a20'; ctx.lineWidth=2; ctx.stroke();
+      }
+    }
+    // may blossom in spring
+    if (season===0 && t>0.4) {
+      for (let i=0;i<15;i++) {
+        const a=(i/15)*Math.PI*2;
+        const br=(15+prand(id,i)*20)*t;
+        const fx=x+Math.cos(a)*br;
+        const fy=gy-h*0.5+Math.sin(a)*br*0.5-10;
+        drawCircle(ctx,fx,fy,3,'rgba(255,248,240,0.95)');
+      }
+    }
+    // haws in autumn
+    if (season===2 && t>0.4) {
+      for (let i=0;i<12;i++) {
+        const a=(i/12)*Math.PI*2;
+        const br=(10+prand(id,i+15)*20)*t;
+        const fx=x+Math.cos(a)*br;
+        const fy=gy-h*0.45+Math.sin(a)*br*0.5;
+        drawCircle(ctx,fx,fy,4,'#cc2010');
+      }
+    }
+  }
+});
+
+defSpecies('fern', {
+  name: 'Bracken', latin: 'Pteridium aquilinum',
+  kingdom: 'plant', layer: 'ground',
+  era: 'mid', coverMin: 0.05, coverMax: 0.80,
+  maxAge: 30, matureAge: 3, heightPx: 70,
+  spreadPerYear: 0.7, spreadRadius: 90,
+  edible: { part: 'fiddleheads (caution)', restore: 0.06, poisonous: true, flavor: 'Actually mildly toxic. Eat only a little — it has been eaten as a famine food.' },
+  info: "Bracken is ancient — its family predates the dinosaurs by 200 million years. It covers vast areas of upland Britain, sheltering deer and small mammals.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 60*t;
+    if (season===3) {
+      // flattened winter form
+      ctx.beginPath(); ctx.ellipse(x,gy,15*t,4*t,0,0,Math.PI*2);
+      ctx.fillStyle='#5a4020'; ctx.fill(); return;
+    }
+    const col = season===2?'#8a6020': season===0?'#70c040':'#4a8c20';
+    for (let side=-1;side<=1;side+=2) {
+      ctx.beginPath();
+      ctx.moveTo(x,gy);
+      ctx.quadraticCurveTo(x+side*20*t,gy-h*0.6,x+side*30*t,gy-h);
+      ctx.strokeStyle='#5a7030'; ctx.lineWidth=2; ctx.stroke();
+      // pinnae (leaflets)
+      for (let i=2;i<10;i++) {
+        const p=i/11;
+        const fx=x+side*(20*t*p*0.9);
+        const fy=gy-h*p;
+        const fw=(12-i)*t*0.9;
+        ctx.beginPath();
+        ctx.moveTo(fx,fy);
+        ctx.lineTo(fx+side*fw*0.8,fy-fw*0.3);
+        ctx.lineTo(fx+side*fw,fy+fw*0.2);
+        ctx.fillStyle=col; ctx.fill();
+      }
+    }
+    // spring fiddleheads — uncurling
+    if (season===0 && t<0.5) {
+      ctx.beginPath();
+      ctx.arc(x,gy-15*t,8*t,0,Math.PI*2);
+      ctx.strokeStyle='#80c040'; ctx.lineWidth=2; ctx.stroke();
+    }
+  }
+});
+
+defSpecies('foxglove', {
+  name: 'Foxglove', latin: 'Digitalis purpurea',
+  kingdom: 'plant', layer: 'ground',
+  era: 'mid', coverMin: 0.05, coverMax: 0.45,
+  maxAge: 2, matureAge: 2, heightPx: 130,
+  spreadPerYear: 1.2, spreadRadius: 80,
+  edible: { part: 'DO NOT EAT', restore: -0.3, poisonous: true, flavor: 'Toxic. The source of the heart drug digitalis. Beautiful but deadly.' },
+  info: "The foxglove contains cardiac glycosides that can stop a human heart — yet the same compounds, refined, have saved millions of lives as the drug digoxin.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 120*t;
+    // basal rosette
+    for (let i=0;i<7;i++) {
+      const a=(i/7)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(x,gy);
+      ctx.quadraticCurveTo(x+Math.cos(a)*18*t,gy+Math.sin(a)*8-4,x+Math.cos(a)*28*t,gy+Math.sin(a)*12*t-3);
+      ctx.strokeStyle='#708040'; ctx.lineWidth=2; ctx.stroke();
+    }
+    // spike
+    ctx.beginPath(); ctx.moveTo(x,gy-5); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#608030'; ctx.lineWidth=2.5; ctx.stroke();
+    // bells
+    if (t>0.5 && season!==3) {
+      for (let i=0;i<10;i++) {
+        const bh=gy-h*0.3-i*h*0.06;
+        const side=Math.sin(i)*3;
+        ctx.beginPath();
+        ctx.moveTo(x+side,bh);
+        ctx.bezierCurveTo(x+side+12,bh,x+side+12,bh+14,x+side,bh+16);
+        ctx.bezierCurveTo(x+side-4,bh+16,x+side-4,bh+8,x+side,bh);
+        ctx.fillStyle=`hsl(${300+i*4},60%,55%)`; ctx.fill();
+        // spots
+        for (let s=0;s<3;s++) {
+          drawCircle(ctx,x+side+4+s*2,bh+9,1,'rgba(255,255,255,0.4)');
+        }
+      }
+    }
+  }
+});
+
+defSpecies('ash', {
+  name: 'Ash', latin: 'Fraxinus excelsior',
+  kingdom: 'plant', layer: 'canopy',
+  era: 'mid', coverMin: 0, coverMax: 1.0,
+  maxAge: 200, matureAge: 20, heightPx: 260,
+  spreadPerYear: 0.2, spreadRadius: 130,
+  edible: { part: 'keys (pickled)', restore: 0.08, poisonous: false, flavor: 'Bitter raw, but pickled ash keys are sharp and caperlike.' },
+  info: "Ash was once the most common woodland tree in Britain. Now threatened by ash dieback disease, mature ash trees are becoming rare — each surviving one a small miracle.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 255*t;
+    const tw = 8+t*8;
+    // straight trunk
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#7a7060'; ctx.lineWidth=tw; ctx.stroke();
+    if (t<0.15) return;
+    const leafCol = season===1?'#508030': season===2?'#a06010': null; // ash leaves come late
+    for (let b=0;b<7;b++) {
+      const by=gy-h*(0.4+b*0.08);
+      const side=b%2===0?1:-1;
+      const blen=(30+b*12)*t;
+      ctx.beginPath(); ctx.moveTo(x,by); ctx.lineTo(x+side*blen,by-b*3);
+      ctx.strokeStyle='#7a6050'; ctx.lineWidth=2.5; ctx.stroke();
+      // pinnate compound leaves
+      if (leafCol && season!==3 && season!==0) {
+        for (let l=0;l<6;l++) {
+          const lx=x+side*(blen*l/7);
+          const ly=by-b*3*(l/6);
+          ctx.beginPath(); ctx.ellipse(lx,ly,7*t,4*t,side*0.2,0,Math.PI*2);
+          ctx.fillStyle=leafCol; ctx.fill();
+        }
+      }
+      // black buds in winter
+      if (season===3 || season===0) {
+        drawCircle(ctx,x+side*blen,by-b*3,3.5,'#1a1a1a');
+      }
+    }
+    // ash keys in autumn
+    if (season===2 && t>0.4) {
+      for (let i=0;i<10;i++) {
+        const kx=x+(prand(id,i)-0.5)*h*0.3*t;
+        const ky=gy-h*0.4-prand(id,i+10)*h*0.3;
+        ctx.beginPath(); ctx.moveTo(kx,ky); ctx.lineTo(kx+5,ky+20);
+        ctx.strokeStyle='#a08040'; ctx.lineWidth=1.5; ctx.stroke();
+      }
+    }
+  }
+});
+
+// ── LATE SUCCESSION ───────────────────────────────────────────────────────────
+
+defSpecies('oak', {
+  name: 'Pedunculate Oak', latin: 'Quercus robur',
+  kingdom: 'plant', layer: 'canopy',
+  era: 'late', coverMin: 0, coverMax: 1.0,
+  maxAge: 1000, matureAge: 35, heightPx: 310,
+  spreadPerYear: 0.15, spreadRadius: 180,
+  edible: { part: 'acorns (processed)', restore: 0.20, poisonous: false, flavor: 'Bitter raw from tannins. Leached or roasted, they become nutty and rich — a staple food for thousands of years.' },
+  info: "A single mature oak supports over 2,300 species of insect, lichen, bird, and mammal — more than any other native tree. An oak forest is not a collection of trees. It is a nation.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 300*t;
+    const tw = 14+t*18;
+    // massive trunk
+    ctx.beginPath();
+    ctx.moveTo(x-tw/2,gy);
+    ctx.quadraticCurveTo(x-tw/4,gy-h*0.4,x-tw/3,gy-h*0.6);
+    ctx.quadraticCurveTo(x+tw/4,gy-h*0.5,x+tw/2,gy);
+    ctx.fillStyle='#6a5040'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x-tw/3,gy-h*0.55); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#6a5040'; ctx.lineWidth=tw*0.5; ctx.stroke();
+    if (t<0.05) return;
+    const leafCol = season===0?'#a0d040': season===1?'#3a7020': season===2?'#c07820': null;
+    // spreading crown
+    const crownR = 88*t;
+    const crownY = gy - h*0.8;
+    if (season!==3 && leafCol) {
+      // multiple overlapping blobs
+      for (let b=0;b<12;b++) {
+        const a=(b/12)*Math.PI*2;
+        const r=crownR*(0.5+prand(id,b)*0.6);
+        const cx2=x+Math.cos(a)*crownR*0.7;
+        const cy2=crownY+Math.sin(a)*crownR*0.4;
+        ctx.beginPath(); ctx.arc(cx2,cy2,r*0.7,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
+      }
+      ctx.beginPath(); ctx.arc(x,crownY,crownR*0.8,0,Math.PI*2);
+      ctx.fillStyle=leafCol; ctx.globalAlpha=0.7; ctx.fill(); ctx.globalAlpha=1;
+    } else if (season===3) {
+      // bare crown - sinuous branches
+      for (let b=0;b<10;b++) {
+        const a = (b/10)*Math.PI*2;
+        const br = crownR*(0.3+prand(id,b)*0.7);
+        ctx.beginPath();
+        ctx.moveTo(x,crownY+crownR*0.2);
+        ctx.quadraticCurveTo(x+Math.cos(a)*br*0.5,crownY+Math.sin(a)*br*0.3,x+Math.cos(a)*br,crownY+Math.sin(a)*br*0.6);
+        ctx.strokeStyle='#5a4030'; ctx.lineWidth=2; ctx.stroke();
+      }
+    }
+    // acorns in late summer/autumn
+    if ((season===1||season===2) && t>0.4) {
+      for (let i=0;i<8;i++) {
+        const a=(i/8)*Math.PI*2;
+        const ax=x+Math.cos(a)*crownR*0.5;
+        const ay=crownY+Math.sin(a)*crownR*0.25;
+        drawCircle(ctx,ax,ay,5,'#a07030');
+        drawCircle(ctx,ax,ay-5,4,'#6a5020');
+      }
+    }
+  }
+});
+
+defSpecies('bluebell', {
+  name: 'Bluebell', latin: 'Hyacinthoides non-scripta',
+  kingdom: 'plant', layer: 'ground',
+  era: 'late', coverMin: 0.25, coverMax: 0.90,
+  maxAge: 50, matureAge: 5, heightPx: 30,
+  spreadPerYear: 0.8, spreadRadius: 60,
+  edible: null,
+  info: "Half the world's bluebells grow in Britain. They appear only in spring, before the leaf canopy closes and shuts out the light — living on stored energy for the rest of the year.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season !== 0) return; // spring only
+    const h = 25*t;
+    for (let s=0;s<3;s++) {
+      const ox=(s-1)*8;
+      // arching stem
+      ctx.beginPath();
+      ctx.moveTo(x+ox,gy);
+      ctx.quadraticCurveTo(x+ox+4,gy-h*0.7,x+ox,gy-h);
+      ctx.strokeStyle='#5a8a30'; ctx.lineWidth=1.5; ctx.stroke();
+      // drooping bells
+      for (let b=0;b<3;b++) {
+        const bx=x+ox+Math.sin(b*1.5)*5;
+        const by=gy-h*(0.5+b*0.15);
+        ctx.beginPath();
+        ctx.moveTo(bx,by);
+        ctx.bezierCurveTo(bx+6,by,bx+6,by+10,bx,by+12);
+        ctx.bezierCurveTo(bx-4,by+12,bx-4,by+4,bx,by);
+        ctx.fillStyle=`hsl(${240+b*10},65%,55%)`; ctx.fill();
+      }
+    }
+  }
+});
+
+defSpecies('wild_garlic', {
+  name: 'Wild Garlic', latin: 'Allium ursinum',
+  kingdom: 'plant', layer: 'ground',
+  era: 'late', coverMin: 0.25, coverMax: 0.90,
+  maxAge: 30, matureAge: 3, heightPx: 35,
+  spreadPerYear: 1.0, spreadRadius: 60,
+  edible: { part: 'leaves & flowers', restore: 0.18, poisonous: false, flavor: 'Intensely garlicky but not harsh. One of the great spring flavours.' },
+  info: "Wild garlic — or 'ramsons' — carpets ancient woodland floors in spring. Its scent is extraordinary. Bears seek it out after winter to cleanse their digestion.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season!==0 && season!==1) return; // spring/early summer only
+    const h = 30*t;
+    // broad elliptical leaves
+    for (let i=0;i<4;i++) {
+      const a=(i/4)*Math.PI*2;
+      ctx.beginPath();
+      ctx.ellipse(x+Math.cos(a)*8*t,gy-h*0.3+Math.sin(a)*4,10*t,5*t,a,0,Math.PI*2);
+      ctx.fillStyle='#60a030'; ctx.fill();
+    }
+    // white star flowers in spring
+    if (season===0 && t>0.5) {
+      for (let s=0;s<3;s++) {
+        const sx=x+(s-1)*12*t;
+        const sy=gy-h;
+        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx,sy-8*t);
+        ctx.strokeStyle='#70b040'; ctx.lineWidth=1; ctx.stroke();
+        for (let p=0;p<6;p++) {
+          const pa=(p/6)*Math.PI*2;
+          ctx.beginPath(); ctx.ellipse(sx+Math.cos(pa)*4,sy-8*t+Math.sin(pa)*4,2,1,pa,0,Math.PI*2);
+          ctx.fillStyle='#f8f8f0'; ctx.fill();
+        }
+      }
+    }
+  }
+});
+
+defSpecies('chanterelle', {
+  name: 'Chanterelle', latin: 'Cantharellus cibarius',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'late', coverMin: 0.40, coverMax: 1.0,
+  maxAge: 0.2, matureAge: 0.1, heightPx: 22,
+  spreadPerYear: 3, spreadRadius: 40,
+  edible: { part: 'whole fruiting body', restore: 0.25, poisonous: false, flavor: 'Fruity, faintly apricot, richly earthy. One of the finest foods the forest offers.' },
+  info: "The chanterelle mycelium lives in symbiosis with tree roots, exchanging minerals for sugars. What you see is merely the fruiting body — the organism beneath may span acres.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season!==2 && season!==1) return; // late summer/autumn
+    const h = 20*t;
+    // stout stem
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#d4a820'; ctx.lineWidth=5*t; ctx.stroke();
+    // wavy funnel cap
+    ctx.beginPath();
+    ctx.moveTo(x-12*t,gy-h+3);
+    ctx.quadraticCurveTo(x-8*t,gy-h-5,x,gy-h-8*t);
+    ctx.quadraticCurveTo(x+8*t,gy-h-5,x+12*t,gy-h+3);
+    ctx.quadraticCurveTo(x+6*t,gy-h-1,x,gy-h-3*t);
+    ctx.quadraticCurveTo(x-6*t,gy-h-1,x-12*t,gy-h+3);
+    ctx.fillStyle='#d4a020'; ctx.fill();
+    ctx.strokeStyle='#b88010'; ctx.lineWidth=1; ctx.stroke();
+  }
+});
+
+defSpecies('fly_agaric', {
+  name: 'Fly Agaric', latin: 'Amanita muscaria',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'climax', coverMin: 0.25, coverMax: 1.0,
+  maxAge: 0.15, matureAge: 0.08, heightPx: 26,
+  spreadPerYear: 2, spreadRadius: 60,
+  edible: { part: 'DO NOT EAT', restore: -0.4, poisonous: true, flavor: 'Hallucinogenic and potentially lethal. Its beauty is a warning.' },
+  info: "The fly agaric is the classic toadstool of fairy tales. It is the mycorrhizal partner of birch and pine — invisible networks connecting the roots of many trees simultaneously.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 24*t;
+    // white stem with skirt
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#f0ece4'; ctx.lineWidth=6*t; ctx.stroke();
+    // skirt
+    if (t>0.5) {
+      ctx.beginPath(); ctx.ellipse(x,gy-h*0.5,7*t,2.5*t,0,0,Math.PI*2);
+      ctx.fillStyle='rgba(240,236,228,0.9)'; ctx.fill();
+    }
+    // red cap with white spots
+    ctx.beginPath();
+    ctx.arc(x,gy-h,12*t,Math.PI,Math.PI*2);
+    ctx.quadraticCurveTo(x+14*t,gy-h,x,gy-h+3);
+    ctx.quadraticCurveTo(x-14*t,gy-h,x-12*t,gy-h);
+    ctx.fillStyle='#d02010'; ctx.fill();
+    // white spots
+    const spots = [[0,-11],[6,-8],[-5,-9],[3,-13],[-7,-12]];
+    spots.forEach(([ox,oy])=>{
+      drawCircle(ctx,x+ox*t,gy-h+oy*t,2.2*t,'rgba(255,250,245,0.9)');
+    });
+  }
+});
+
+defSpecies('bracket_fungus', {
+  name: 'Tinder Bracket', latin: 'Fomes fomentarius',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'mid', coverMin: 0.15, coverMax: 1.0,
+  maxAge: 30, matureAge: 5, heightPx: 18,
+  spreadPerYear: 0.4, spreadRadius: 80,
+  edible: null,
+  info: "Bracket fungi are decomposers — they slowly consume the heartwood of standing and fallen trees, returning centuries of accumulated carbon to the soil. Dead wood is not dead.",
+  draw(ctx, x, gy, t, season, phase) {
+    // hoof-shaped shelf on tree
+    const w = 20*t;
+    const h = 14*t;
+    for (let ring=0;ring<4;ring++) {
+      const p = ring/4;
+      ctx.beginPath();
+      ctx.ellipse(x, gy-5-h*p, w*(1-p*0.2), h*(0.8-p*0.3), -0.3, Math.PI, Math.PI*2);
+      ctx.fillStyle=`hsl(30,20%,${30+ring*5}%)`; ctx.fill();
+    }
+    // underside pores
+    ctx.beginPath();
+    ctx.ellipse(x, gy-5, w*0.9, 4, -0.2, 0, Math.PI);
+    ctx.fillStyle='#c8b8a0'; ctx.fill();
+  }
+});
+
+// ── CLIMAX ────────────────────────────────────────────────────────────────────
+
+defSpecies('holly', {
+  name: 'Holly', latin: 'Ilex aquifolium',
+  kingdom: 'plant', layer: 'shrub',
+  era: 'climax', coverMin: 0.30, coverMax: 1.0,
+  maxAge: 300, matureAge: 20, heightPx: 100,
+  spreadPerYear: 0.15, spreadRadius: 70,
+  edible: { part: 'berries (NEVER)', restore: -0.2, poisonous: true, flavor: 'Toxic to humans. Critical winter food for birds.' },
+  info: "Holly is one of the few broadleaved evergreens in British woodland. In winter, when all other berries are gone, its red berries feed thrushes, redwings, and fieldfares.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 90*t;
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#3a3020'; ctx.lineWidth=5+t*4; ctx.stroke();
+    // dark evergreen crown
+    for (let b=0;b<7;b++) {
+      const a=(b/7)*Math.PI*2;
+      const r=22*t;
+      const cx2=x+Math.cos(a)*r;
+      const cy2=gy-h*0.55+Math.sin(a)*r*0.5;
+      ctx.beginPath(); ctx.arc(cx2,cy2,r*0.75,0,Math.PI*2);
+      ctx.fillStyle='#1a4020'; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(x,gy-h*0.6,18*t,0,Math.PI*2);
+    ctx.fillStyle='#204828'; ctx.fill();
+    // spiky leaf highlight
+    for (let i=0;i<6;i++) {
+      const a=(i/6)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(x+Math.cos(a)*8*t,gy-h*0.55+Math.sin(a)*6*t);
+      ctx.lineTo(x+Math.cos(a+0.4)*14*t,gy-h*0.55+Math.sin(a+0.4)*10*t);
+      ctx.strokeStyle='#2a5a30'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+    // red berries
+    if (t>0.3) {
+      for (let i=0;i<8;i++) {
+        const a=(i/8)*Math.PI*2;
+        const br=12*t;
+        drawCircle(ctx,x+Math.cos(a)*br,gy-h*0.6+Math.sin(a)*br*0.5,3,'#cc1010');
+      }
+    }
+  }
+});
+
+defSpecies('ivy', {
+  name: 'Ivy', latin: 'Hedera helix',
+  kingdom: 'plant', layer: 'ground',
+  era: 'climax', coverMin: 0.20, coverMax: 1.0,
+  maxAge: 100, matureAge: 8, heightPx: 15,
+  spreadPerYear: 0.6, spreadRadius: 80,
+  edible: null,
+  info: "Ivy is neither parasite nor friend — it is opportunist. Its evergreen leaves provide winter cover for insects and its late flowers are the last nectar of the year, crucial for queen bumblebees preparing for winter.",
+  draw(ctx, x, gy, t, season, phase) {
+    // trailing stems
+    for (let s=0;s<4;s++) {
+      const ox=(s-1.5)*14*t;
+      ctx.beginPath();
+      ctx.moveTo(x,gy);
+      ctx.quadraticCurveTo(x+ox*0.6,gy-8*t,x+ox,gy-14*t);
+      ctx.strokeStyle='#2a5020'; ctx.lineWidth=1.2; ctx.stroke();
+      // 5-lobed leaves
+      const lx=x+ox, ly=gy-14*t;
+      ctx.beginPath();
+      ctx.moveTo(lx,ly-5*t);
+      for (let l=0;l<5;l++) {
+        const la=(l/5)*Math.PI*2-Math.PI/2;
+        ctx.lineTo(lx+Math.cos(la)*7*t,ly+Math.sin(la)*6*t);
+        ctx.lineTo(lx+Math.cos(la+Math.PI/5)*4*t,ly+Math.sin(la+Math.PI/5)*4*t);
+      }
+      ctx.closePath();
+      ctx.fillStyle='#2a5828'; ctx.fill();
+    }
+    // black berries in winter
+    if (season===3 && t>0.5) {
+      for (let i=0;i<4;i++) {
+        drawCircle(ctx,x+(i-1.5)*10*t,gy-10,3,'#1a1020');
+      }
+    }
+  }
+});
+
+// ── PLANT INSTANCES ───────────────────────────────────────────────────────────
+let plants = [];
+let nextPlantId = 0;
+
+function addPlant(speciesId, wx, boost=0) {
+  if (wx < 0 || wx > WORLD_W) return null;
+  const sp = SPECIES[speciesId];
+  if (!sp) return null;
+  const p = {
+    id: nextPlantId++,
+    speciesId,
+    x: wx,
+    age: 0,
+    dead: false,
+    nutrientBoost: boost
+  };
+  // Canopy trees spawn with a visible head-start so the forest looks established
+  if (sp.layer === 'canopy') {
+    p.age = sp.matureAge * (0.25 + Math.random() * 0.35);
+  }
+  plants.push(p);
+  return p;
+}
+
+// Seeding: scatter a small number of pioneers at start
+function initPlants() {
+  // A few pioneers to start
+  for (let i=0;i<8;i++) addPlant('lichen', Math.random()*WORLD_W);
+  for (let i=0;i<5;i++) addPlant('moss',   Math.random()*WORLD_W);
+}
+
+const colonizeRates = {
+  pioneer: 0.6, early: 0.25, mid: 0.12, late: 0.06, climax: 0.03
+};
+const nutrientBoostMap = {}; // wx -> bonus multiplier
+
+// Canopy cover: fraction of "full" canopy (12 mature canopy trees = cover 1.0).
+// Drives which species can establish — replaces the old year-gate system.
+function getCanopyCover() {
+  let mature = 0;
+  for (const p of plants) {
+    const sp = SPECIES[p.speciesId];
+    if (sp && sp.layer === 'canopy' && p.age >= sp.matureAge * 0.7) mature++;
+  }
+  return Math.min(1, mature / 12);
+}
+
+function updatePlants(dt) {
+  const yearDelta = dt * speed;
+  if (yearDelta === 0) return;
+
+  const cover = getCanopyCover();
+
+  // Age and kill — all plants die at natural maxAge
+  for (let i = plants.length-1; i >= 0; i--) {
+    const p = plants[i];
+    const sp = SPECIES[p.speciesId];
+    p.age += yearDelta;
+    if (p.age > sp.maxAge) {
+      plants.splice(i, 1);
+    }
+  }
+
+  // Spread — only within the species' cover window
+  const toAdd = [];
+  for (const p of plants) {
+    const sp = SPECIES[p.speciesId];
+    if (cover < sp.coverMin || cover > sp.coverMax) continue;
+    const spr = (sp.spreadPerYear||0.2) * yearDelta;
+    if (Math.random() < spr) {
+      const nx = p.x + (Math.random()-0.5)*2*(sp.spreadRadius||80);
+      const crowded = plants.filter(q => q.speciesId === sp.id && Math.abs(q.x - nx) < (sp.spreadRadius||80) * 0.6).length >= 4;
+      if (!crowded) toAdd.push([sp.id, nx]);
+    }
+  }
+
+  // Global colonization — cover-gated
+  for (const [id, sp] of Object.entries(SPECIES)) {
+    if (cover < sp.coverMin || cover > sp.coverMax) continue;
+    const rate = (colonizeRates[sp.era] || 0.15) * (sp.layer === 'canopy' ? 0.2 : 1);
+    if (Math.random() < rate * yearDelta) {
+      const wx = Math.random() * WORLD_W;
+      if (sp.layer === 'fungal' && Math.floor((year%1)*4) !== 2 && Math.floor((year%1)*4) !== 1) continue;
+      toAdd.push([id, wx]);
+    }
+  }
+
+  for (const [id,wx] of toAdd) addPlant(id, wx);
+
+  // Cap at 150 — succession-priority eviction (pioneer first, climax canopy last)
+  if (plants.length > 150) {
+    const eraOrd = { pioneer: 0, early: 1, mid: 2, late: 3, climax: 4 };
+    plants.sort((a, b) => {
+      const spa = SPECIES[a.speciesId], spb = SPECIES[b.speciesId];
+      const pa = eraOrd[spa.era] * 2 + (spa.layer === 'canopy' ? 1 : 0);
+      const pb = eraOrd[spb.era] * 2 + (spb.layer === 'canopy' ? 1 : 0);
+      return pa !== pb ? pa - pb : a.id - b.id;
+    });
+    plants.splice(0, plants.length - 150);
+  }
+}
+
+// ── ANIMALS ──────────────────────────────────────────────────────────────────
+const ANIMAL_SPECS = {
+  butterfly: { era:'early', eraStart:4,  layer:'air',    draw: drawButterfly },
+  rabbit:    { era:'early', eraStart:4,  layer:'ground', draw: drawRabbit    },
+  fox:       { era:'mid',   eraStart:15, layer:'ground', draw: drawFox       },
+  deer:      { era:'mid',   eraStart:15, layer:'ground', draw: drawDeer      },
+  owl:       { era:'late',  eraStart:35, layer:'canopy', draw: drawOwl       },
+};
+
+let animals = [];
+
+function spawnAnimals() {
+  for (const [type, spec] of Object.entries(ANIMAL_SPECS)) {
+    if (year >= spec.eraStart && animals.filter(a=>a.type===type).length < 3) {
+      if (Math.random() < 0.01) {
+        animals.push({
+          type, x: Math.random()*WORLD_W,
+          y: 0, vx: (Math.random()-0.5)*60,
+          state: 'walk', stateTimer: 2+Math.random()*3,
+          flipX: false,
+          wingPhase: 0
+        });
+      }
+    }
+  }
+  // Remove animals that are too numerous
+  while (animals.length > 20) animals.shift();
+}
+
+function updateAnimals(dt) {
+  spawnAnimals();
+  for (let i = animals.length-1; i>=0; i--) {
+    const a = animals[i];
+    const spec = ANIMAL_SPECS[a.type];
+    if (!spec || year < spec.eraStart) { animals.splice(i,1); continue; }
+
+    a.stateTimer -= dt;
+    if (a.stateTimer <= 0) {
+      if (a.state === 'walk' || a.state === 'fly') {
+        a.state = 'pause';
+        a.stateTimer = 1+Math.random()*2;
+        a.vx = 0;
+      } else {
+        a.state = spec.layer==='air'?'fly':'walk';
+        a.stateTimer = 2+Math.random()*4;
+        a.vx = (Math.random()-0.5)*80*(a.type==='deer'?1.5:1);
+        a.flipX = a.vx < 0;
+      }
+    }
+
+    if (a.type === 'rabbit' && a.state === 'walk') {
+      // hop pattern
+      a.x += a.vx * dt;
+      a.hopT = (a.hopT||0) + dt*8;
+      a.hopY = Math.abs(Math.sin(a.hopT))*12;
+    } else {
+      a.x += a.vx * dt;
+    }
+    a.wingPhase = (a.wingPhase||0) + dt*8;
+
+    // Wrap world
+    if (a.x < 0) a.x = WORLD_W;
+    if (a.x > WORLD_W) a.x = 0;
+
+    // Season filter: butterfly only spring/summer
+    const season = Math.floor((year%1)*4);
+    if (a.type === 'butterfly' && (season===3)) { animals.splice(i,1); continue; }
+    // owl only if trees exist
+    if (a.type === 'owl' && year < 35) { animals.splice(i,1); continue; }
+  }
+}
+
+function drawButterfly(ctx, a, sx, sy) {
+  const wing = Math.sin(a.wingPhase)*0.7;
+  ctx.save(); ctx.translate(sx, sy-30);
+  // top wings
+  for (let s=-1;s<=1;s+=2) {
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.bezierCurveTo(s*20,wing*20-15,s*30,5,s*5,8);
+    ctx.fillStyle='#e87020'; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0,4);
+    ctx.bezierCurveTo(s*18,wing*15+5,s*25,15,s*4,14);
+    ctx.fillStyle='#c06010'; ctx.fill();
+  }
+  // body
+  ctx.beginPath(); ctx.ellipse(0,5,2.5,8,0,0,Math.PI*2);
+  ctx.fillStyle='#1a1a1a'; ctx.fill();
+  ctx.restore();
+}
+
+function drawRabbit(ctx, a, sx, sy) {
+  const hopY = a.hopY||0;
+  ctx.save(); ctx.translate(sx, sy-hopY);
+  if (a.flipX) ctx.scale(-1,1);
+  // body
+  ctx.beginPath(); ctx.ellipse(0,0,9,7,0,0,Math.PI*2);
+  ctx.fillStyle='#c0a878'; ctx.fill();
+  // head
+  ctx.beginPath(); ctx.ellipse(-10,-5,6,5,0.4,0,Math.PI*2);
+  ctx.fillStyle='#c0a878'; ctx.fill();
+  // ears
+  ctx.beginPath(); ctx.ellipse(-13,-14,2.5,7,-0.3,0,Math.PI*2);
+  ctx.fillStyle='#c0a878'; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-9,-14,2.5,7,0.2,0,Math.PI*2);
+  ctx.fillStyle='#c0a878'; ctx.fill();
+  // tail
+  drawCircle(ctx,9,0,4,'#e8e0d8');
+  // eye
+  drawCircle(ctx,-13,-6,1.5,'#1a1a1a');
+  ctx.restore();
+}
+
+function drawFox(ctx, a, sx, sy) {
+  ctx.save(); ctx.translate(sx, sy);
+  if (a.flipX) ctx.scale(-1,1);
+  // body
+  ctx.beginPath(); ctx.ellipse(0,-10,14,8,-0.15,0,Math.PI*2);
+  ctx.fillStyle='#c04010'; ctx.fill();
+  // head
+  ctx.beginPath(); ctx.ellipse(-18,-14,7,6,0.2,0,Math.PI*2);
+  ctx.fillStyle='#c04010'; ctx.fill();
+  // pointed snout
+  ctx.beginPath(); ctx.moveTo(-24,-13); ctx.lineTo(-30,-11); ctx.lineTo(-24,-9);
+  ctx.fillStyle='#c04010'; ctx.fill();
+  // ears
+  ctx.beginPath(); ctx.moveTo(-16,-19); ctx.lineTo(-20,-27); ctx.lineTo(-12,-22); ctx.closePath();
+  ctx.fillStyle='#c04010'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-14,-21); ctx.lineTo(-17,-25); ctx.lineTo(-12,-22); ctx.closePath();
+  ctx.fillStyle='#1a1a1a'; ctx.fill();
+  // bushy tail
+  ctx.beginPath(); ctx.moveTo(14,-10);
+  ctx.quadraticCurveTo(28,-8,26,2);
+  ctx.strokeStyle='#c04010'; ctx.lineWidth=8; ctx.stroke();
+  drawCircle(ctx,26,2,6,'#f0f0e8');
+  // legs
+  for (let l=0;l<4;l++) {
+    const lx=-8+l*6; const walk=Math.sin(a.wingPhase+l*Math.PI)*4;
+    ctx.beginPath(); ctx.moveTo(lx,-3); ctx.lineTo(lx+walk,6);
+    ctx.strokeStyle='#a03010'; ctx.lineWidth=3; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDeer(ctx, a, sx, sy) {
+  ctx.save(); ctx.translate(sx, sy);
+  if (a.flipX) ctx.scale(-1,1);
+  // legs
+  for (let l=0;l<4;l++) {
+    const lx=-12+l*8; const walk=a.state==='walk'?Math.sin(a.wingPhase*2+l*1.2)*6:0;
+    ctx.beginPath(); ctx.moveTo(lx,-8); ctx.lineTo(lx+walk,-8+25);
+    ctx.strokeStyle='#8a6040'; ctx.lineWidth=3.5; ctx.stroke();
+  }
+  // body
+  ctx.beginPath(); ctx.ellipse(0,-18,20,10,-0.15,0,Math.PI*2);
+  ctx.fillStyle='#a07050'; ctx.fill();
+  // neck
+  ctx.beginPath(); ctx.moveTo(-18,-22); ctx.quadraticCurveTo(-24,-30,-22,-38);
+  ctx.strokeStyle='#a07050'; ctx.lineWidth=8; ctx.stroke();
+  // head
+  ctx.beginPath(); ctx.ellipse(-20,-40,7,5,0.5,0,Math.PI*2);
+  ctx.fillStyle='#a07050'; ctx.fill();
+  // snout
+  ctx.beginPath(); ctx.ellipse(-26,-41,4,3,0.3,0,Math.PI*2);
+  ctx.fillStyle='#8a5030'; ctx.fill();
+  // antlers
+  ctx.beginPath();
+  ctx.moveTo(-18,-44); ctx.lineTo(-15,-55); ctx.lineTo(-10,-50);
+  ctx.moveTo(-15,-55); ctx.lineTo(-20,-60);
+  ctx.strokeStyle='#7a5030'; ctx.lineWidth=2; ctx.stroke();
+  // eye
+  drawCircle(ctx,-22,-41,2,'#1a1a1a');
+  ctx.restore();
+}
+
+function drawOwl(ctx, a, sx, sy) {
+  ctx.save(); ctx.translate(sx, sy-60);
+  if (a.flipX) ctx.scale(-1,1);
+  // body
+  ctx.beginPath(); ctx.ellipse(0,0,10,14,0,0,Math.PI*2);
+  ctx.fillStyle='#8a7050'; ctx.fill();
+  // wing pattern
+  for (let i=0;i<5;i++) {
+    ctx.beginPath(); ctx.ellipse(5,(i-2)*4,8,2.5,0.3,0,Math.PI*2);
+    ctx.fillStyle='#7a6040'; ctx.fill();
+  }
+  // head
+  ctx.beginPath(); ctx.arc(0,-14,9,0,Math.PI*2);
+  ctx.fillStyle='#8a7050'; ctx.fill();
+  // ear tufts
+  ctx.beginPath(); ctx.moveTo(-5,-22); ctx.lineTo(-8,-30); ctx.lineTo(-2,-24); ctx.closePath();
+  ctx.fillStyle='#7a6040'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(5,-22); ctx.lineTo(8,-30); ctx.lineTo(2,-24); ctx.closePath();
+  ctx.fillStyle='#7a6040'; ctx.fill();
+  // face disc
+  ctx.beginPath(); ctx.arc(0,-14,7,0,Math.PI*2);
+  ctx.fillStyle='rgba(210,190,150,0.4)'; ctx.fill();
+  // large eyes
+  drawCircle(ctx,-3,-15,3,'#e8c050');
+  drawCircle(ctx,3,-15,3,'#e8c050');
+  drawCircle(ctx,-3,-15,1.5,'#1a1a1a');
+  drawCircle(ctx,3,-15,1.5,'#1a1a1a');
+  // beak
+  ctx.beginPath(); ctx.moveTo(0,-13); ctx.lineTo(-2,-10); ctx.lineTo(2,-10); ctx.closePath();
+  ctx.fillStyle='#c09040'; ctx.fill();
+  ctx.restore();
+}
+
+// ── PLAYER ────────────────────────────────────────────────────────────────────
+const player = {
+  x: 400, y: 0, vx: 0,
+  w: 14, h: 32,
+  hunger: 1.0,
+  dead: false,
+  dyingT: 0,
+  deadT: 0,
+  deathX: 0, deathY: 0,
+  decomposed: 0,
+  graveFlower: null,
+  reborn: false,
+  camFreeze: 0,
+  deathMsgT: 0,
+};
+
+const graves = []; // persists across deaths
+
+function drawPlayer() {
+  if (player.dead) {
+    drawDeadPlayer();
+    return;
+  }
+  const gY = groundY(player.x);
+  const sx = player.x - camX;
+  const t = player.dyingT; // 0 = upright, 1 = lying flat
+
+  ctx.save();
+  ctx.translate(sx, gY);
+  ctx.rotate(t * Math.PI/2);
+
+  ctx.fillStyle = '#2d3748';
+  // head
+  ctx.beginPath(); ctx.arc(0, -player.h + 7, 7, 0, Math.PI*2); ctx.fill();
+  // body
+  ctx.fillRect(-4, -player.h+14, 8, 12);
+  // legs
+  ctx.fillRect(-5, -player.h+26, 4, 10);
+  ctx.fillRect(1, -player.h+26, 4, 10);
+  // arms
+  ctx.fillRect(-8, -player.h+16, 3, 8);
+  ctx.fillRect(5, -player.h+16, 3, 8);
+
+  ctx.restore();
+}
+
+function drawDeadPlayer() {
+  for (const g of graves) {
+    const sx = g.x - camX;
+    const gY = groundY(g.x);
+    const sinkY = Math.min(g.sinkT * 20, 20);
+    ctx.save(); ctx.translate(sx, gY + sinkY);
+    ctx.globalAlpha = Math.max(0, 1 - g.sinkT);
+    ctx.rotate(Math.PI/2);
+    ctx.fillStyle = '#2d3748';
+    // head
+    ctx.beginPath(); ctx.arc(0, -25, 7, 0, Math.PI*2); ctx.fill();
+    // body
+    ctx.fillRect(-4, -18, 8, 12);
+    // legs
+    ctx.fillRect(-5, -6, 4, 10);
+    ctx.fillRect(1, -6, 4, 10);
+    // arms
+    ctx.fillRect(-8, -16, 3, 8);
+    ctx.fillRect(5, -16, 3, 8);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+
+// ── PARTICLES ─────────────────────────────────────────────────────────────────
+let particles = [];
+
+function addParticle(type, x, y) {
+  if (particles.length >= 200) particles.shift();
+  const p = { type, x, y, life: 1.0 };
+  if (type === 'pollen')      { p.vx=(Math.random()-0.5)*20; p.vy=-15-Math.random()*20; p.size=2; }
+  if (type === 'seed')        { p.vx=(Math.random()-0.5)*40+30; p.vy=-10-Math.random()*20; p.size=3; }
+  if (type === 'autumn_leaf') { p.vx=(Math.random()-0.5)*60; p.vy=5+Math.random()*30; p.rot=Math.random()*Math.PI*2; p.rotV=(Math.random()-0.5)*4; p.size=5; p.color=`hsl(${20+Math.random()*30},80%,50%)`; }
+  if (type === 'snow')        { p.vx=-15-Math.random()*20; p.vy=30+Math.random()*20; p.size=2.5; }
+  if (type === 'float_text')  { p.vx=0; p.vy=-40; p.text=p.text||''; p.life=1.5; }
+  particles.push(p);
+  return p;
+}
+
+function spawnAtmosphericParticles(dt) {
+  const season = Math.floor((year%1)*4);
+  // pollen in spring (use screen-space x, draw subtracts camX)
+  if (season === 0 && Math.random() < dt*8) {
+    const sx = Math.random()*canvas.width;
+    const p2 = addParticle('pollen', 0, 0);
+    p2.x = sx + camX; // world x
+    p2.y = canvas.height*0.4 + Math.random()*canvas.height*0.2;
+  }
+  // seeds in late summer/autumn
+  if ((season===1||season===2) && Math.random() < dt*5) {
+    const sx = Math.random()*canvas.width;
+    const p2 = addParticle('seed', 0, 0);
+    p2.x = sx + camX;
+    p2.y = canvas.height*0.4 + Math.random()*canvas.height*0.2;
+  }
+  // autumn leaves (store world x)
+  if (season===2) {
+    for (const p of plants) {
+      const sp = SPECIES[p.speciesId];
+      if (sp && sp.layer==='canopy' && Math.random() < dt*2) {
+        addParticle('autumn_leaf', p.x, groundY(p.x)-sp.heightPx*0.6*(Math.min(p.age/sp.matureAge,1)));
+      }
+    }
+  }
+  // snow in winter
+  if (season===3 && Math.random() < dt*15) {
+    addParticle('snow', camX + Math.random()*canvas.width, -10);
+  }
+}
+
+function updateParticles(dt) {
+  for (let i=particles.length-1;i>=0;i--) {
+    const p = particles[i];
+    if (p.type==='float_text') {
+      p.y += p.vy*dt; p.life -= dt*0.7;
+    } else {
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      p.life -= dt*0.3;
+      if (p.rot!==undefined) p.rot += p.rotV*dt;
+    }
+    if (p.life <= 0) { particles.splice(i,1); }
+  }
+}
+
+function drawParticles(layer) {
+  for (const p of particles) {
+    if (layer==='back' && (p.type==='autumn_leaf'||p.type==='snow'||p.type==='float_text')) continue;
+    if (layer==='front' && p.type!=='autumn_leaf' && p.type!=='snow' && p.type!=='float_text') continue;
+    ctx.globalAlpha = Math.min(p.life, 1);
+    if (p.type==='pollen') {
+      ctx.beginPath(); ctx.arc(p.x-camX,p.y,p.size,0,Math.PI*2);
+      ctx.fillStyle='#f0d040'; ctx.fill();
+    } else if (p.type==='seed') {
+      ctx.beginPath(); ctx.arc(p.x-camX,p.y,p.size*0.6,0,Math.PI*2);
+      ctx.fillStyle='#f0f0e8'; ctx.fill();
+      // wispy trail
+      ctx.beginPath(); ctx.moveTo(p.x-camX,p.y);
+      ctx.lineTo(p.x-camX-6,p.y+4);
+      ctx.strokeStyle='rgba(240,240,230,0.5)'; ctx.lineWidth=0.8; ctx.stroke();
+    } else if (p.type==='autumn_leaf') {
+      ctx.save(); ctx.translate(p.x-camX,p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0,-p.size); ctx.lineTo(p.size,0); ctx.lineTo(0,p.size); ctx.lineTo(-p.size,0);
+      ctx.closePath(); ctx.fillStyle=p.color; ctx.fill();
+      ctx.restore();
+    } else if (p.type==='snow') {
+      ctx.beginPath(); ctx.arc(p.x-camX,p.y,p.size,0,Math.PI*2);
+      ctx.fillStyle='rgba(240,245,255,0.9)'; ctx.fill();
+    } else if (p.type==='float_text') {
+      ctx.font = 'bold 15px Segoe UI, system-ui, sans-serif';
+      ctx.fillStyle = p.color||'#f0f0f0';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text||'', p.x, p.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── BACKGROUND RENDERING ──────────────────────────────────────────────────────
+
+const skyColors = {
+  0: { top:'#5b8fb9', bot:'#d4e8c2' }, // spring
+  1: { top:'#1e4d78', bot:'#7bc4e2' }, // summer
+  2: { top:'#8b4513', bot:'#f4a460' }, // autumn
+  3: { top:'#2c3e50', bot:'#8fa9be' }, // winter
+};
+
+function lerpColor(a, b, t) {
+  // parse hex
+  const ah=parseInt(a.slice(1),16), bh=parseInt(b.slice(1),16);
+  const ar=(ah>>16)&0xff, ag=(ah>>8)&0xff, ab=ah&0xff;
+  const br=(bh>>16)&0xff, bg=(bh>>8)&0xff, bb=bh&0xff;
+  const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), b2=Math.round(ab+(bb-ab)*t);
+  return `rgb(${r},${g},${b2})`;
+}
+
+function drawSky() {
+  const seasonF = (year%1)*4;
+  const s0 = Math.floor(seasonF)%4;
+  const s1 = (s0+1)%4;
+  const sf = seasonF % 1;
+  const topCol = lerpColor(skyColors[s0].top, skyColors[s1].top, sf);
+  const botCol = lerpColor(skyColors[s0].bot, skyColors[s1].bot, sf);
+  const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0, topCol);
+  grad.addColorStop(1, botCol);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function drawMountains() {
+  const parallax = 0.08;
+  const ox = -camX * parallax;
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height);
+  const pts = [0,100,200,280,350,420,500,580,650,720,800,900,canvas.width];
+  const hs = [0.35,0.18,0.28,0.12,0.32,0.22,0.15,0.30,0.20,0.25,0.14,0.28,0.35];
+  ctx.moveTo(0, canvas.height*0.55);
+  for (let i=0;i<pts.length;i++) {
+    ctx.lineTo(pts[i]+ox%canvas.width, canvas.height*hs[i]);
+  }
+  ctx.lineTo(canvas.width, canvas.height*0.4);
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.closePath();
+  ctx.fillStyle = '#1a2a3a';
+  ctx.fill();
+  // second layer
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height);
+  for (let i=0;i<pts.length;i++) {
+    ctx.lineTo(pts[i]+(ox*1.3)%canvas.width, canvas.height*(hs[i]+0.12));
+  }
+  ctx.lineTo(canvas.width, canvas.height*0.55);
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.closePath();
+  ctx.fillStyle = '#142030';
+  ctx.fill();
+}
+
+function drawHills() {
+  const parallax = 0.25;
+  const ox = -camX * parallax;
+  ctx.beginPath();
+  ctx.moveTo(-100, canvas.height);
+  for (let wx=0;wx<=canvas.width+100;wx+=20) {
+    const wx2 = wx + ox;
+    const hy = canvas.height*0.6 + Math.sin(wx2*0.008)*40 + Math.sin(wx2*0.003)*60;
+    ctx.lineTo(wx, hy);
+  }
+  ctx.lineTo(canvas.width+100, canvas.height);
+  ctx.closePath();
+  const season = Math.floor((year%1)*4);
+  ctx.fillStyle = season===3 ? '#243050' : '#1e3828';
+  ctx.fill();
+}
+
+function drawBgTrees() {
+  if (year < 20) return;
+  const parallax = 0.45;
+  const alpha = Math.min((year-20)/15, 1) * 0.7;
+  ctx.globalAlpha = alpha;
+  const ox = -camX * parallax;
+  const season = Math.floor((year%1)*4);
+  for (let i=0;i<20;i++) {
+    const tx = (i * 280 + ox) % (canvas.width+200) - 100;
+    const th = 50 + (i*37)%60;
+    const ty = canvas.height * 0.68;
+    ctx.beginPath(); ctx.moveTo(tx, ty);
+    ctx.lineTo(tx-15, ty-th*0.5); ctx.lineTo(tx, ty-th); ctx.lineTo(tx+15, ty-th*0.5);
+    ctx.closePath();
+    ctx.fillStyle = season===3 ? '#1a2530' : '#1e3020';
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawGround() {
+  const season = Math.floor((year%1)*4);
+  // frost tint in winter
+  const soilColor = season===3 ? '#4a4a5a' : '#3d2b1f';
+  const surfColor = season===3 ? '#5a5a6a' : '#4a3728';
+
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height);
+  for (let sx=0;sx<=canvas.width;sx+=8) {
+    const wx = sx + camX;
+    ctx.lineTo(sx, groundY(wx));
+  }
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.closePath();
+  ctx.fillStyle = soilColor;
+  ctx.fill();
+
+  // surface line
+  ctx.beginPath();
+  for (let sx=0;sx<=canvas.width;sx+=8) {
+    const wx = sx + camX;
+    const y = groundY(wx);
+    if (sx===0) ctx.moveTo(sx,y); else ctx.lineTo(sx,y);
+  }
+  ctx.strokeStyle = surfColor; ctx.lineWidth = 3; ctx.stroke();
+}
+
+// ── INFO CARD ─────────────────────────────────────────────────────────────────
+const infoCard = document.getElementById('info-card');
+let infoOpen = false;
+
+function showInfoCard(species, plantObj) {
+  document.getElementById('info-name').textContent = species.name;
+  document.getElementById('info-latin').textContent = species.latin;
+  document.getElementById('info-desc').textContent = species.info;
+  const edDiv = document.getElementById('info-edible');
+  if (species.edible) {
+    if (species.edible.poisonous) {
+      edDiv.className='bad';
+      edDiv.innerHTML=`✦ Toxic: ${species.edible.part}<br><em>${species.edible.flavor}</em>`;
+    } else {
+      edDiv.className='good';
+      edDiv.innerHTML=`✦ Edible: ${species.edible.part}<br><em>${species.edible.flavor}</em>`;
+    }
+    edDiv.style.display='block';
+  } else {
+    edDiv.style.display='none';
+  }
+  // Harvest button — all plants are interactable
+  const harvestBtn  = document.getElementById('info-harvest');
+  const cutdownBtn  = document.getElementById('info-cutdown');
+  if (plantObj) {
+    if (species.edible) {
+      harvestBtn.textContent = species.edible.poisonous ? 'Eat anyway' : 'Harvest & eat';
+      harvestBtn.className = species.edible.poisonous ? 'bad' : 'good';
+    } else if (species.layer === 'canopy') {
+      harvestBtn.textContent = 'Cut down';
+      harvestBtn.className = 'neutral';
+    } else {
+      harvestBtn.textContent = 'Remove';
+      harvestBtn.className = 'neutral';
+    }
+    harvestBtn.style.display = 'block';
+    harvestBtn.onclick = () => {
+      eatPlant(plantObj, species, plantObj.x - camX, groundY(plantObj.x));
+      hideInfoCard();
+    };
+    // Show "Cut down" alongside "Eat anyway" for poisonous plants
+    if (species.edible && species.edible.poisonous) {
+      cutdownBtn.textContent = species.layer === 'canopy' ? 'Cut down' : 'Remove';
+      cutdownBtn.style.display = 'block';
+      cutdownBtn.onclick = () => {
+        const idx = plants.indexOf(plantObj);
+        if (idx !== -1) plants.splice(idx, 1);
+        const sx2 = plantObj.x - camX, sy2 = groundY(plantObj.x);
+        showFloatText(species.layer === 'canopy' ? 'Felled!' : 'Removed', sx2, sy2-30, '#94a3b8');
+        hideInfoCard();
+      };
+    } else {
+      cutdownBtn.style.display = 'none';
+    }
+  } else {
+    harvestBtn.style.display  = 'none';
+    cutdownBtn.style.display  = 'none';
+  }
+  infoCard.classList.add('visible');
+  infoOpen = true;
+}
+
+function hideInfoCard() {
+  infoCard.classList.remove('visible');
+  infoOpen = false;
+}
+
+// ── UI DRAWING ────────────────────────────────────────────────────────────────
+
+function drawUI() {
+  // Season/Year card
+  const season = Math.floor((year%1)*4);
+  const seasonNames = ['Spring','Summer','Autumn','Winter'];
+  const yearInt = Math.floor(year);
+  const label = `Year ${yearInt} · ${seasonNames[season]}`;
+
+  ctx.font = 'bold 14px Segoe UI, system-ui, sans-serif';
+  const tw = ctx.measureText(label).width;
+  ctx.fillStyle = 'rgba(15,23,42,0.75)';
+  roundRect(ctx, canvas.width-tw-32, 12, tw+24, 36, 8);
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillText(label, canvas.width-tw-20, 35);
+
+  // Hunger bar
+  const hx=62, hy=14, hw=120, hh=12;
+  ctx.fillStyle='rgba(15,23,42,0.75)';
+  roundRect(ctx, hx-8, hy-2, hw+30, hh+18, 8);
+  ctx.font='11px Segoe UI, system-ui, sans-serif';
+  ctx.fillStyle='#94a3b8';
+  ctx.fillText('Hunger', hx, hy+11);
+  // bar bg
+  ctx.fillStyle='#1e293b';
+  roundRect(ctx, hx, hy+14, hw, hh, 5);
+  // bar fill
+  const hue = player.hunger * 120;
+  ctx.fillStyle = `hsl(${hue},80%,45%)`;
+  roundRect(ctx, hx, hy+14, hw*player.hunger, hh, 5);
+
+  // Speed controls — [⏸/▶ Realtime] [1×] [16×] [64×]
+  uiBtnBounds = [];
+  ctx.font = '13px Segoe UI, system-ui, sans-serif';
+  const ctrlY = canvas.height - 50;
+  const ctrlH = 30;
+  const speedNames = ['1×', '16×', '64×'];
+  let bxr = canvas.width - 12;
+  // Speed buttons right-to-left
+  for (let i = speedNames.length - 1; i >= 0; i--) {
+    const lbl = speedNames[i];
+    const bw = ctx.measureText(lbl).width + 20;
+    bxr -= bw + 6;
+    const active = !paused && speedIdx === i;
+    ctx.fillStyle = active ? 'rgba(56,189,248,0.22)' : 'rgba(15,23,42,0.75)';
+    roundRect(ctx, bxr, ctrlY, bw, ctrlH, 7);
+    ctx.fillStyle = active ? '#38bdf8' : '#475569';
+    ctx.fillText(lbl, bxr + 10, ctrlY + 19);
+    uiBtnBounds.push({ x: bxr, y: ctrlY, w: bw, h: ctrlH, action: 'speed', idx: i });
+  }
+  // Realtime (pause) button
+  const pauseLbl = paused ? '▶ Resume' : '⏸ Realtime';
+  const pw = ctx.measureText(pauseLbl).width + 20;
+  bxr -= pw + 10;
+  ctx.fillStyle = paused ? 'rgba(251,191,36,0.18)' : 'rgba(15,23,42,0.75)';
+  roundRect(ctx, bxr, ctrlY, pw, ctrlH, 7);
+  ctx.fillStyle = paused ? '#fbbf24' : '#94a3b8';
+  ctx.fillText(pauseLbl, bxr + 10, ctrlY + 19);
+  uiBtnBounds.push({ x: bxr, y: ctrlY, w: pw, h: ctrlH, action: 'pause' });
+
+  // Hint text
+  ctx.font='11px Segoe UI, system-ui, sans-serif';
+  ctx.fillStyle='rgba(148,163,184,0.7)';
+  ctx.fillText('Click species to learn · Harvest from info panel', 12, canvas.height-18);
+
+  // Death message
+  if (player.deathMsgT > 0) {
+    ctx.globalAlpha = Math.min(player.deathMsgT, 1);
+    ctx.font='italic 22px Segoe UI, system-ui, sans-serif';
+    ctx.fillStyle='#e2e8f0';
+    ctx.textAlign='center';
+    ctx.fillText('You return to the earth.', canvas.width/2, canvas.height/2 - 40);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+  }
+
+  // Rebirth hint
+  if (player.dead && player.decomposed >= 1) {
+    ctx.font='14px Segoe UI, system-ui, sans-serif';
+    ctx.fillStyle='rgba(148,163,184,0.8)';
+    ctx.textAlign='center';
+    ctx.fillText('Press any key to be reborn…', canvas.width/2, canvas.height/2+40);
+    ctx.textAlign='left';
+  }
+}
+
+let uiBtnBounds = [];
+
+function roundRect(ctx, x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (player.dead && player.decomposed >= 1) {
+    rebornPlayer();
+  }
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ── Click ─────────────────────────────────────────────────────────────────────
+
+function findClickTarget(cx, cy) {
+  let best = null, bestDist = 48;
+  for (const p of plants) {
+    const sp = SPECIES[p.speciesId];
+    const sx = p.x - camX;
+    const ph = sp.heightPx * Math.min(p.age / sp.matureAge, 1);
+    const dist = Math.hypot(cx - sx, cy - (groundY(p.x) - ph * 0.5));
+    if (dist < bestDist) { bestDist = dist; best = { kind: 'plant', obj: p }; }
+  }
+  for (const a of animals) {
+    const sx = a.x - camX, sy = groundY(a.x) - 20;
+    if (Math.hypot(cx - sx, cy - sy) < 32) {
+      if (!best) best = { kind: 'animal', obj: a };
+    }
+  }
+  return best;
+}
+
+canvas.addEventListener('click', e => {
+  // Speed/pause buttons (always immediate)
+  for (const btn of uiBtnBounds) {
+    if (e.clientX >= btn.x && e.clientX <= btn.x + btn.w &&
+        e.clientY >= btn.y && e.clientY <= btn.y + btn.h) {
+      if (btn.action === 'pause') {
+        paused = !paused;
+      } else if (btn.action === 'speed') {
+        speedIdx = btn.idx;
+        speed = SPEEDS[speedIdx];
+        paused = false;
+      }
+      return;
+    }
+  }
+  // Click-away closes info card
+  if (infoOpen) { hideInfoCard(); return; }
+
+  const target = findClickTarget(e.clientX, e.clientY);
+  if (!target) return;
+
+  if (target.kind === 'plant') {
+    showInfoCard(SPECIES[target.obj.speciesId], target.obj);
+  } else {
+    const t = target.obj;
+    showInfoCard({
+      name: t.type.charAt(0).toUpperCase() + t.type.slice(1),
+      latin: '—',
+      info: animalInfo[t.type] || 'A wild creature.',
+      edible: null,
+    }, null);
+  }
+});
+
+const animalInfo = {
+  butterfly: "Butterflies are indicators of ecosystem health. They pollinate flowers and are prey for birds and spiders. Their larvae feed on specific plant species.",
+  rabbit: "Rabbits are keystone grazers — their constant nibbling keeps grass short and creates the diverse sward that many other species need.",
+  fox: "The fox is one of Britain's most adaptable predators. It controls rabbit and rodent populations and disperses seeds in its scat.",
+  deer: "Deer are powerful shapers of woodland. By browsing young saplings, they can prevent regeneration — or, in the right numbers, create glades and diversity.",
+  owl: "Owls are apex predators of the night. A single tawny owl may catch 1000 voles and mice per year, regulating populations across its territory.",
+};
+
+function eatPlant(plant, sp, sx2, sy2) {
+  const idx = plants.indexOf(plant);
+  if (sp.edible) {
+    if (sp.edible.poisonous) {
+      player.hunger = Math.max(0, player.hunger + sp.edible.restore);
+      showFloatText('Poisonous!', sx2, sy2-30, '#f87171');
+    } else {
+      player.hunger = Math.min(1, player.hunger + sp.edible.restore);
+      const pct = Math.round(sp.edible.restore*100);
+      showFloatText(`+${pct}%`, sx2, sy2-30, '#4ade80');
+      if (idx !== -1) {
+        plants.splice(idx, 1);
+        if (sp.layer === 'fungal') setTimeout(() => addPlant(sp.id, plant.x), 3000);
+      }
+    }
+  } else {
+    // Non-edible — cut down or remove
+    if (idx !== -1) plants.splice(idx, 1);
+    showFloatText(sp.layer === 'canopy' ? 'Felled!' : 'Removed', sx2, sy2-30, '#94a3b8');
+  }
+}
+
+function showFloatText(text, x, y, color) {
+  const p = addParticle('float_text', 0, 0);
+  p.x = x; p.y = y; p.text = text; p.color = color;
+  p.vx = 0; p.vy = -40; p.life = 1.5;
+}
+
+// ── PLAYER DEATH & REBIRTH ────────────────────────────────────────────────────
+function killPlayer() {
+  if (player.dead) return;
+  player.dead = true;
+  player.deathX = player.x;
+  player.deathY = groundY(player.x);
+  player.deathMsgT = 4.0;
+  player.decomposed = 0;
+  graves.push({ x: player.x, y: player.deathY, sinkT: 0 });
+}
+
+function rebornPlayer() {
+  player.dead = false;
+  player.hunger = 1.0;
+  player.x = 400;
+  player.y = 0;
+  player.dyingT = 0;
+  player.decomposed = 0;
+  // Spawn foxglove at grave
+  const lastGrave = graves[graves.length-1];
+  if (lastGrave) {
+    addPlant('foxglove', lastGrave.x);
+    lastGrave.sinkT = 2; // already sunk
+  }
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+let lastTime = 0;
+
+function frame(ts) {
+  requestAnimationFrame(frame);
+  const dt = Math.min((ts - lastTime)/1000, 0.05);
+  lastTime = ts;
+
+  // Update time
+  if (!paused && !player.dead) {
+    year += dt * speed;
+  } else if (player.dead) {
+    year += dt * speed * 0.5; // time keeps passing during death
+  }
+
+  // Player movement
+  if (!player.dead) {
+    const moveSpeed = 180;
+    if (keys['ArrowLeft']||keys['a']||keys['A']) player.x -= moveSpeed*dt;
+    if (keys['ArrowRight']||keys['d']||keys['D']) player.x += moveSpeed*dt;
+    player.x = Math.max(0, Math.min(WORLD_W, player.x));
+    player.y = groundY(player.x);
+
+    // Hunger
+    player.hunger -= 0.012 * dt * speed;
+    if (player.hunger <= 0) { player.hunger=0; killPlayer(); }
+
+    // Camera follows player
+    const targetCamX = player.x - canvas.width * 0.38;
+    camX += (targetCamX - camX) * 0.08;
+  } else {
+    // Death sequence
+    const lastGrave = graves[graves.length-1];
+    if (lastGrave) {
+      lastGrave.sinkT = Math.min(lastGrave.sinkT + dt*0.2, 1);
+      player.decomposed = lastGrave.sinkT;
+    }
+    player.deathMsgT = Math.max(0, player.deathMsgT - dt);
+    // Camera slowly drifts, then freezes
+    if (player.decomposed < 0.8) {
+      const targetCamX = player.deathX - canvas.width * 0.38;
+      camX += (targetCamX - camX) * 0.02;
+    }
+  }
+  camX = Math.max(0, Math.min(WORLD_W - canvas.width, camX));
+
+  // Update plants
+  updatePlants(dt);
+
+  // Update animals
+  updateAnimals(dt);
+
+  // Update particles
+  updateParticles(dt);
+  spawnAtmosphericParticles(dt);
+
+  // ── RENDER ──
+  drawSky();
+  drawMountains();
+  drawHills();
+  drawBgTrees();
+  drawParticles('back');
+  drawGround();
+
+  // Draw plants sorted by layer
+  const layerOrder = { fungal:0, ground:1, shrub:2, canopy:3 };
+  const sortedPlants = [...plants].sort((a,b)=>layerOrder[SPECIES[a.speciesId].layer]-layerOrder[SPECIES[b.speciesId].layer]);
+
+  const season = Math.floor((year%1)*4);
+  const phase = ((year%1)*4)%1;
+
+  // Background pass — canopy always; every 3rd ground/shrub plant is held for foreground
+  for (const p of sortedPlants) {
+    const sp = SPECIES[p.speciesId];
+    if (sp.layer !== 'canopy' && p.id % 3 === 0) continue;
+    const sx2 = p.x - camX;
+    if (sx2 < -200 || sx2 > canvas.width+200) continue;
+    const gY = groundY(p.x);
+    const t = Math.min(p.age / sp.matureAge, 1);
+    try { sp.draw(ctx, sx2, gY, t, season, phase, p.id); } catch(e2){}
+  }
+
+  // Draw animals
+  for (const a of animals) {
+    const sx2 = a.x - camX;
+    if (sx2 < -100 || sx2 > canvas.width+100) continue;
+    const gY = groundY(a.x);
+    const hopY = a.hopY||0;
+    const spec = ANIMAL_SPECS[a.type];
+    if (spec && spec.draw) {
+      try { spec.draw(ctx, a, sx2, gY - hopY); } catch(e3){}
+    }
+  }
+
+  // Draw player
+  if (!player.dead) drawPlayer();
+  else drawDeadPlayer();
+
+  // Foreground pass — every 3rd ground/shrub plant drawn on top of the player
+  for (const p of sortedPlants) {
+    const sp = SPECIES[p.speciesId];
+    if (sp.layer === 'canopy' || p.id % 3 !== 0) continue;
+    const sx2 = p.x - camX;
+    if (sx2 < -200 || sx2 > canvas.width+200) continue;
+    const gY = groundY(p.x);
+    const t = Math.min(p.age / sp.matureAge, 1);
+    try { sp.draw(ctx, sx2, gY, t, season, phase, p.id); } catch(e2){}
+  }
+
+  drawParticles('front');
+  drawUI();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+initPlants();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
