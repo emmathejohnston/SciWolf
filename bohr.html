@@ -57,12 +57,18 @@
     /* ── Layout ── */
     .main-layout {
       display: grid;
-      grid-template-columns: 240px 1fr;
+      grid-template-columns: 260px 1fr;
       gap: 1.25rem;
       align-items: start;
     }
 
-    @media (max-width: 620px) {
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    @media (max-width: 660px) {
       .main-layout { grid-template-columns: 1fr; }
     }
 
@@ -141,13 +147,6 @@
       text-align: center;
     }
 
-    /* ── Diagram column ── */
-    .diagram-col {
-      display: flex;
-      flex-direction: column;
-      gap: 1.1rem;
-    }
-
     .svg-wrap {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -223,6 +222,20 @@
       transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
     .home-btn:hover { background: var(--border); border-color: var(--accent); color: var(--text); }
+
+    /* ── Lewis Dot ── */
+    .lewis-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 0;
+    }
+
+    #lewis-svg {
+      width: 180px;
+      height: 90px;
+      overflow: visible;
+    }
   </style>
 </head>
 <body>
@@ -236,70 +249,51 @@
 
   <div class="main-layout">
 
-    <!-- Controls -->
-    <div class="card">
-      <div class="card-label">Subatomic Particles</div>
-      <div class="particle-rows">
+    <!-- Left column: controls + lewis + info -->
+    <div class="left-col">
 
-        <div class="particle-row">
-          <div class="p-dot" style="background:var(--proton)"></div>
-          <span class="p-label">Protons</span>
-          <div class="spinner">
-            <button class="spin-btn" id="p-dn">−</button>
-            <span class="spin-val"  id="p-v">0</span>
-            <button class="spin-btn" id="p-up">+</button>
+      <div class="card">
+        <div class="card-label">Subatomic Particles</div>
+        <div class="particle-rows">
+
+          <div class="particle-row">
+            <div class="p-dot" style="background:var(--proton)"></div>
+            <span class="p-label">Protons</span>
+            <div class="spinner">
+              <button class="spin-btn" id="p-dn">−</button>
+              <span class="spin-val"  id="p-v">0</span>
+              <button class="spin-btn" id="p-up">+</button>
+            </div>
           </div>
-        </div>
 
-        <div class="particle-row">
-          <div class="p-dot" style="background:var(--neutron)"></div>
-          <span class="p-label">Neutrons</span>
-          <div class="spinner">
-            <button class="spin-btn" id="n-dn">−</button>
-            <span class="spin-val"  id="n-v">0</span>
-            <button class="spin-btn" id="n-up">+</button>
+          <div class="particle-row">
+            <div class="p-dot" style="background:var(--neutron)"></div>
+            <span class="p-label">Neutrons</span>
+            <div class="spinner">
+              <button class="spin-btn" id="n-dn">−</button>
+              <span class="spin-val"  id="n-v">0</span>
+              <button class="spin-btn" id="n-up">+</button>
+            </div>
           </div>
-        </div>
 
-        <div class="particle-row">
-          <div class="p-dot" style="background:var(--electron)"></div>
-          <span class="p-label">Electrons</span>
-          <div class="spinner">
-            <button class="spin-btn" id="e-dn">−</button>
-            <span class="spin-val"  id="e-v">0</span>
-            <button class="spin-btn" id="e-up">+</button>
+          <div class="particle-row">
+            <div class="p-dot" style="background:var(--electron)"></div>
+            <span class="p-label">Electrons</span>
+            <div class="spinner">
+              <button class="spin-btn" id="e-dn">−</button>
+              <span class="spin-val"  id="e-v">0</span>
+              <button class="spin-btn" id="e-up">+</button>
+            </div>
           </div>
-        </div>
 
+        </div>
       </div>
-    </div>
 
-    <!-- Diagram + info -->
-    <div class="diagram-col">
-
-      <div class="svg-wrap">
-        <svg id="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="-180 -180 360 360">
-          <defs>
-            <radialGradient id="nucGrad" cx="38%" cy="32%" r="65%">
-              <stop offset="0%"   stop-color="#fde68a"/>
-              <stop offset="60%"  stop-color="#f59e0b"/>
-              <stop offset="100%" stop-color="#b45309"/>
-            </radialGradient>
-            <radialGradient id="eGrad" cx="35%" cy="30%" r="65%">
-              <stop offset="0%"   stop-color="#bae6fd"/>
-              <stop offset="100%" stop-color="#2563eb"/>
-            </radialGradient>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3.5" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-            <filter id="nucGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="6" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <!-- populated by JS -->
-        </svg>
+      <div class="card">
+        <div class="card-label">Lewis Dot Structure</div>
+        <div class="lewis-wrap">
+          <svg id="lewis-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-60 -45 140 90"></svg>
+        </div>
       </div>
 
       <div class="info-card">
@@ -329,6 +323,33 @@
       </div>
 
     </div>
+
+    <!-- Right column: Bohr diagram -->
+    <div class="svg-wrap">
+      <svg id="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="-180 -180 360 360">
+        <defs>
+          <radialGradient id="nucGrad" cx="38%" cy="32%" r="65%">
+            <stop offset="0%"   stop-color="#fde68a"/>
+            <stop offset="60%"  stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#b45309"/>
+          </radialGradient>
+          <radialGradient id="eGrad" cx="35%" cy="30%" r="65%">
+            <stop offset="0%"   stop-color="#bae6fd"/>
+            <stop offset="100%" stop-color="#2563eb"/>
+          </radialGradient>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="nucGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="6" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- populated by JS -->
+      </svg>
+    </div>
+
   </div>
 </div>
 
@@ -362,6 +383,22 @@ const NAMES = [
   'Seaborgium','Bohrium','Hassium','Meitnerium','Darmstadtium',
   'Roentgenium','Copernicium','Nihonium','Flerovium','Moscovium',
   'Livermorium','Tennessine','Oganesson',
+];
+
+const SYMBOLS = [
+  null,
+  'H','He','Li','Be','B','C','N','O','F','Ne',
+  'Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca',
+  'Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn',
+  'Ga','Ge','As','Se','Br','Kr','Rb','Sr','Y','Zr',
+  'Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn',
+  'Sb','Te','I','Xe','Cs','Ba','La','Ce','Pr','Nd',
+  'Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb',
+  'Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg',
+  'Tl','Pb','Bi','Po','At','Rn','Fr','Ra','Ac','Th',
+  'Pa','U','Np','Pu','Am','Cm','Bk','Cf','Es','Fm',
+  'Md','No','Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds',
+  'Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og',
 ];
 
 // Electron shell max capacities (simplified Bohr model, sums to 118)
@@ -572,6 +609,105 @@ function render() {
   }
 
   updateLabel();
+  renderLewisDot();
+}
+
+// ────────────────────────────────────────────────────────────────
+// Lewis Dot
+// ────────────────────────────────────────────────────────────────
+function renderLewisDot() {
+  const svg = document.getElementById('lewis-svg');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  if (P === 0) return;
+
+  const symbol = (P >= 1 && P <= 118) ? SYMBOLS[P] : '?';
+  const charge = P - E;
+
+  // Cations: show neutral atom's valence minus electrons lost (never wraps to previous shell).
+  // Anions/neutral: use actual electron distribution.
+  let valence;
+  if (charge > 0) {
+    const neutralShells = distribute(P);
+    const neutralValence = neutralShells.length > 0 ? neutralShells[neutralShells.length - 1] : 0;
+    valence = Math.max(0, neutralValence - charge);
+  } else {
+    const shells = distribute(E);
+    valence = shells.length > 0 ? shells[shells.length - 1] : 0;
+  }
+
+  const capped = Math.min(valence, 8);
+
+  const mk = (tag, attrs) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+
+  // Electron count per side: top(0), right(1), bottom(2), left(3)
+  // Fill singles first (one per side), then pairs
+  const sides = [0, 0, 0, 0];
+  for (let i = 0; i < capped; i++) sides[i % 4]++;
+
+  const G = 26, O = 5, DR = 3; // gap from center, pair offset, dot radius
+
+  const sidePos = [
+    { s: {x:0,y:-G},  p: [{x:-O,y:-G}, {x:O,y:-G}]  }, // top
+    { s: {x:G,y:0},   p: [{x:G,y:-O},  {x:G,y:O}]   }, // right
+    { s: {x:0,y:G},   p: [{x:O,y:G},   {x:-O,y:G}]  }, // bottom
+    { s: {x:-G,y:0},  p: [{x:-G,y:O},  {x:-G,y:-O}] }, // left
+  ];
+
+  for (let s = 0; s < 4; s++) {
+    if (sides[s] === 0) continue;
+    const pts = sides[s] === 1 ? [sidePos[s].s] : sidePos[s].p;
+    for (const {x, y} of pts) {
+      svg.appendChild(mk('circle', { cx: x, cy: y, r: DR, fill: 'var(--text)' }));
+    }
+  }
+
+  // Element symbol
+  const txt = mk('text', {
+    x: 0, y: 0,
+    'text-anchor': 'middle',
+    'dominant-baseline': 'central',
+    'font-size': '22',
+    'font-weight': '700',
+    fill: 'var(--text)',
+    'font-family': "'Segoe UI', system-ui, sans-serif",
+  });
+  txt.textContent = symbol;
+  svg.appendChild(txt);
+
+  // Brackets and charge superscript — only when charged
+  if (charge !== 0) {
+    const bW = 44, bH = 32;
+
+    svg.appendChild(mk('path', {
+      d: `M ${-bW+6},${-bH} L ${-bW},${-bH} L ${-bW},${bH} L ${-bW+6},${bH}`,
+      fill: 'none', stroke: 'var(--text)', 'stroke-width': '2',
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+    }));
+    svg.appendChild(mk('path', {
+      d: `M ${bW-6},${-bH} L ${bW},${-bH} L ${bW},${bH} L ${bW-6},${bH}`,
+      fill: 'none', stroke: 'var(--text)', 'stroke-width': '2',
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+    }));
+
+    const mag    = Math.abs(charge);
+    const chgStr = (charge > 0 ? '+' : '−') + (mag === 1 ? '' : mag);
+    const chgEl  = mk('text', {
+      x: bW + 3, y: -bH + 2,
+      'text-anchor': 'start',
+      'dominant-baseline': 'auto',
+      'font-size': '13',
+      'font-weight': '700',
+      fill: charge > 0 ? '#fb923c' : '#a78bfa',
+      'font-family': "'Segoe UI', system-ui, sans-serif",
+    });
+    chgEl.textContent = chgStr;
+    svg.appendChild(chgEl);
+  }
 }
 
 // ────────────────────────────────────────────────────────────────
