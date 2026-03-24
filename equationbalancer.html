@@ -371,6 +371,90 @@
       transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
     .home-btn:hover { background: var(--border); border-color: var(--accent); color: var(--text); }
+
+    /* ── Difficulty picker ── */
+    #difficulty-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.75rem;
+      padding: 2rem 0 1rem;
+    }
+
+    #difficulty-screen h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+    }
+
+    #difficulty-screen p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: -1.25rem;
+      text-align: center;
+    }
+
+    .diff-cards {
+      display: flex;
+      gap: 1rem;
+      width: 100%;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .diff-card {
+      flex: 1;
+      min-width: 180px;
+      max-width: 220px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      transition: border-color 0.18s, background 0.18s, transform 0.12s;
+      color: var(--text);
+    }
+
+    .diff-card:hover  { transform: translateY(-3px); background: var(--surface2); }
+    .diff-card:active { transform: translateY(0); }
+
+    .diff-card[data-level="mild"]   { --diff-color: #22c55e; }
+    .diff-card[data-level="medium"] { --diff-color: #f59e0b; }
+    .diff-card[data-level="spicy"]  { --diff-color: #ef4444; }
+
+    .diff-card:hover  { border-color: var(--diff-color); }
+
+    .diff-icon {
+      font-size: 2.5rem;
+      line-height: 1;
+    }
+
+    .diff-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--diff-color);
+    }
+
+    .diff-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .diff-count {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border-radius: 999px;
+      padding: 0.15rem 0.6rem;
+      margin-top: 0.25rem;
+    }
   </style>
 </head>
 <body>
@@ -381,6 +465,32 @@
       <p class="subtitle">Adjust the coefficients until atoms on both sides are equal</p>
     </header>
 
+    <div id="difficulty-screen">
+      <h2>Choose Your Level</h2>
+      <p>Pick a difficulty to get a randomized set of equations.</p>
+      <div class="diff-cards">
+        <button class="diff-card" data-level="mild">
+          <span class="diff-icon">🌱</span>
+          <span class="diff-name">Mild</span>
+          <span class="diff-desc">Simple reactions, small coefficients</span>
+          <span class="diff-count" id="count-mild"></span>
+        </button>
+        <button class="diff-card" data-level="medium">
+          <span class="diff-icon">🔥</span>
+          <span class="diff-name">Medium</span>
+          <span class="diff-desc">Multi-step reactions, larger coefficients</span>
+          <span class="diff-count" id="count-medium"></span>
+        </button>
+        <button class="diff-card" data-level="spicy">
+          <span class="diff-icon">🌶️</span>
+          <span class="diff-name">Spicy</span>
+          <span class="diff-desc">Combustion and complex reactions</span>
+          <span class="diff-count" id="count-spicy"></span>
+        </button>
+      </div>
+    </div>
+
+    <div id="main-content" style="display:none;">
     <div class="progress-wrap">
       <span class="progress-label" id="progress-label">1 / 10</span>
       <div class="progress-bar-bg">
@@ -416,8 +526,9 @@
     <div class="completion" id="completion">
       <h2>All Done!</h2>
       <p>You balanced all the equations. Well done!</p>
-      <button class="restart-btn" id="restart-btn">Start Over</button>
+      <button class="restart-btn" id="restart-btn">Choose a New Level</button>
     </div>
+    </div><!-- /#main-content -->
   </div>
 
   <script>
@@ -425,55 +536,188 @@
     // Equation data
     // ─────────────────────────────────────────────────────────────
     const EQUATIONS = [
+      // ── Mild ────────────────────────────────────────
       {
         name: "Hydrogen Combustion",
+        difficulty: "mild",
         reactants: ['H2', 'O2'],
         products:  ['H2O'],
       },
       {
         name: "Ammonia Synthesis",
+        difficulty: "mild",
         reactants: ['N2', 'H2'],
         products:  ['NH3'],
       },
       {
-        name: "Zinc & Hydrochloric Acid",
-        reactants: ['Zn', 'HCl'],
-        products:  ['ZnCl2', 'H2'],
-      },
-      {
         name: "Iron Oxidation",
+        difficulty: "mild",
         reactants: ['Fe', 'O2'],
         products:  ['Fe2O3'],
       },
       {
         name: "Aluminum Oxidation",
+        difficulty: "mild",
         reactants: ['Al', 'O2'],
         products:  ['Al2O3'],
       },
       {
+        name: "Carbon Combustion",
+        difficulty: "mild",
+        reactants: ['C', 'O2'],
+        products:  ['CO2'],
+      },
+      {
+        name: "Magnesium Combustion",
+        difficulty: "mild",
+        reactants: ['Mg', 'O2'],
+        products:  ['MgO'],
+      },
+      {
+        name: "Sodium Chloride Formation",
+        difficulty: "mild",
+        reactants: ['Na', 'Cl2'],
+        products:  ['NaCl'],
+      },
+      {
+        name: "Mercury Oxide Decomposition",
+        difficulty: "mild",
+        reactants: ['HgO'],
+        products:  ['Hg', 'O2'],
+      },
+      {
+        name: "Limestone Decomposition",
+        difficulty: "mild",
+        reactants: ['CaCO3'],
+        products:  ['CaO', 'CO2'],
+      },
+      {
+        name: "Water Electrolysis",
+        difficulty: "mild",
+        reactants: ['H2O'],
+        products:  ['H2', 'O2'],
+      },
+      // ── Medium ──────────────────────────────────────
+      {
+        name: "Zinc & Hydrochloric Acid",
+        difficulty: "medium",
+        reactants: ['Zn', 'HCl'],
+        products:  ['ZnCl2', 'H2'],
+      },
+      {
         name: "Sodium & Water",
+        difficulty: "medium",
         reactants: ['Na', 'H2O'],
         products:  ['NaOH', 'H2'],
       },
       {
         name: "Methane Combustion",
+        difficulty: "medium",
         reactants: ['CH4', 'O2'],
         products:  ['CO2', 'H2O'],
       },
       {
         name: "Potassium Chlorate Decomposition",
+        difficulty: "medium",
         reactants: ['KClO3'],
         products:  ['KCl', 'O2'],
       },
       {
+        name: "Calcium Hydroxide & HCl",
+        difficulty: "medium",
+        reactants: ['Ca(OH)2', 'HCl'],
+        products:  ['CaCl2', 'H2O'],
+      },
+      {
+        name: "Copper Oxide Reduction",
+        difficulty: "medium",
+        reactants: ['CuO', 'H2'],
+        products:  ['Cu', 'H2O'],
+      },
+      {
+        name: "Iron in Hydrochloric Acid",
+        difficulty: "medium",
+        reactants: ['Fe', 'HCl'],
+        products:  ['FeCl2', 'H2'],
+      },
+      {
+        name: "Neutralization",
+        difficulty: "medium",
+        reactants: ['NaOH', 'H2SO4'],
+        products:  ['Na2SO4', 'H2O'],
+      },
+      {
+        name: "Barium Sulfate Precipitation",
+        difficulty: "medium",
+        reactants: ['BaCl2', 'Na2SO4'],
+        products:  ['BaSO4', 'NaCl'],
+      },
+      {
+        name: "Iron(III) Chloride Formation",
+        difficulty: "medium",
+        reactants: ['Fe', 'Cl2'],
+        products:  ['FeCl3'],
+      },
+      {
+        name: "Acid-Carbonate Reaction",
+        difficulty: "medium",
+        reactants: ['CaCO3', 'HCl'],
+        products:  ['CaCl2', 'H2O', 'CO2'],
+      },
+      {
+        name: "Silver Displacement",
+        difficulty: "medium",
+        reactants: ['AgNO3', 'Cu'],
+        products:  ['Cu(NO3)2', 'Ag'],
+      },
+      // ── Spicy ───────────────────────────────────────
+      {
         name: "Propane Combustion",
+        difficulty: "spicy",
         reactants: ['C3H8', 'O2'],
         products:  ['CO2', 'H2O'],
       },
       {
-        name: "Calcium Hydroxide & HCl",
-        reactants: ['Ca(OH)2', 'HCl'],
-        products:  ['CaCl2', 'H2O'],
+        name: "Ethylene Combustion",
+        difficulty: "spicy",
+        reactants: ['C2H4', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
+      {
+        name: "Ethane Combustion",
+        difficulty: "spicy",
+        reactants: ['C2H6', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
+      {
+        name: "Ethanol Combustion",
+        difficulty: "spicy",
+        reactants: ['C2H6O', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
+      {
+        name: "Butane Combustion",
+        difficulty: "spicy",
+        reactants: ['C4H10', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
+      {
+        name: "Glucose Combustion",
+        difficulty: "spicy",
+        reactants: ['C6H12O6', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
+      {
+        name: "Iron Ore Reduction",
+        difficulty: "spicy",
+        reactants: ['Fe2O3', 'CO'],
+        products:  ['Fe', 'CO2'],
+      },
+      {
+        name: "Aluminum in Sulfuric Acid",
+        difficulty: "spicy",
+        reactants: ['Al', 'H2SO4'],
+        products:  ['Al2(SO4)3', 'H2'],
       },
     ];
 
@@ -563,6 +807,26 @@
       });
       return [...set].sort();
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // Shuffle + queue
+    // ─────────────────────────────────────────────────────────────
+    function shuffled(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    let queue = [];
+
+    // Populate equation counts on each difficulty card
+    ['mild', 'medium', 'spicy'].forEach(level => {
+      const n = EQUATIONS.filter(e => e.difficulty === level).length;
+      document.getElementById(`count-${level}`).textContent = `${n} equations`;
+    });
 
     // ─────────────────────────────────────────────────────────────
     // State
@@ -699,7 +963,7 @@
     // Master update (called on every coefficient change)
     // ─────────────────────────────────────────────────────────────
     function update() {
-      const eq      = EQUATIONS[eqIndex];
+      const eq      = queue[eqIndex];
       const balanced = renderAtomTable(eq);
 
       if (balanced && !isSolved) {
@@ -720,7 +984,7 @@
     // Load an equation
     // ─────────────────────────────────────────────────────────────
     function loadEquation(index) {
-      const eq = EQUATIONS[index];
+      const eq = queue[index];
       const total = eq.reactants.length + eq.products.length;
 
       // Reset state
@@ -738,7 +1002,7 @@
       renderAtomTable(eq);
 
       // Progress
-      const n = EQUATIONS.length;
+      const n = queue.length;
       $('progress-label').textContent = `${index + 1} / ${n}`;
       $('progress-fill').style.width  = `${((index + 1) / n) * 100}%`;
     }
@@ -748,14 +1012,14 @@
     // ─────────────────────────────────────────────────────────────
     $('next-btn').addEventListener('click', () => {
       eqIndex++;
-      if (eqIndex >= EQUATIONS.length) {
+      if (eqIndex >= queue.length) {
         // Show completion
         $('equation-card').style.display = 'none';
         $('atoms-card').style.display    = 'none';
         $('status-banner').classList.remove('visible');
         $('next-btn').classList.remove('visible');
         $('progress-fill').style.width   = '100%';
-        $('progress-label').textContent  = `${EQUATIONS.length} / ${EQUATIONS.length}`;
+        $('progress-label').textContent  = `${queue.length} / ${queue.length}`;
         $('completion').classList.add('visible');
         document.body.classList.add('solved');
       } else {
@@ -763,19 +1027,33 @@
       }
     });
 
-    $('restart-btn').addEventListener('click', () => {
+    function showDifficultyScreen() {
+      document.getElementById('difficulty-screen').style.display = '';
+      document.getElementById('main-content').style.display      = 'none';
+      document.body.classList.remove('solved');
+    }
+
+    function startLevel(level) {
+      queue   = shuffled(EQUATIONS.filter(e => e.difficulty === level));
       eqIndex = 0;
+      document.getElementById('difficulty-screen').style.display = 'none';
+      document.getElementById('main-content').style.display      = 'contents';
       $('equation-card').style.display = '';
       $('atoms-card').style.display    = '';
       $('completion').classList.remove('visible');
-      document.body.classList.remove('solved');
       loadEquation(0);
+    }
+
+    document.querySelectorAll('.diff-card').forEach(btn => {
+      btn.addEventListener('click', () => startLevel(btn.dataset.level));
     });
+
+    $('restart-btn').addEventListener('click', showDifficultyScreen);
 
     // ─────────────────────────────────────────────────────────────
     // Boot
     // ─────────────────────────────────────────────────────────────
-    loadEquation(0);
+    showDifficultyScreen();
   </script>
 </body>
 </html>

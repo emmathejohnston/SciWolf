@@ -143,9 +143,20 @@
     .spin-val {
       font-size: 1.05rem;
       font-weight: 700;
-      min-width: 2rem;
+      width: 2.8rem;
       text-align: center;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      padding: 2px 0;
+      outline: none;
+      -moz-appearance: textfield;
+      appearance: textfield;
     }
+    .spin-val::-webkit-inner-spin-button,
+    .spin-val::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .spin-val:focus { border-bottom-color: var(--accent); }
 
     .svg-wrap {
       background: var(--surface);
@@ -261,7 +272,7 @@
             <span class="p-label">Protons</span>
             <div class="spinner">
               <button class="spin-btn" id="p-dn">−</button>
-              <span class="spin-val"  id="p-v">0</span>
+              <input  class="spin-val" id="p-v" type="number" value="0" min="0" max="118">
               <button class="spin-btn" id="p-up">+</button>
             </div>
           </div>
@@ -271,7 +282,7 @@
             <span class="p-label">Neutrons</span>
             <div class="spinner">
               <button class="spin-btn" id="n-dn">−</button>
-              <span class="spin-val"  id="n-v">0</span>
+              <input  class="spin-val" id="n-v" type="number" value="0" min="0">
               <button class="spin-btn" id="n-up">+</button>
             </div>
           </div>
@@ -281,7 +292,7 @@
             <span class="p-label">Electrons</span>
             <div class="spinner">
               <button class="spin-btn" id="e-dn">−</button>
-              <span class="spin-val"  id="e-v">0</span>
+              <input  class="spin-val" id="e-v" type="number" value="0" min="0" max="118">
               <button class="spin-btn" id="e-up">+</button>
             </div>
           </div>
@@ -757,9 +768,9 @@ function updateLabel() {
 // Controls
 // ────────────────────────────────────────────────────────────────
 function refreshUI() {
-  document.getElementById('p-v').textContent = P;
-  document.getElementById('n-v').textContent = N;
-  document.getElementById('e-v').textContent = E;
+  document.getElementById('p-v').value = P;
+  document.getElementById('n-v').value = N;
+  document.getElementById('e-v').value = E;
   document.getElementById('p-dn').disabled = P <= 0;
   document.getElementById('n-dn').disabled = N <= 0;
   document.getElementById('e-dn').disabled = E <= 0;
@@ -775,6 +786,18 @@ document.getElementById('n-up').addEventListener('click', () => { N++; update();
 document.getElementById('n-dn').addEventListener('click', () => { if (N > 0) { N--; update(); } });
 document.getElementById('e-up').addEventListener('click', () => { if (E < 118) { E++; update(); } });
 document.getElementById('e-dn').addEventListener('click', () => { if (E > 0)   { E--; update(); } });
+
+function handleInput(inputId, setter, min, max) {
+  document.getElementById(inputId).addEventListener('change', function () {
+    const v = Math.round(Number(this.value));
+    if (!isFinite(v)) { refreshUI(); return; }
+    setter(Math.max(min, max !== undefined ? Math.min(max, v) : v));
+    update();
+  });
+}
+handleInput('p-v', v => { P = v; }, 0, 118);
+handleInput('n-v', v => { N = v; }, 0);
+handleInput('e-v', v => { E = v; }, 0, 118);
 
 // Boot
 update();

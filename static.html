@@ -303,8 +303,9 @@ function updateScope() {
 // ═══════════════════════════════════════════════════════
 // Physics (Coulomb + collision + sticking + boundaries)
 // ═══════════════════════════════════════════════════════
-const K_C  = 14000;
-const DAMP = 0.92;
+const K_C   = 1000;
+const K_IND = 80;   // induction: neutral attracted to any charged object
+const DAMP  = 0.88;
 const PAD  = 55;
 
 // Opposite-charged objects only attract within this distance
@@ -322,20 +323,19 @@ function updatePhysics() {
       const minD = rad(a) + rad(b);
 
       // ── Solid collision / sticking ──────────────────
-      if (dRaw < minD) {
+      const overlap = minD - dRaw;
+      if (overlap >= 0.5) {
         const d  = Math.max(dRaw, 0.1);
         const nx = dx / d, ny = dy / d;
-        // Push apart to just-touching
-        const push = (minD - dRaw + 0.5) * 0.5;
+        // Push back to exactly 0.5px overlap (not fully separated, avoids over-push jitter)
+        const push = (overlap - 0.5) * 0.5;
         a.x -= nx * push; a.y -= ny * push;
         b.x += nx * push; b.y += ny * push;
 
         if (qa * qb < 0) {
-          // Opposite charges → stick: blend velocities so they move together
-          const avgVx = (a.vx + b.vx) * 0.5;
-          const avgVy = (a.vy + b.vy) * 0.5;
-          a.vx = avgVx; a.vy = avgVy;
-          b.vx = avgVx; b.vy = avgVy;
+          // Opposite charges → stick: zero velocity to prevent contact oscillation
+          a.vx = 0; a.vy = 0;
+          b.vx = 0; b.vy = 0;
         } else {
           // Like charges or neutral → elastic-ish bounce
           const approach = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
@@ -348,6 +348,18 @@ function updatePhysics() {
       }
 
       if (qa === 0 && qb === 0) continue;
+
+      // ── Neutral-charged induction attraction ────────
+      if (qa === 0 || qb === 0) {
+        const q  = qa !== 0 ? Math.abs(qa) : Math.abs(qb);
+        const d2 = Math.max(dRaw * dRaw, minD * minD);
+        const d  = Math.sqrt(d2);
+        const F  = K_IND * q / d2;
+        const fx = F * dx / d, fy = F * dy / d;
+        a.vx += fx; a.vy += fy;
+        b.vx -= fx; b.vy -= fy;
+        continue;
+      }
 
       // ── Attraction cutoff ───────────────────────────
       // Opposite charges don't pull from across the room
@@ -363,9 +375,12 @@ function updatePhysics() {
     }
   }
 
+  const MAX_V = 8;
   for (const inst of free) {
     inst.vx *= DAMP;
     inst.vy *= DAMP;
+    inst.vx = Math.max(-MAX_V, Math.min(MAX_V, inst.vx));
+    inst.vy = Math.max(-MAX_V, Math.min(MAX_V, inst.vy));
     inst.x  += inst.vx;
     inst.y  += inst.vy;
     const ir = rad(inst);
@@ -730,6 +745,17 @@ for (const [key, t] of Object.entries(TYPES)) {
   });
   toolbar.appendChild(div);
 }
+
+const resetBtn = document.createElement('div');
+resetBtn.className = 'pitem';
+resetBtn.style.cssText = 'margin-left:auto; border-color:#ef4444;';
+resetBtn.innerHTML = '<span class="icon">↺</span><span>Reset</span>';
+resetBtn.addEventListener('click', () => {
+  instances.length = 0;
+  sparks.length    = 0;
+  labels.length    = 0;
+});
+toolbar.appendChild(resetBtn);
 
 // ═══════════════════════════════════════════════════════
 // Boot

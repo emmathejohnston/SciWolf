@@ -507,7 +507,7 @@
 
   const SUBSTANCES = [
     { id: 'lemon',   name: 'Lemon Juice',   pH: 2.0,  color: '#fef08a', textColor: '#713f12', emoji: '🍋' },
-    { id: 'vinegar', name: 'Vinegar',        pH: 3.0,  color: '#fde68a', textColor: '#713f12', emoji: '🫙' },
+    { id: 'vinegar', name: 'Vinegar',        pH: 3.0,  color: '#bae6fd', textColor: '#0c4a6e', emoji: '🫙' },
     { id: 'soda',    name: 'Soda Pop',       pH: 3.5,  color: '#fed7aa', textColor: '#7c2d12', emoji: '🥤' },
     { id: 'oj',      name: 'Orange Juice',   pH: 3.8,  color: '#fb923c', textColor: '#431407', emoji: '🍊' },
     { id: 'coffee',  name: 'Coffee',         pH: 5.0,  color: '#78350f', textColor: '#fef3c7', emoji: '☕' },
@@ -538,7 +538,7 @@
       resultText(pH) { return pH < 7 ? 'Red (acid)' : 'Blue (base)'; },
     },
     {
-      id: 'UI', name: 'Universal',
+      id: 'UI', name: 'pH Paper',
       type: 'paper',
       desc: 'Paper strip · full pH colour range',
       acidColor: '#dc2626', baseColor: '#7c3aed',
@@ -613,7 +613,6 @@
       <span class="s-emoji">${s.emoji}</span>
       <span class="s-info">
         <span class="s-name">${s.name}</span>
-        <span class="s-ph">pH ${s.pH.toFixed(1)}</span>
       </span>`;
     el.addEventListener('mousedown', e => startDrag(e, 'substance', s));
     substancesPanel.appendChild(el);
