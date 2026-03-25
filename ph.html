@@ -430,6 +430,90 @@
       box-shadow: 0 4px 16px rgba(0,0,0,0.5);
       white-space: nowrap;
     }
+
+    /* ── Concentration panel (KAN-25) ──────────── */
+    #conc-panel {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s;
+    }
+    #conc-panel.hidden { display: none; }
+    .conc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      cursor: default;
+    }
+    .conc-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--sub);
+    }
+    .conc-close {
+      background: none;
+      border: none;
+      color: var(--sub);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .conc-close:hover { color: var(--text); }
+    .conc-body {
+      padding: 12px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.8;
+    }
+    .conc-body .conc-sub { color: var(--sub); font-size: 0.72rem; }
+    .conc-body .conc-val { color: var(--accent); font-weight: 700; }
+    .conc-body .conc-working {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 0.73rem;
+      color: var(--sub);
+      line-height: 1.7;
+    }
+    .conc-body .conc-empty {
+      color: var(--sub);
+      font-style: italic;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 0.8rem;
+    }
+    .conc-toggle-btn {
+      padding: 6px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--sub);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .conc-toggle-btn:hover {
+      background: #1a2840;
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .conc-toggle-btn.active {
+      background: #1a2840;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -469,6 +553,20 @@
           <span class="ph-scale-label">9</span>
           <span class="ph-scale-label">11</span>
           <span class="ph-scale-label">14</span>
+        </div>
+      </div>
+
+      <!-- Concentration calculator (KAN-25) -->
+      <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:420px;justify-content:flex-end;">
+        <button class="conc-toggle-btn" id="conc-toggle-btn">[H⁺]/[OH⁻] Calculator</button>
+      </div>
+      <div id="conc-panel" class="hidden">
+        <div class="conc-header">
+          <span class="conc-title">[H⁺] / [OH⁻] Concentrations</span>
+          <button class="conc-close" id="conc-close" title="Close">✕</button>
+        </div>
+        <div class="conc-body" id="conc-body">
+          <span class="conc-empty">Hover or select a filled well to see concentrations.</span>
         </div>
       </div>
     </div>
@@ -876,6 +974,136 @@
       }, 3000);
     }
   }
+
+  // ── Concentration Calculator (KAN-25) ─────────────────────────────────────
+  const concPanel     = document.getElementById('conc-panel');
+  const concBody      = document.getElementById('conc-body');
+  const concToggleBtn = document.getElementById('conc-toggle-btn');
+  const concCloseBtn  = document.getElementById('conc-close');
+  let concVisible     = false;
+  let concActivePH    = null; // pH currently shown
+
+  function toSciNotation(val) {
+    if (val === 0) return '0';
+    const exp   = Math.floor(Math.log10(val));
+    const coeff = val / Math.pow(10, exp);
+    const cStr  = coeff.toFixed(2);
+    // Use × 10^exp notation
+    return `${cStr} × 10^(${exp})`;
+  }
+
+  function toSciNotationHTML(val) {
+    if (val === 0) return '0';
+    const exp   = Math.floor(Math.log10(val));
+    const coeff = val / Math.pow(10, exp);
+    const cStr  = (Math.abs(coeff - 1) < 0.005) ? '1' : coeff.toFixed(2);
+    return `${cStr} &times; 10<sup>${exp}</sup>`;
+  }
+
+  function renderConcPanel(pH, substanceName) {
+    if (pH === null || pH === undefined) {
+      concBody.innerHTML = '<span class="conc-empty">Hover or select a filled well to see concentrations.</span>';
+      return;
+    }
+    const hConc  = Math.pow(10, -pH);
+    const ohConc = Math.pow(10, pH - 14);
+    const hHTML  = toSciNotationHTML(hConc);
+    const ohHTML = toSciNotationHTML(ohConc);
+    const phFixed = pH.toFixed(1);
+
+    // Determine acid/base label
+    let type = '';
+    if (pH < 7)       type = '<span style="color:#f87171">acidic</span>';
+    else if (pH > 7)  type = '<span style="color:#a78bfa">basic (alkaline)</span>';
+    else              type = '<span style="color:#4ade80">neutral</span>';
+
+    concBody.innerHTML = `
+      <div style="margin-bottom:6px;font-family:'Segoe UI',system-ui,sans-serif;font-size:0.78rem;">
+        <strong>${substanceName}</strong> &mdash; pH ${phFixed} &mdash; ${type}
+      </div>
+      <div>
+        <span class="conc-sub">[H<sup>+</sup>] = </span>
+        <span class="conc-val">${hHTML} mol/L</span>
+      </div>
+      <div>
+        <span class="conc-sub">[OH<sup>-</sup>] = </span>
+        <span class="conc-val">${ohHTML} mol/L</span>
+      </div>
+      <div class="conc-working">
+        <strong>Show working:</strong><br>
+        [H<sup>+</sup>] = 10<sup>&minus;pH</sup> = 10<sup>&minus;${phFixed}</sup> = ${hHTML} mol/L<br>
+        [OH<sup>-</sup>] = 10<sup>(pH&minus;14)</sup> = 10<sup>(${phFixed}&minus;14)</sup> = ${ohHTML} mol/L<br>
+        Check: [H<sup>+</sup>] &times; [OH<sup>-</sup>] = K<sub>w</sub> = 10<sup>&minus;14</sup>
+      </div>`;
+  }
+
+  function showConcPanel() {
+    concVisible = true;
+    concPanel.classList.remove('hidden');
+    concToggleBtn.classList.add('active');
+    renderConcPanel(concActivePH, concActivePH !== null ? (SUBSTANCES.find(s => Math.abs(s.pH - concActivePH) < 0.01)?.name || 'Selected substance') : null);
+  }
+
+  function hideConcPanel() {
+    concVisible = false;
+    concPanel.classList.add('hidden');
+    concToggleBtn.classList.remove('active');
+  }
+
+  concToggleBtn.addEventListener('click', () => {
+    if (concVisible) hideConcPanel();
+    else showConcPanel();
+  });
+
+  concCloseBtn.addEventListener('click', hideConcPanel);
+
+  // Update when well is hovered during drag
+  const origMouseMove = document.onmousemove;
+  document.addEventListener('mousemove', e => {
+    if (!concVisible) return;
+    // Only update if dragging meter or hovering wells
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const wellEl = el ? el.closest('.well') : null;
+    if (wellEl) {
+      const wi = parseInt(wellEl.dataset.wellIndex);
+      const ws = wellState[wi];
+      if (ws.substanceId) {
+        const sub = SUBSTANCES.find(s => s.id === ws.substanceId);
+        concActivePH = sub.pH;
+        renderConcPanel(sub.pH, sub.name);
+      }
+    }
+  });
+
+  // Update when substance is applied to well
+  const origApplyToWell = applyToWell;
+  // Patch applyToWell to also update conc panel
+  // We do this by listening for custom events on well interaction
+  // Since applyToWell is a closure, we watch mouseup and check what changed
+  document.addEventListener('mouseup', () => {
+    if (!concVisible) return;
+    // After mouseup, check if any well now has a substance and update
+    // The last hovered well will have been updated already
+    // Just re-check the active pH if it's set
+    if (concActivePH !== null) {
+      const sub = SUBSTANCES.find(s => Math.abs(s.pH - concActivePH) < 0.01);
+      if (sub) renderConcPanel(sub.pH, sub.name);
+    }
+  });
+
+  // Allow clicking a filled well to pin it in the panel
+  spotPlate.addEventListener('click', e => {
+    if (!concVisible) return;
+    const wellEl = e.target.closest('.well');
+    if (!wellEl) return;
+    const wi = parseInt(wellEl.dataset.wellIndex);
+    const ws = wellState[wi];
+    if (ws.substanceId) {
+      const sub = SUBSTANCES.find(s => s.id === ws.substanceId);
+      concActivePH = sub.pH;
+      renderConcPanel(sub.pH, sub.name);
+    }
+  });
 
 })();
 </script>

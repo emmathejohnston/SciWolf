@@ -498,6 +498,262 @@ function shellElectronPositions(shellIndex, count, r) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Aufbau / Madelung orbital fill (KAN-21)
+// ────────────────────────────────────────────────────────────────
+// Madelung order: subshells sorted by (n+l, then n)
+const MADELUNG_ORDER = [
+  {n:1,l:0,cap:2},   // 1s
+  {n:2,l:0,cap:2},   // 2s
+  {n:2,l:1,cap:6},   // 2p
+  {n:3,l:0,cap:2},   // 3s
+  {n:3,l:1,cap:6},   // 3p
+  {n:4,l:0,cap:2},   // 4s
+  {n:3,l:2,cap:10},  // 3d
+  {n:4,l:1,cap:6},   // 4p
+  {n:5,l:0,cap:2},   // 5s
+  {n:4,l:2,cap:10},  // 4d
+  {n:5,l:1,cap:6},   // 5p
+  {n:6,l:0,cap:2},   // 6s
+  {n:4,l:3,cap:14},  // 4f
+  {n:5,l:2,cap:10},  // 5d
+  {n:6,l:1,cap:6},   // 6p
+  {n:7,l:0,cap:2},   // 7s
+  {n:5,l:3,cap:14},  // 5f
+  {n:6,l:2,cap:10},  // 6d
+  {n:7,l:1,cap:6},   // 7p
+];
+
+const L_LETTER = ['s','p','d','f'];
+
+// Returns array of {n, l, letter, count} for filled subshells
+function getElectronConfig(numElec) {
+  const config = [];
+  let rem = numElec;
+  for (const sub of MADELUNG_ORDER) {
+    if (rem <= 0) break;
+    const fill = Math.min(rem, sub.cap);
+    config.push({ n: sub.n, l: sub.l, letter: L_LETTER[sub.l], count: fill, cap: sub.cap });
+    rem -= fill;
+  }
+  return config;
+}
+
+// Format config as string e.g. "1s² 2s² 2p⁶ ..."
+const SUPER = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹','¹⁰','¹¹','¹²','¹³','¹⁴'];
+function fmtSup(n) {
+  if (n <= 14) return SUPER[n];
+  return String(n).split('').map(c => SUPER[parseInt(c)] || c).join('');
+}
+function configToString(config) {
+  return config.map(s => `${s.n}${s.letter}${fmtSup(s.count)}`).join(' ');
+}
+
+// ────────────────────────────────────────────────────────────────
+// Render orbital diagram for Z > 20 (KAN-21)
+// ────────────────────────────────────────────────────────────────
+function renderOrbitalDiagram(numElec, nucR) {
+  const config = getElectronConfig(numElec);
+
+  // Clear diagram
+  [...diagramSVG.children].forEach(c => { if (c.tagName !== 'defs') c.remove(); });
+
+  // Background
+  diagramSVG.setAttribute('viewBox', '-220 -210 440 420');
+
+  // Title: "Orbital Notation" banner
+  diagramSVG.appendChild(svgTxt('Orbital Probability Clouds', {
+    x: 0, y: -195,
+    'font-size': 11, fill: '#475569',
+    'font-style': 'italic',
+  }));
+
+  // ── Draw nucleus ──
+  diagramSVG.appendChild(svgEl('circle', {
+    cx: 0, cy: 0, r: nucR + 10,
+    fill: 'rgba(251,191,36,0.10)',
+  }));
+  diagramSVG.appendChild(svgEl('circle', {
+    cx: 0, cy: 0, r: nucR,
+    fill: 'url(#nucGrad)',
+    filter: 'url(#nucGlow)',
+  }));
+  const fontSize = Math.max(9, Math.min(15, nucR * 0.31));
+  if (P > 0 && N > 0) {
+    diagramSVG.appendChild(svgTxt(`${P}p⁺`, { x: 0, y: -(nucR * 0.27), 'font-size': fontSize, 'font-weight': '700', fill: '#1c1917' }));
+    diagramSVG.appendChild(svgTxt(`${N}n⁰`, { x: 0, y:  (nucR * 0.27), 'font-size': fontSize, 'font-weight': '700', fill: '#1c1917' }));
+  } else if (P > 0) {
+    diagramSVG.appendChild(svgTxt(`${P}p⁺`, { x: 0, y: 0, 'font-size': fontSize + 1, 'font-weight': '700', fill: '#1c1917' }));
+  }
+
+  // ── Draw orbital clouds ──
+  // Group subshells by n (principal quantum number) → concentric rings
+  // s: small sphere (circle), p: pair of lobes (ellipses at 0/90°), d: 4 lobes, f: complex
+  // We'll draw simplified probability cloud ellipses
+
+  // Color palette per l
+  const L_COLOR = [
+    'rgba(96,165,250,',   // s: blue
+    'rgba(167,243,208,',  // p: green
+    'rgba(253,186,116,',  // d: orange
+    'rgba(216,180,254,',  // f: purple
+  ];
+  const L_STROKE = ['#60a5fa','#6ee7b7','#fdba74','#c084fc'];
+
+  // Assign radii per n shell
+  const nLevels = [...new Set(config.map(s => s.n))].sort((a,b)=>a-b);
+  const baseR = nucR + 30;
+  const gapR  = 28;
+  const nRadius = {};
+  nLevels.forEach((n, i) => { nRadius[n] = baseR + i * gapR; });
+
+  // Draw shell ring guides
+  for (const n of nLevels) {
+    const r = nRadius[n];
+    diagramSVG.appendChild(svgEl('circle', {
+      cx: 0, cy: 0, r,
+      fill: 'none', stroke: '#1e293b', 'stroke-width': 1, 'stroke-dasharray': '3 4',
+    }));
+    diagramSVG.appendChild(svgTxt(`n=${n}`, {
+      x: r + 2, y: -5,
+      'text-anchor': 'start',
+      'font-size': 8, fill: '#334155',
+    }));
+  }
+
+  // Draw subshell clouds
+  for (const sub of config) {
+    const r = nRadius[sub.n];
+    const col = L_COLOR[sub.l] || 'rgba(200,200,200,';
+    const stroke = L_STROKE[sub.l] || '#aaa';
+    const fillFrac = sub.count / sub.cap; // how full is this subshell
+    const alpha = (0.12 + fillFrac * 0.25).toFixed(2);
+    const strokeAlpha = (0.4 + fillFrac * 0.4).toFixed(2);
+
+    if (sub.l === 0) {
+      // s orbital: sphere (circle)
+      diagramSVG.appendChild(svgEl('circle', {
+        cx: 0, cy: 0, r: r * 0.35,
+        fill: `${col}${alpha})`,
+        stroke: `${col}${strokeAlpha})`,
+        'stroke-width': 1.5,
+      }));
+    } else if (sub.l === 1) {
+      // p orbitals: 3 pairs of lobes along x, y, (z shown as ring)
+      const angles = [0, Math.PI / 2, Math.PI / 4]; // px, py, pz approx
+      const numLobes = Math.min(Math.ceil(sub.count / 2), 3);
+      for (let pi = 0; pi < numLobes; pi++) {
+        const a = angles[pi];
+        const rx = r * 0.38;
+        const ry = r * 0.18;
+        // Two lobes
+        for (const sign of [1, -1]) {
+          const cx = Math.cos(a) * r * 0.42 * sign;
+          const cy = Math.sin(a) * r * 0.42 * sign;
+          const g = diagramSVG.appendChild(svgEl('ellipse', {
+            cx, cy,
+            rx, ry,
+            fill: `${col}${alpha})`,
+            stroke: stroke,
+            'stroke-width': 0.8,
+            'stroke-opacity': strokeAlpha,
+            transform: `rotate(${a * 180 / Math.PI}, ${cx}, ${cy})`,
+          }));
+        }
+      }
+    } else if (sub.l === 2) {
+      // d orbitals: 5 orbital lobes — draw 4 clover lobes + ring
+      const numD = Math.min(Math.ceil(sub.count / 2), 5);
+      const dAngles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, 0]; // 5th is dz2 ~ ring
+      for (let di = 0; di < numD; di++) {
+        if (di === 4) {
+          // dz2: ring around z-axis (shown as outer ring ellipse)
+          diagramSVG.appendChild(svgEl('ellipse', {
+            cx: 0, cy: 0,
+            rx: r * 0.7, ry: r * 0.22,
+            fill: 'none',
+            stroke: stroke,
+            'stroke-width': 1.2,
+            'stroke-opacity': strokeAlpha,
+            'stroke-dasharray': '3 2',
+          }));
+          diagramSVG.appendChild(svgEl('ellipse', {
+            cx: 0, cy: 0,
+            rx: r * 0.12, ry: r * 0.12,
+            fill: `${col}${alpha})`,
+            stroke: stroke,
+            'stroke-width': 0.8,
+            'stroke-opacity': strokeAlpha,
+          }));
+        } else {
+          const a = dAngles[di];
+          const rx = r * 0.32;
+          const ry = r * 0.14;
+          for (const sign of [1, -1]) {
+            const cx = Math.cos(a) * r * 0.36 * sign;
+            const cy = Math.sin(a) * r * 0.36 * sign;
+            diagramSVG.appendChild(svgEl('ellipse', {
+              cx, cy, rx, ry,
+              fill: `${col}${alpha})`,
+              stroke: stroke,
+              'stroke-width': 0.7,
+              'stroke-opacity': strokeAlpha,
+              transform: `rotate(${a * 180 / Math.PI + 45}, ${cx}, ${cy})`,
+            }));
+          }
+        }
+      }
+    } else if (sub.l === 3) {
+      // f orbitals: complex — draw as diffuse outer ellipses in 7 orientations
+      const numF = Math.min(Math.ceil(sub.count / 2), 7);
+      for (let fi = 0; fi < numF; fi++) {
+        const a = (fi / 7) * Math.PI;
+        const rx = r * 0.28;
+        const ry = r * 0.12;
+        for (const sign of [1, -1]) {
+          const cx = Math.cos(a) * r * 0.32 * sign;
+          const cy = Math.sin(a) * r * 0.32 * sign;
+          diagramSVG.appendChild(svgEl('ellipse', {
+            cx, cy, rx, ry,
+            fill: `${col}${(parseFloat(alpha) * 0.75).toFixed(2)})`,
+            stroke: stroke,
+            'stroke-width': 0.6,
+            'stroke-opacity': (parseFloat(strokeAlpha) * 0.7).toFixed(2),
+            transform: `rotate(${a * 180 / Math.PI}, ${cx}, ${cy})`,
+          }));
+        }
+      }
+    }
+  }
+
+  // ── Electron configuration text ──
+  // Group by rows of ~40 chars
+  const cfgStr = configToString(config);
+  // Break into lines of ~5 subshells each
+  const cfgLines = [];
+  let line = [];
+  for (const sub of config) {
+    line.push(`${sub.n}${sub.letter}${fmtSup(sub.count)}`);
+    if (line.length >= 5) { cfgLines.push(line.join(' ')); line = []; }
+  }
+  if (line.length > 0) cfgLines.push(line.join(' '));
+
+  const textStartY = 145;
+  diagramSVG.appendChild(svgTxt('Electron Configuration:', {
+    x: 0, y: textStartY,
+    'font-size': 9, fill: '#64748b',
+  }));
+  cfgLines.forEach((ln, i) => {
+    diagramSVG.appendChild(svgTxt(ln, {
+      x: 0, y: textStartY + 14 + i * 13,
+      'font-size': 10.5, fill: '#94a3b8', 'font-weight': '600',
+    }));
+  });
+
+  updateLabel();
+  renderLewisDot();
+}
+
+// ────────────────────────────────────────────────────────────────
 // SVG helpers
 // ────────────────────────────────────────────────────────────────
 const NS = 'http://www.w3.org/2000/svg';
@@ -525,6 +781,13 @@ function svgTxt(str, attrs) {
 const diagramSVG = document.getElementById('diagram');
 
 function render() {
+  // For Z > 20: switch to orbital diagram (KAN-21)
+  const nucR = Math.max(34, Math.min(52, 34 + (P + N) * 0.28));
+  if (P > 20) {
+    renderOrbitalDiagram(E, nucR);
+    return;
+  }
+
   // Remove all children except <defs>
   [...diagramSVG.children].forEach(c => { if (c.tagName !== 'defs') c.remove(); });
 
@@ -532,7 +795,6 @@ function render() {
   const nShells = shells.length;
 
   // Sizing
-  const nucR     = Math.max(34, Math.min(52, 34 + (P + N) * 0.28));
   const shell1R  = nucR + 48;
   const gap      = nShells <= 3 ? 62 : nShells <= 5 ? 54 : 46;
   const outerR   = nShells > 0 ? shell1R + (nShells - 1) * gap + 18 : nucR + 18;

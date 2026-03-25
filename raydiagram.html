@@ -47,6 +47,13 @@
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
   .home-btn:hover { background: #2a3a50; border-color: #7eb8f7; color: #e0eaf5; }
+
+  @media (max-width: 768px) {
+    #main { flex-direction: column; }
+    #controls { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid #2a2a4a; }
+    #canvas-area { padding: 8px; }
+    canvas { width: 100% !important; height: auto !important; }
+  }
 </style>
 </head>
 <body>
@@ -106,6 +113,22 @@
         <label>Show equations</label>
         <input type="checkbox" id="showEq">
       </div>
+      <div class="toggle-row">
+        <label>Show ray fan</label>
+        <input type="checkbox" id="showRayFan">
+      </div>
+      <div class="toggle-row">
+        <label>Show sun rays</label>
+        <input type="checkbox" id="showSunRays">
+      </div>
+      <div class="toggle-row">
+        <label>Show ray trace</label>
+        <input type="checkbox" id="showRayTrace">
+      </div>
+      <div class="toggle-row">
+        <label>Show labels</label>
+        <input type="checkbox" id="showLabels">
+      </div>
     </div>
 
     <div class="section">
@@ -115,6 +138,13 @@
         <div><span style="color:#ff6b6b">━━</span> Ray 2: through centre</div>
         <div><span style="color:#90ee90">━━</span> Ray 3: through focal → parallel</div>
         <div><span style="color:#888; font-style:italic">- - -</span> Virtual rays</div>
+        <div style="margin-top:6px; color:#7eb8f7; font-size:0.72rem;">Ray fan (all scatter)</div>
+        <div><span style="color:#ff9f40">━━</span> From tip</div>
+        <div><span style="color:#d46bff">━━</span> From mid</div>
+        <div><span style="color:#38bdf8">━━</span> From base</div>
+        <div><span style="color:#ffe066">━━</span> Sun rays</div>
+        <div style="margin-top:4px; color:#7eb8f7; font-size:0.72rem;">Ray trace (emergent)</div>
+        <div style="color:#8aa0b8;">orange→cyan gradient<br>by height on tree</div>
       </div>
     </div>
   </div>
@@ -147,6 +177,10 @@ let state = {
   showImage: true,
   showFocal: true,
   showEq: false,
+  showRayFan: false,
+  showSunRays: false,
+  showRayTrace: false,
+  showLabels: false,
 };
 
 // Coordinate system helpers
@@ -238,25 +272,6 @@ function drawTree(cx, cy, hPx, color, alpha=1) {
   ctx.arc(cx + foliage_r * 0.4, topY - sign * foliage_r * 0.2, foliage_r * 0.75, 0, Math.PI * 2);
   ctx.fill();
 
-  // Arrow showing object height
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx, cy - sign * Math.abs(hPx));
-  ctx.stroke();
-
-  // Arrowhead
-  const tipY = cy - sign * Math.abs(hPx);
-  ctx.beginPath();
-  ctx.moveTo(cx, tipY);
-  ctx.lineTo(cx - 4, tipY + sign * 8);
-  ctx.lineTo(cx + 4, tipY + sign * 8);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-
   ctx.restore();
 }
 
@@ -317,6 +332,17 @@ function draw() {
   ctx.stroke();
   ctx.restore();
 
+  // Vocabulary labels
+  if (state.showLabels) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#7eb8f7';
+    ctx.fillText('Principal axis', 8, cy - 6);
+    ctx.fillText(elementType === 'lens' ? 'Optical centre' : 'Mirror vertex', cx + 6, cy - 10);
+    ctx.restore();
+  }
+
   // ---- Lens / Mirror ----
   const lensH = 160;
   if (elementType === 'lens') {
@@ -343,9 +369,11 @@ function draw() {
       ctx.beginPath();
       ctx.arc(fp.x, cy, 5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ffa500';
-      ctx.font = '12px monospace';
-      ctx.fillText(fp.label, fp.x + 7, cy - 8);
+      if (state.showLabels) {
+        ctx.fillStyle = '#ffa500';
+        ctx.font = '12px monospace';
+        ctx.fillText(fp.label, fp.x + 7, cy - 8);
+      }
       ctx.restore();
 
       // 2F points
@@ -371,9 +399,11 @@ function draw() {
       ctx.moveTo(fp.x, cy - 8);
       ctx.lineTo(fp.x, cy + 8);
       ctx.stroke();
-      ctx.fillStyle = '#ff7700';
-      ctx.font = '11px monospace';
-      ctx.fillText('2F', fp.x + 4, cy + 20);
+      if (state.showLabels) {
+        ctx.fillStyle = '#ff7700';
+        ctx.font = '11px monospace';
+        ctx.fillText('2F', fp.x + 4, cy + 20);
+      }
       ctx.restore();
     });
   }
@@ -384,15 +414,22 @@ function draw() {
   const objY = cy;
   const objHpx = cmToPx(h);
 
+  // Sun rays (drawn before tree so tree sits on top)
+  if (state.showSunRays) {
+    drawSunRays(cx, cy, objX, objHpx);
+  }
+
   // Draw object tree
   drawTree(objX, objY, objHpx, '#90ee90');
 
   // Object label
-  ctx.save();
-  ctx.fillStyle = '#90ee90';
-  ctx.font = '11px monospace';
-  ctx.fillText(`u = ${u} cm`, objX - 20, cy + 25);
-  ctx.restore();
+  if (state.showLabels) {
+    ctx.save();
+    ctx.fillStyle = '#90ee90';
+    ctx.font = '11px monospace';
+    ctx.fillText(`Object  u = ${u} cm`, objX - 20, cy + 25);
+    ctx.restore();
+  }
 
   // ---- Image ----
   let imgX = null, imgY = null, imgHpx = null;
@@ -412,14 +449,26 @@ function draw() {
         const imgColor = img.real ? '#ff9999' : '#aaaaff';
         const alpha = img.real ? 1 : 0.6;
         drawTree(imgX, imgY, imgHpx, imgColor, alpha);
-        ctx.save();
-        ctx.fillStyle = imgColor;
-        ctx.font = '11px monospace';
-        ctx.fillText(`v = ${img.v.toFixed(1)} cm`, imgX + 5, cy + 25);
-        ctx.fillText(img.real ? 'Real' : 'Virtual', imgX + 5, cy + 38);
-        ctx.restore();
+        if (state.showLabels) {
+          ctx.save();
+          ctx.fillStyle = imgColor;
+          ctx.font = '11px monospace';
+          ctx.fillText(`Image  v = ${img.v.toFixed(1)} cm`, imgX + 5, cy + 25);
+          ctx.fillText(img.real ? 'Real · Inverted' : 'Virtual · Upright', imgX + 5, cy + 38);
+          ctx.restore();
+        }
       }
     }
+  }
+
+  // ---- Ray trace ----
+  if (state.showRayTrace && isFinite(F) && img.valid && isFinite(img.v)) {
+    drawRayTrace(cx, cy, objX, objHpx, img, F);
+  }
+
+  // ---- Ray fan (drawn before principal rays so principal rays sit on top) ----
+  if (state.showRayFan && isFinite(F) && img.valid && isFinite(img.v)) {
+    drawRayFan(cx, cy, objX, objHpx, img, F);
   }
 
   // ---- Rays ----
@@ -447,14 +496,16 @@ function drawLens(cx, cy, h, shape) {
     ctx.bezierCurveTo(cx - 28, cy - r/2, cx - 28, cy + r/2, cx, cy + r);
     ctx.stroke();
   } else if (shape === 'concave') {
-    // Double concave
+    // Double concave: surfaces bow inward, creating a ⟩⟨ shape thinner at centre
+    // Endpoints offset ±5px from cx so surfaces visibly cross (edge thickness)
+    const et = 5;
     ctx.beginPath();
-    ctx.moveTo(cx, cy - r);
-    ctx.bezierCurveTo(cx - 20, cy - r/2, cx - 20, cy + r/2, cx, cy + r);
+    ctx.moveTo(cx + et, cy - r);
+    ctx.bezierCurveTo(cx - 22, cy - r/2, cx - 22, cy + r/2, cx + et, cy + r);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(cx, cy - r);
-    ctx.bezierCurveTo(cx + 20, cy - r/2, cx + 20, cy + r/2, cx, cy + r);
+    ctx.moveTo(cx - et, cy - r);
+    ctx.bezierCurveTo(cx + 22, cy - r/2, cx + 22, cy + r/2, cx - et, cy + r);
     ctx.stroke();
   } else {
     // Plane
@@ -511,7 +562,8 @@ function drawMirror(cx, cy, h, shape) {
 // Draw the three principal rays for a lens
 function drawRays(cx, cy, objX, objHpx, img, F) {
   const { elementType, elementShape } = state;
-  const objTipY = cy - objHpx; // tip of object in canvas coords
+  // Top of foliage = cy - 0.81*hPx (trunk_h*0.25 + foliage_r*1.6 = 0.25+0.56 = 0.81)
+  const objTipY = cy - 0.81 * objHpx;
 
   // Image tip
   let imgTipX, imgTipY;
@@ -520,7 +572,7 @@ function drawRays(cx, cy, objX, objHpx, img, F) {
   } else {
     imgTipX = cx - cmToPx(img.v);
   }
-  imgTipY = cy - cmToPx(img.hi);
+  imgTipY = cy - 0.81 * cmToPx(img.hi);
 
   const fPx = cmToPx(Math.abs(F));
   const fSign = F > 0 ? 1 : -1; // +1 converging, -1 diverging
@@ -617,64 +669,375 @@ function drawLensRays(cx, cy, objX, objTipY, imgTipX, imgTipY, fPx, fSign, img) 
 
 function drawMirrorRays(cx, cy, objX, objTipY, imgTipX, imgTipY, fPx, fSign, img) {
   const isVirtual = !img.real;
-  // For mirror: incident rays come from left, reflect back to left
-  // Mirror is at cx, object on left
 
   const ray1Color = '#ffd700';
   const ray2Color = '#ff6b6b';
   const ray3Color = '#90ee90';
 
-  const nearFx = cx - fPx; // focal point (left of mirror)
+  const nearFx = cx - fPx;
+
+  // Shorthand: actual mirror surface x at a given canvas y
+  const mx = y => mirrorXAtY(y, cx, cy);
 
   // RAY 1: parallel to axis → reflects through focal (concave) or away from focal (convex)
-  drawArrow(objX, objTipY, cx, objTipY, ray1Color);
+  const mx1 = mx(objTipY);
+  drawArrow(objX, objTipY, mx1, objTipY, ray1Color);
   if (fSign > 0) {
-    // Concave: reflects through focal
-    drawArrow(cx, objTipY, imgTipX, imgTipY, ray1Color);
+    drawArrow(mx1, objTipY, imgTipX, imgTipY, ray1Color);
     if (isVirtual) {
-      // Extension behind mirror
-      const ext = extendLine(cx, objTipY, imgTipX, imgTipY, cx + 150);
-      drawArrow(cx, objTipY, ext.x, ext.y, ray1Color, true, 0.5);
+      const ext = extendLine(mx1, objTipY, imgTipX, imgTipY, cx + 150);
+      drawArrow(mx1, objTipY, ext.x, ext.y, ray1Color, true, 0.5);
     }
   } else {
-    // Convex: reflects as if from focal behind mirror
-    const farFx = cx + fPx; // virtual focal behind mirror
-    const slope = (objTipY - cy) / (cx - farFx);
-    const ext = extendLine(cx, objTipY, cx - 200, objTipY + slope * 200, cx - 200);
-    drawArrow(cx, objTipY, ext.x, ext.y, ray1Color);
-    // Dashed to virtual focal
-    const bext = extendLine(cx, objTipY, farFx, cy, farFx + 50);
-    drawArrow(cx, objTipY, bext.x, bext.y, ray1Color, true, 0.5);
+    const farFx = cx + fPx;
+    const slope = (objTipY - cy) / (mx1 - farFx);
+    const ext = extendLine(mx1, objTipY, mx1 - 200, objTipY + slope * 200, mx1 - 200);
+    drawArrow(mx1, objTipY, ext.x, ext.y, ray1Color);
+    const bext = extendLine(mx1, objTipY, farFx, cy, farFx + 50);
+    drawArrow(mx1, objTipY, bext.x, bext.y, ray1Color, true, 0.5);
   }
 
-  // RAY 2: through centre of curvature (2F), reflects back
-  // For mirror: ray through C = 2F hits mirror and reflects back on itself
-  // Approximate: ray through centre of mirror at normal angle
-  drawArrow(objX, objTipY, cx, cy, ray2Color);
-  drawArrow(cx, cy, imgTipX, imgTipY, ray2Color, isVirtual, isVirtual ? 0.6 : 1);
+  // RAY 2: through mirror vertex, reflects back
+  const mx2 = mx(cy);
+  drawArrow(objX, objTipY, mx2, cy, ray2Color);
+  drawArrow(mx2, cy, imgTipX, imgTipY, ray2Color, isVirtual, isVirtual ? 0.6 : 1);
   if (isVirtual) {
-    const ext = extendLine(cx, cy, cx + 150, cy + (cy - imgTipY), cx + 150);
-    drawArrow(cx, cy, ext.x, ext.y, ray2Color, true, 0.4);
+    const ext = extendLine(mx2, cy, cx + 150, cy + (cy - imgTipY), cx + 150);
+    drawArrow(mx2, cy, ext.x, ext.y, ray2Color, true, 0.4);
   }
 
   // RAY 3: through/aimed at focal, reflects parallel
   if (fSign > 0 && isFinite(nearFx)) {
-    // Concave: through focal then reflects parallel
     const slope3 = (cy - objTipY) / (nearFx - objX);
     const lensHitY = objTipY + slope3 * (cx - objX);
-    drawArrow(objX, objTipY, cx, lensHitY, ray3Color);
-    // Reflects parallel (horizontal back)
-    const ext = extendLine(cx, lensHitY, cx - 200, lensHitY, cx - 200);
-    drawArrow(cx, lensHitY, ext.x, ext.y, ray3Color, isVirtual, isVirtual ? 0.5 : 1);
+    const mx3 = mx(lensHitY);
+    drawArrow(objX, objTipY, mx3, lensHitY, ray3Color);
+    const ext = extendLine(mx3, lensHitY, mx3 - 200, lensHitY, mx3 - 200);
+    drawArrow(mx3, lensHitY, ext.x, ext.y, ray3Color, isVirtual, isVirtual ? 0.5 : 1);
   } else if (fSign < 0) {
-    // Convex: aim at focal behind mirror
     const farFx = cx + fPx;
     const slope3 = (cy - objTipY) / (farFx - objX);
     const lensHitY = objTipY + slope3 * (cx - objX);
-    drawArrow(objX, objTipY, cx, lensHitY, ray3Color);
-    const ext = extendLine(cx, lensHitY, cx - 200, lensHitY, cx - 200);
-    drawArrow(cx, lensHitY, ext.x, ext.y, ray3Color);
+    const mx3 = mx(lensHitY);
+    drawArrow(objX, objTipY, mx3, lensHitY, ray3Color);
+    const ext = extendLine(mx3, lensHitY, mx3 - 200, lensHitY, mx3 - 200);
+    drawArrow(mx3, lensHitY, ext.x, ext.y, ray3Color);
   }
+}
+
+function drawRayTrace(cx, cy, objX, objHpx, img, F) {
+  const F_cm = getF();
+  if (!isFinite(F_cm)) return;
+  const { elementType } = state;
+
+  // Tree geometry — must match drawTree() exactly
+  const trunk_h  = objHpx * 0.25;
+  const foliage_r = objHpx * 0.35;
+  const topY = cy - trunk_h;
+
+  // Three foliage circles [centerX, centerY, radius]
+  const circles = [
+    [objX,                    topY - foliage_r * 0.6,  foliage_r       ],
+    [objX - foliage_r * 0.4,  topY - foliage_r * 0.2,  foliage_r * 0.75],
+    [objX + foliage_r * 0.4,  topY - foliage_r * 0.2,  foliage_r * 0.75],
+  ];
+
+  const lensHalfH = 75;  // px, must match aperture used in drawRayFan
+  const numPts    = 9;   // surface sample points per circle
+  const numRays   = 20;  // scattered rays per surface point
+
+  // Colour: orange at top of tree, cyan at base
+  const tipY  = topY - foliage_r * 1.6;
+  const baseY = cy;
+  function ptColor(ptY) {
+    const t = Math.max(0, Math.min(1, (ptY - tipY) / (baseY - tipY)));
+    const r = Math.round(255 + t * (56  - 255));
+    const g = Math.round(159 + t * (189 - 159));
+    const b = Math.round(64  + t * (248 - 64 ));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  circles.forEach(([fcx, fcy, fr]) => {
+    for (let pi = 0; pi < numPts; pi++) {
+      const surfAngle = (pi / numPts) * Math.PI * 2;
+      const ptX = fcx + fr * Math.cos(surfAngle);
+      const ptY = fcy + fr * Math.sin(surfAngle);
+      const color = ptColor(ptY);
+
+      for (let ri = 0; ri < numRays; ri++) {
+        // Scatter uniformly across the outward hemisphere at this surface point
+        const rayAngle = surfAngle - Math.PI / 2 + (ri / (numRays - 1)) * Math.PI;
+        const rdx = Math.cos(rayAngle);
+        const rdy = Math.sin(rayAngle);
+
+        // Tiny stub — shows "light scatters in all directions" even for rays that miss
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 0.6;
+        ctx.globalAlpha = 0.07;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(ptX, ptY);
+        ctx.lineTo(ptX + rdx * 28, ptY + rdy * 28);
+        ctx.stroke();
+        ctx.restore();
+
+        // Only trace rays heading toward the lens/mirror (rightward, x = cx)
+        if (rdx <= 0.05) continue;
+        const tLens = (cx - ptX) / rdx;
+        if (tLens <= 0) continue;
+        const y_L = ptY + tLens * rdy;
+
+        if (Math.abs(y_L - cy) > lensHalfH) {
+          // Misses aperture — draw faintly to canvas edge to show the "wasted" rays
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 0.6;
+          ctx.globalAlpha = 0.07;
+          ctx.setLineDash([]);
+          const tEdge = (canvas.width + 10 - ptX) / rdx;
+          ctx.beginPath();
+          ctx.moveTo(ptX, ptY);
+          ctx.lineTo(ptX + rdx * tEdge, ptY + rdy * tEdge);
+          ctx.stroke();
+          ctx.restore();
+          continue;
+        }
+
+        // Hits aperture — draw incident ray to actual optical surface
+        const surfX = elementType === 'lens' ? cx : mirrorXAtY(y_L, cx, cy);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 0.9;
+        ctx.globalAlpha = 0.3;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(ptX, ptY);
+        ctx.lineTo(surfX, y_L);
+        ctx.stroke();
+
+        // Image of this specific source point (thin lens / mirror formula)
+        const u_px = cx - ptX;
+        if (u_px < 1) { ctx.restore(); continue; }
+        const u_cm = u_px / SCALE;
+        const inv_v = 1 / F_cm - 1 / u_cm;
+        if (Math.abs(inv_v) < 1e-9) { ctx.restore(); continue; }
+        const v_cm  = 1 / inv_v;
+        const v_px  = v_cm * SCALE;
+
+        // Image position in canvas coords
+        const imgX_pt = elementType === 'lens' ? cx + v_px : cx - v_px;
+        const imgY_pt = cy + (v_cm / u_cm) * (cy - ptY);
+        const isReal  = v_cm > 0;
+
+        ctx.globalAlpha = isReal ? 0.45 : 0.2;
+
+        if (elementType === 'lens') {
+          if (isReal) {
+            ctx.beginPath();
+            ctx.moveTo(surfX, y_L);
+            ctx.lineTo(imgX_pt, imgY_pt);
+            ctx.stroke();
+            const ext = extendLine(surfX, y_L, imgX_pt, imgY_pt, canvas.width + 50);
+            ctx.globalAlpha = 0.09;
+            ctx.beginPath(); ctx.moveTo(imgX_pt, imgY_pt); ctx.lineTo(ext.x, ext.y); ctx.stroke();
+          } else {
+            const tFar = (canvas.width + 50 - surfX) / (surfX - imgX_pt);
+            ctx.beginPath();
+            ctx.moveTo(surfX, y_L);
+            ctx.lineTo(canvas.width + 50, y_L + tFar * (y_L - imgY_pt));
+            ctx.stroke();
+            ctx.setLineDash([3, 3]);
+            ctx.globalAlpha = 0.14;
+            ctx.beginPath(); ctx.moveTo(surfX, y_L); ctx.lineTo(imgX_pt, imgY_pt); ctx.stroke();
+          }
+        } else {
+          // Mirror: reflected rays go back leftward from actual surface
+          if (isReal) {
+            ctx.beginPath();
+            ctx.moveTo(surfX, y_L);
+            ctx.lineTo(imgX_pt, imgY_pt);
+            ctx.stroke();
+            const ext = extendLine(surfX, y_L, imgX_pt, imgY_pt, -50);
+            ctx.globalAlpha = 0.09;
+            ctx.beginPath(); ctx.moveTo(imgX_pt, imgY_pt); ctx.lineTo(ext.x, ext.y); ctx.stroke();
+          } else {
+            const tFar = (-50 - surfX) / (surfX - imgX_pt);
+            ctx.beginPath();
+            ctx.moveTo(surfX, y_L);
+            ctx.lineTo(-50, y_L + tFar * (y_L - imgY_pt));
+            ctx.stroke();
+            ctx.setLineDash([3, 3]);
+            ctx.globalAlpha = 0.14;
+            ctx.beginPath(); ctx.moveTo(surfX, y_L); ctx.lineTo(imgX_pt, imgY_pt); ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+  });
+}
+
+// Approximate x on the mirror's bezier surface at canvas height y_L.
+// Uses the closed-form x(t) = cx + 3t(1-t)*bulge with t from the nearly-linear y(t).
+function mirrorXAtY(y_L, cx, cy) {
+  const shape = state.elementShape;
+  if (shape === 'plane') return cx;
+  const bulge = shape === 'concave' ? 30 : -30;
+  const r = 80; // lensH / 2
+  const t = Math.max(0, Math.min(1, (y_L - (cy - r)) / (2 * r)));
+  return cx + 3 * t * (1 - t) * bulge;
+}
+
+function drawSunRays(cx, cy, objX, objHpx) {
+  const sunX = 35;
+  const sunY = 45;
+  const sunR = 14;
+  const SUN_COLOR = '#fff4e0'; // ~5200 K white
+
+  // Sun body — no cartoonish spikes; the rays themselves are the visual
+  ctx.save();
+  ctx.fillStyle = SUN_COLOR;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Parallel rays: direction from sun toward foliage centre
+  const foliageCY = cy - objHpx * 0.85;
+  const dx = objX - sunX;
+  const dy = foliageCY - sunY;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const ux = dx / len, uy = dy / len;
+  // Perpendicular direction (for spreading rays across foliage width)
+  const perpX = -uy, perpY = ux;
+
+  const foliageSpread = objHpx * 0.35;
+
+  ctx.save();
+  ctx.strokeStyle = SUN_COLOR;
+  ctx.lineWidth = 1.3;
+  ctx.globalAlpha = 0.75;
+  ctx.setLineDash([]);
+
+  for (let i = -2; i <= 2; i++) {
+    const t = i / 2; // -1..1
+    const perpD = t * foliageSpread * 0.8;
+
+    // Start from sun's circumference along this ray's line
+    const startS = Math.sqrt(Math.max(0, sunR * sunR - perpD * perpD));
+    const startX = sunX + ux * startS + perpX * perpD;
+    const startY = sunY + uy * startS + perpY * perpD;
+
+    // Land on foliage (same perpendicular offset, parallel direction)
+    const landX = objX + perpX * perpD;
+    const landY = foliageCY + perpY * perpD;
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(landX, landY);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRayFan(cx, cy, objX, objHpx, img, F) {
+  const { elementType } = state;
+  const numRays = 15;
+  const lensHalfH = 75; // px — stays within the drawn lens/mirror aperture
+  const alpha = 0.25;
+
+  // Three source points: tip (frac=1), mid (frac=0.5), base (frac=0) on the object
+  const sources = [
+    { frac: 1.0, color: '#ff9f40' },
+    { frac: 0.5, color: '#d46bff' },
+    { frac: 0.0, color: '#38bdf8' },
+  ];
+
+  sources.forEach(({ frac, color }) => {
+    const srcY = cy - objHpx * frac;
+    // Corresponding image point for this source height
+    const imgFracY = cy - cmToPx(img.hi * frac);
+    const imgX = elementType === 'lens'
+      ? cx + cmToPx(img.v)
+      : cx - cmToPx(img.v);
+
+    for (let i = 0; i < numRays; i++) {
+      const t = i / (numRays - 1);
+      const lensHitY = cy - lensHalfH + 2 * lensHalfH * t;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = alpha;
+      ctx.setLineDash([]);
+
+      // Incident ray: object point → actual optical surface
+      const sfX = elementType === 'lens' ? cx : mirrorXAtY(lensHitY, cx, cy);
+      ctx.beginPath();
+      ctx.moveTo(objX, srcY);
+      ctx.lineTo(sfX, lensHitY);
+      ctx.stroke();
+
+      if (elementType === 'lens') {
+        if (img.real) {
+          ctx.beginPath();
+          ctx.moveTo(sfX, lensHitY);
+          ctx.lineTo(imgX, imgFracY);
+          ctx.stroke();
+          const ext = extendLine(sfX, lensHitY, imgX, imgFracY, canvas.width + 50);
+          ctx.globalAlpha = alpha * 0.35;
+          ctx.beginPath();
+          ctx.moveTo(imgX, imgFracY);
+          ctx.lineTo(ext.x, ext.y);
+          ctx.stroke();
+        } else {
+          const tFar = (canvas.width + 50 - sfX) / (sfX - imgX);
+          const extY = lensHitY + tFar * (lensHitY - imgFracY);
+          ctx.beginPath();
+          ctx.moveTo(sfX, lensHitY);
+          ctx.lineTo(canvas.width + 50, extY);
+          ctx.stroke();
+          ctx.setLineDash([3, 3]);
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(sfX, lensHitY);
+          ctx.lineTo(imgX, imgFracY);
+          ctx.stroke();
+        }
+      } else {
+        // Mirror: reflected ray from actual surface
+        if (img.real) {
+          ctx.beginPath();
+          ctx.moveTo(sfX, lensHitY);
+          ctx.lineTo(imgX, imgFracY);
+          ctx.stroke();
+          const ext = extendLine(sfX, lensHitY, imgX, imgFracY, -50);
+          ctx.globalAlpha = alpha * 0.35;
+          ctx.beginPath();
+          ctx.moveTo(imgX, imgFracY);
+          ctx.lineTo(ext.x, ext.y);
+          ctx.stroke();
+        } else {
+          const tFar = (-50 - sfX) / (sfX - imgX);
+          const extY = lensHitY + tFar * (lensHitY - imgFracY);
+          ctx.beginPath();
+          ctx.moveTo(sfX, lensHitY);
+          ctx.lineTo(-50, extY);
+          ctx.stroke();
+          ctx.setLineDash([3, 3]);
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(sfX, lensHitY);
+          ctx.lineTo(imgX, imgFracY);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+  });
 }
 
 function extendLine(x1, y1, x2, y2, targetX) {
@@ -772,11 +1135,80 @@ document.getElementById('hSlider').addEventListener('input', e => {
   draw();
 });
 
-['showRays','showImage','showFocal','showEq'].forEach(id => {
+['showRays','showImage','showFocal','showEq','showRayFan','showSunRays','showRayTrace','showLabels'].forEach(id => {
   document.getElementById(id).addEventListener('change', e => {
     state[id] = e.target.checked;
     draw();
   });
+});
+
+// ---- Canvas drag interaction ----
+let drag = null; // null | { target: 'object' | 'focal' }
+
+function getHitTarget(cx, cy, canvasX, canvasY) {
+  const HIT = 20;
+  const objX   = cx - state.u * SCALE;
+  const objHpx = state.h * SCALE;
+
+  // Object: hit anywhere along its column, from base up to tip
+  if (Math.abs(canvasX - objX) < HIT &&
+      canvasY >= cy - objHpx - HIT && canvasY <= cy + HIT) {
+    return 'object';
+  }
+
+  // Focal points (only when visible and finite)
+  if (state.showFocal && state.elementShape !== 'plane') {
+    const fPx = state.f * SCALE;
+    const fps = state.elementType === 'lens' ? [cx + fPx, cx - fPx] : [cx - fPx];
+    for (const fx of fps) {
+      if (Math.hypot(canvasX - fx, canvasY - cy) < HIT) return 'focal';
+    }
+  }
+  return null;
+}
+
+function canvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (canvas.width  / r.width),
+    y: (e.clientY - r.top)  * (canvas.height / r.height),
+  };
+}
+
+canvas.addEventListener('mousedown', e => {
+  const { x, y } = canvasPos(e);
+  const hit = getHitTarget(canvas.width / 2, canvas.height / 2, x, y);
+  if (hit) {
+    drag = { target: hit };
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const { x, y } = canvasPos(e);
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
+  if (!drag) {
+    canvas.style.cursor = getHitTarget(cx, cy, x, y) ? 'grab' : 'default';
+    return;
+  }
+
+  if (drag.target === 'object') {
+    state.u = Math.max(2, Math.min(60, Math.round((cx - x) / SCALE)));
+    document.getElementById('uSlider').value = state.u;
+    document.getElementById('uVal').textContent = state.u;
+  } else {
+    state.f = Math.max(2, Math.min(30, Math.round(Math.abs(x - cx) / SCALE)));
+    document.getElementById('fSlider').value = state.f;
+    document.getElementById('fVal').textContent = state.f;
+  }
+  draw();
+});
+
+window.addEventListener('mouseup', () => {
+  if (drag) { drag = null; canvas.style.cursor = 'default'; }
 });
 
 // Responsive canvas

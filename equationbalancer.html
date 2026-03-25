@@ -69,6 +69,13 @@
       gap: 0.75rem;
     }
 
+    .timer-label {
+      white-space: nowrap;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
     .progress-label {
       white-space: nowrap;
       font-size: 0.8rem;
@@ -97,6 +104,19 @@
       border-radius: 1rem;
       padding: 1.5rem;
     }
+
+    #atoms-toggle {
+      align-self: flex-end;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #atoms-toggle:hover { border-color: var(--accent); color: var(--text); }
 
     .card-label {
       font-size: 0.7rem;
@@ -496,12 +516,15 @@
       <div class="progress-bar-bg">
         <div class="progress-bar-fill" id="progress-fill" style="width:10%"></div>
       </div>
+      <span class="timer-label" id="timer-label">0:00</span>
     </div>
 
     <div class="card" id="equation-card">
       <div class="equation-name" id="eq-name"></div>
       <div class="equation-display" id="eq-display"></div>
     </div>
+
+    <button id="atoms-toggle" onclick="toggleAtoms()">Hide helper</button>
 
     <div class="card" id="atoms-card">
       <div class="card-label">Atom Count</div>
@@ -526,6 +549,7 @@
     <div class="completion" id="completion">
       <h2>All Done!</h2>
       <p>You balanced all the equations. Well done!</p>
+      <p id="completion-time" style="font-size:0.9rem;color:var(--muted);margin-top:0.4rem;"></p>
       <button class="restart-btn" id="restart-btn">Choose a New Level</button>
     </div>
     </div><!-- /#main-content -->
@@ -1020,6 +1044,7 @@
         $('next-btn').classList.remove('visible');
         $('progress-fill').style.width   = '100%';
         $('progress-label').textContent  = `${queue.length} / ${queue.length}`;
+        stopTimer();
         $('completion').classList.add('visible');
         document.body.classList.add('solved');
       } else {
@@ -1028,9 +1053,45 @@
     });
 
     function showDifficultyScreen() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      $('timer-label').textContent = '0:00';
       document.getElementById('difficulty-screen').style.display = '';
       document.getElementById('main-content').style.display      = 'none';
       document.body.classList.remove('solved');
+    }
+
+    // ── Timer ─────────────────────────────────────────────────────
+    let timerStart = null;
+    let timerInterval = null;
+
+    function fmtTime(ms) {
+      const s = Math.floor(ms / 1000);
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerStart = Date.now();
+      $('timer-label').textContent = '0:00';
+      timerInterval = setInterval(() => {
+        $('timer-label').textContent = fmtTime(Date.now() - timerStart);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      const elapsed = timerStart ? Date.now() - timerStart : 0;
+      $('completion-time').textContent = `Total time: ${fmtTime(elapsed)}`;
+    }
+
+    function toggleAtoms() {
+      const card = $('atoms-card');
+      const btn  = document.getElementById('atoms-toggle');
+      const hide = card.style.display !== 'none';
+      card.style.display = hide ? 'none' : '';
+      btn.textContent    = hide ? 'Show helper' : 'Hide helper';
     }
 
     function startLevel(level) {
@@ -1040,7 +1101,9 @@
       document.getElementById('main-content').style.display      = 'contents';
       $('equation-card').style.display = '';
       $('atoms-card').style.display    = '';
+      document.getElementById('atoms-toggle').textContent = 'Hide helper';
       $('completion').classList.remove('visible');
+      startTimer();
       loadEquation(0);
     }
 

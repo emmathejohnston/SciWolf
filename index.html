@@ -18,6 +18,17 @@
       --accent2: #818cf8;
     }
 
+    body.light {
+      --bg:      #f1f5f9;
+      --surface: #ffffff;
+      --border:  #cbd5e1;
+      --muted:   #94a3b8;
+      --text:    #0f172a;
+      --sub:     #475569;
+      --accent:  #0284c7;
+      --accent2: #6366f1;
+    }
+
     body {
       background: var(--bg);
       color: var(--text);
@@ -48,8 +59,8 @@
     }
 
     .wolf {
-      font-size: 4.5rem;
-      line-height: 1;
+      height: 96px;
+      width: auto;
       margin-bottom: 16px;
       filter: drop-shadow(0 0 24px rgba(56,189,248,0.4));
       animation: float 4s ease-in-out infinite;
@@ -166,20 +177,48 @@
       gap: 8px;
     }
 
+    /* ── Theme toggle ───────────────────────────── */
+    #theme-toggle {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 10;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      color: var(--sub);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
     /* ── Footer ─────────────────────────────────── */
     footer {
       margin-top: auto;
-      padding: 20px;
+      padding: 20px 24px 28px;
       font-size: 0.75rem;
       color: var(--muted);
       text-align: center;
+      line-height: 1.7;
+      max-width: 680px;
+    }
+
+    footer .authorship {
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 0.72rem;
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="wolf">🐺</div>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode">☀️ Light</button>
+  <img src="assets/Sciwolf Logo.png" class="wolf" alt="Sci Wolf logo">
   <h1>Sci Wolf</h1>
   <p class="tagline">Interactive science simulations for curious minds. Pick a topic and start exploring.</p>
 </header>
@@ -230,7 +269,28 @@
 
 </main>
 
-<footer>Sci Wolf &mdash; science simulations</footer>
+<footer>
+  Sci Wolf &mdash; science simulations
+  <div class="authorship">
+    <strong>Educational content and design</strong> &copy; 2026 Emma Johnston &amp; Colin Pierce. </br>
+    Subject matter selection, pedagogical structure, and creative direction are original works of the authors.
+    Implementation code was algorithmically generated under their direction and is offered without restriction.
+    Reproduction of the educational content, design, or curriculum structure without permission is prohibited.
+  </div>
+</footer>
 
+<script>
+  const btn = document.getElementById('theme-toggle');
+  const apply = (light) => {
+    document.body.classList.toggle('light', light);
+    btn.textContent = light ? '🌙 Dark' : '☀️ Light';
+  };
+  apply(localStorage.getItem('theme') === 'light');
+  btn.addEventListener('click', () => {
+    const light = !document.body.classList.contains('light');
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+    apply(light);
+  });
+</script>
 </body>
 </html>

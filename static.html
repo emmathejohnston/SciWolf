@@ -63,6 +63,7 @@
     }
     .pitem:hover { background: #475569; border-color: #38bdf8; color: #f1f5f9; }
     .pitem .icon { font-size: 1.55rem; line-height: 1.2; }
+    .pitem img.blend-multiply { mix-blend-mode: multiply; }
     .hint {
       position: fixed;
       top: 10px;
@@ -102,16 +103,28 @@ resize();
 // rod:true → drawn as elongated capsule
 // ═══════════════════════════════════════════════════════
 const TYPES = {
-  rabbitfur: { label:'Rabbit Fur', emoji:'🐇', series: 9,  r:28, baseE:14, color:'#c4a46b' },
-  wool:      { label:'Wool',       emoji:'🧶',  series: 7,  r:28, baseE:14, color:'#a78bfa' },
-  glassfrod: { label:'Glass Rod',  emoji:'🔵',  series: 6,  r:14, baseE: 8, color:'#93c5fd', rod:true },
-  hair:      { label:'Hair',       emoji:'💇',  series: 5,  r:26, baseE:12, color:'#fbbf24' },
-  silk:      { label:'Silk',       emoji:'🎀',  series: 3,  r:24, baseE:12, color:'#f9a8d4' },
-  paper:     { label:'Paper',      emoji:'📄',  series: 1,  r:22, baseE:10, color:'#e2e8f0' },
-  balloon:   { label:'Balloon',    emoji:'🎈',  series:-5,  r:30, baseE:14, color:'#f87171' },
-  ebonite:   { label:'Ebonite',    emoji:'⬛',  series:-7,  r:14, baseE: 8, color:'#0f172a', rod:true },
-  plastic:   { label:'Plastic Rod',emoji:'🔴',  series:-8,  r:14, baseE: 8, color:'#dc2626', rod:true },
+  rabbitfur: { label:'Rabbit Fur',  emoji:'🐇', imgSrc:'assets/Rabbit Fur.png',  series: 9,  r:28, baseE:14, color:'#c4a46b', spriteH:106 },
+  wool:      { label:'Wool',        emoji:'🧶',  imgSrc:'assets/Wool.png',         series: 7,  r:28, baseE:14, color:'#a78bfa' },
+  glassfrod: { label:'Glass Rod',   emoji:'🔵', imgSrc:'assets/Glass Test Tube.png', series: 6,  r:14, baseE: 8, color:'#93c5fd', rod:true, spriteH:106 },
+  hair:      { label:'Hair',        emoji:'💇',  imgSrc:'assets/Human Hair.png',      series: 5,  r:26, baseE:12, color:'#fbbf24', spriteH:106 },
+  silk:      { label:'Silk',        emoji:'🎀',  imgSrc:'assets/Silk.png',            series: 3,  r:24, baseE:12, color:'#f9a8d4', spriteH:106 },
+  paper:     { label:'Paper',       emoji:'📄',  imgSrc:'assets/Paper.png',        series: 1,  r:22, baseE:10, color:'#e2e8f0', spriteH:106 },
+  balloon:   { label:'Balloon',     emoji:'🎈',  imgSrc:'assets/Balloon.png',      series:-5,  r:30, baseE:14, color:'#f87171', spriteH:106 },
+  ebonite:   { label:'Ebonite',     emoji:'⬛',  imgSrc:'assets/Ebonite Rod.png',  series:-7,  r:14, baseE: 8, color:'#0f172a', rod:true },
+  plastic:   { label:'Plastic Bag', emoji:'🔴',  imgSrc:'assets/Plastic Bag.png',  series:-8,  r:24, baseE:10, color:'#dc2626', spriteH:106 },
 };
+
+// ═══════════════════════════════════════════════════════
+// Preload object images
+// ═══════════════════════════════════════════════════════
+const IMGS = {};
+for (const [key, t] of Object.entries(TYPES)) {
+  if (t.imgSrc) {
+    const img = new Image();
+    img.src = t.imgSrc;
+    IMGS[key] = img;
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // State
@@ -120,6 +133,9 @@ let instances = [];
 let sparks    = [];
 let labels    = []; // transient "+e" flying label
 let nextId    = 0;
+
+// Charge glyph particles for electroscope
+let scopeGlyphs = [];
 
 function mkInst(typeKey, x, y) {
   const t = TYPES[typeKey];
@@ -131,6 +147,7 @@ function mkInst(typeKey, x, y) {
     dragging: false,
     rubTimer: 0,
     rodAngle: -Math.PI / 5,  // rods start tilted
+    glyphs: [],              // charge indicator particles
   };
 }
 const ch  = i => i.protons - i.electrons;
@@ -149,6 +166,147 @@ const scope = {
   contactQ: 0,       // charge deposited by direct contact
   leafSign: 0,       // +1 / -1 for color
 };
+
+// ═══════════════════════════════════════════════════════
+// Pith Ball (KAN-11)
+// ═══════════════════════════════════════════════════════
+const PITH_R      = 10;       // ball radius px
+const PITH_L      = 60;       // thread length px
+const PITH_MASS   = 1.0;
+const PITH_DAMP   = 0.94;
+const PITH_K_IND  = 2200;     // induction attraction constant
+const PITH_K_COUL = 2200;     // coulomb constant for pith
+
+const pith = {
+  get anchorX() { return canvas.width / 2; },
+  get anchorY() { return canvas.height - 10; }, // anchor at bottom center
+  angle:    0,       // angle from vertical (radians), positive = right
+  angleV:   0,       // angular velocity
+  charge:   0,       // charge acquired by conduction
+  touched:  false,   // has been touched this frame (to prevent re-touch)
+};
+
+function pithBallPos() {
+  return {
+    x: pith.anchorX + Math.sin(pith.angle) * PITH_L,
+    y: pith.anchorY - Math.cos(pith.angle) * PITH_L,
+  };
+}
+
+function updatePith() {
+  const { x: bx, y: by } = pithBallPos();
+  const ax = pith.anchorX;
+
+  let netTorque = 0; // net lateral force (simplified as torque ~= lateral force * L)
+
+  pith.touched = false;
+  for (const inst of instances) {
+    const q  = ch(inst);
+    if (q === 0 && pith.charge === 0) continue;
+    const dx = inst.x - bx;
+    const dy = inst.y - by;
+    const d  = Math.max(Math.hypot(dx, dy), PITH_R + rad(inst));
+
+    // Check contact (conduction)
+    if (d <= PITH_R + rad(inst) + 4 && !pith.touched) {
+      pith.touched = true;
+      if (q !== 0 && !inst._pithContact) {
+        // Charge splits: pith acquires half
+        const transfer = q * 0.5;
+        inst.electrons = inst.protons - Math.round(q - transfer);
+        pith.charge    = Math.round(transfer * 10) / 10;
+        inst._pithContact = true;
+      }
+    } else {
+      inst._pithContact = false;
+    }
+
+    // Force direction: lateral component
+    const lateralDir = Math.sign(dx); // +1 = right of anchor
+    let F = 0;
+
+    if (pith.charge !== 0 && q !== 0) {
+      // Coulomb: same sign repels, opposite attracts
+      F = -PITH_K_COUL * pith.charge * q / (d * d);
+    } else if (pith.charge === 0 && q !== 0) {
+      // Induction: always attractive
+      F = PITH_K_IND * Math.abs(q) / (d * d);
+      // Attract toward object
+      F = F * Math.sign(dx);
+    } else if (pith.charge !== 0 && q === 0) {
+      // Induction from pith charge: attract neutrals (not relevant for torque)
+    }
+
+    // Lateral force → angular acceleration
+    // torque ≈ F_lateral / (PITH_MASS * PITH_L)
+    // Only add if object is nearby enough
+    if (d < 200) {
+      netTorque += (F / (PITH_MASS * PITH_L)) * 0.04;
+    }
+  }
+
+  // Gravity restoring torque: -(g/L)*sin(angle), simplified as -angle * k
+  const gravity = 0.003;
+  netTorque -= gravity * Math.sin(pith.angle);
+
+  pith.angleV += netTorque;
+  pith.angleV *= PITH_DAMP;
+  pith.angle  += pith.angleV;
+
+  // Clamp angle
+  pith.angle = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pith.angle));
+}
+
+function drawPithBall() {
+  const ax = pith.anchorX;
+  const ay = pith.anchorY;
+  const { x: bx, y: by } = pithBallPos();
+
+  // Label
+  ctx.font         = '11px Segoe UI, sans-serif';
+  ctx.fillStyle    = '#475569';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Pith Ball', ax, ay - PITH_L - PITH_R - 6);
+
+  // Anchor dot
+  ctx.beginPath();
+  ctx.arc(ax, ay, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#64748b';
+  ctx.fill();
+
+  // Thread
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth   = 1.5;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+
+  // Ball
+  const hasCharge = pith.charge !== 0;
+  const ballCol   = hasCharge
+    ? (pith.charge > 0 ? '#fb923c' : '#818cf8')
+    : '#cbd5e1';
+  ctx.beginPath();
+  ctx.arc(bx, by, PITH_R, 0, Math.PI * 2);
+  ctx.fillStyle   = ballCol;
+  ctx.fill();
+  ctx.strokeStyle = hasCharge ? ballCol : '#64748b';
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+
+  // Charge sign on ball
+  if (hasCharge) {
+    const sign = pith.charge > 0 ? '+' : '−';
+    ctx.font         = 'bold 10px sans-serif';
+    ctx.fillStyle    = '#fff';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sign, bx, by);
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // Ground
@@ -202,6 +360,61 @@ function drawParticles() {
     ctx.fillStyle = `rgba(${l.col},${l.life.toFixed(2)})`;
     ctx.fillText(l.text, l.x, l.y);
   }
+}
+
+// ═══════════════════════════════════════════════════════
+// Charge Glyph Particles (KAN-9 / KAN-10)
+// ═══════════════════════════════════════════════════════
+const GLYPH_MAX = 10;
+const GLYPH_LIFETIME = 180; // frames
+
+function spawnGlyph(cx, cy, radius, sign) {
+  // Spawn at a random angle around the region
+  const a = Math.random() * Math.PI * 2;
+  const r = radius * (0.5 + Math.random() * 0.9);
+  const speed = 0.18 + Math.random() * 0.22;
+  const angleV = (Math.random() < 0.5 ? 1 : -1) * speed; // orbit direction
+  return {
+    angle: a,
+    r,
+    angleV,
+    life: 1,
+    decay: 1 / (GLYPH_LIFETIME * (0.7 + Math.random() * 0.6)),
+    sign,
+    // offset from center
+    ox: (Math.random() - 0.5) * radius * 0.4,
+    oy: (Math.random() - 0.5) * radius * 0.4,
+  };
+}
+
+function tickGlyphs(arr, cx, cy, radius, sign, maxCount) {
+  // Decay existing
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const g = arr[i];
+    g.angle += g.angleV;
+    g.life  -= g.decay;
+    if (g.life <= 0) arr.splice(i, 1);
+  }
+  // Spawn new if below max
+  if (arr.length < maxCount) {
+    arr.push(spawnGlyph(cx, cy, radius, sign));
+  }
+}
+
+function drawGlyphs(arr, cx, cy) {
+  ctx.save();
+  ctx.font = 'bold 11px Segoe UI, sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  for (const g of arr) {
+    const x = cx + g.ox + Math.cos(g.angle) * g.r;
+    const y = cy + g.oy + Math.sin(g.angle) * g.r;
+    const alpha = Math.min(g.life, 0.85).toFixed(2);
+    const col = g.sign > 0 ? `rgba(251,146,60,${alpha})` : `rgba(129,140,248,${alpha})`;
+    ctx.fillStyle = col;
+    ctx.fillText(g.sign > 0 ? '+' : '−', x, y);
+  }
+  ctx.restore();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -303,6 +516,7 @@ function updateScope() {
 // ═══════════════════════════════════════════════════════
 // Physics (Coulomb + collision + sticking + boundaries)
 // ═══════════════════════════════════════════════════════
+const SPRITE_H = 53; // px — all sprites scaled to this height (wool reference)
 const K_C   = 1000;
 const K_IND = 80;   // induction: neutral attracted to any charged object
 const DAMP  = 0.88;
@@ -430,39 +644,61 @@ function drawObject(inst) {
 
   drawAura(x, y, ir, q);
 
+  const hasImg = !!(IMGS[inst.type]);
   ctx.save();
   ctx.shadowBlur  = inst.dragging ? 22 : 8;
   ctx.shadowColor = inst.dragging ? '#38bdf8' : 'rgba(0,0,0,0.5)';
 
-  if (t.rod) {
-    const rw = ir * 2 + 2, rh = ir * 4.5;
-    capsule(x, y, rw, rh, inst.rodAngle);
-    ctx.fillStyle   = t.color;
-    ctx.fill();
-    ctx.strokeStyle = inst.dragging ? '#38bdf8' : 'rgba(255,255,255,0.15)';
-    ctx.lineWidth   = inst.dragging ? 2.5 : 1;
-    ctx.stroke();
-    // Stripe highlights on rod
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.lineWidth   = 1;
-    capsule(x - ir * 0.35, y, rw * 0.3, rh * 0.95, inst.rodAngle);
-    ctx.stroke();
-  } else {
+  if (!hasImg) {
+    // Draw solid shape background for emoji-based objects
+    if (t.rod) {
+      const rw = ir * 2 + 2, rh = ir * 4.5;
+      capsule(x, y, rw, rh, inst.rodAngle);
+      ctx.fillStyle   = t.color;
+      ctx.fill();
+      ctx.strokeStyle = inst.dragging ? '#38bdf8' : 'rgba(255,255,255,0.15)';
+      ctx.lineWidth   = inst.dragging ? 2.5 : 1;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth   = 1;
+      capsule(x - ir * 0.35, y, rw * 0.3, rh * 0.95, inst.rodAngle);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, ir, 0, Math.PI * 2);
+      ctx.fillStyle   = t.color;
+      ctx.fill();
+      ctx.strokeStyle = inst.dragging ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+      ctx.lineWidth   = inst.dragging ? 2.5 : 1;
+      ctx.stroke();
+    }
+  } else if (inst.dragging) {
+    // Drag highlight ring only — no fill behind the image
     ctx.beginPath();
-    ctx.arc(x, y, ir, 0, Math.PI * 2);
-    ctx.fillStyle   = t.color;
-    ctx.fill();
-    ctx.strokeStyle = inst.dragging ? '#38bdf8' : 'rgba(255,255,255,0.12)';
-    ctx.lineWidth   = inst.dragging ? 2.5 : 1;
+    ctx.arc(x, y, ir + 4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth   = 2.5;
     ctx.stroke();
   }
   ctx.restore();
 
-  // Emoji
-  ctx.font         = `${ir * (t.rod ? 1.15 : 0.9)}px serif`;
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(t.emoji, x, y);
+  // Image (or emoji fallback for types without a model)
+  const img = IMGS[inst.type];
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (t.imgBlend) ctx.globalCompositeOperation = t.imgBlend;
+    const sh = t.spriteH ?? SPRITE_H;
+    const sw = sh * (img.naturalWidth / img.naturalHeight);
+    if (t.rod) ctx.rotate(inst.rodAngle);
+    ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+    ctx.restore();
+  } else {
+    ctx.font         = `${ir * (t.rod ? 1.15 : 0.9)}px serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.emoji, x, y);
+  }
 
   // Charge badge
   if (q !== 0) {
@@ -644,15 +880,44 @@ function loop() {
   updatePhysics();
   checkGround();
   updateScope();
+  updatePith();
   tickParticles();
 
   const dragged = instances.find(i => i.dragging);
   if (dragged) handleRubbing(dragged);
   else instances.forEach(i => { i.rubTimer = 0; });
 
+  // Tick charge glyphs for instances (KAN-10)
+  for (const inst of instances) {
+    const q = ch(inst);
+    if (q !== 0) {
+      const ir = rad(inst);
+      const count = Math.min(Math.abs(q), 8);
+      tickGlyphs(inst.glyphs, inst.x, inst.y, ir + 10, Math.sign(q), count);
+    } else {
+      inst.glyphs.length = 0;
+    }
+  }
+  // Tick charge glyphs for electroscope (KAN-9)
+  if (Math.abs(scope.contactQ) > 0.2) {
+    const sign = Math.sign(scope.contactQ);
+    const count = Math.min(Math.ceil(Math.abs(scope.contactQ)), 8);
+    // Knob area + leaf tips
+    tickGlyphs(scopeGlyphs, scope.x, scope.rodTopY - 13, 28, sign, count);
+  } else {
+    scopeGlyphs.length = 0;
+  }
+
   drawGround();
+  drawPithBall();
   drawElectroscope();
-  for (const inst of instances) drawObject(inst);
+  // Draw electroscope glyphs after electroscope (KAN-9)
+  drawGlyphs(scopeGlyphs, scope.x, scope.rodTopY - 13);
+  for (const inst of instances) {
+    drawObject(inst);
+    // Draw instance glyphs after each object (KAN-10)
+    drawGlyphs(inst.glyphs, inst.x, inst.y);
+  }
   drawParticles();
 
   requestAnimationFrame(loop);
@@ -737,7 +1002,9 @@ const toolbar = document.getElementById('toolbar');
 for (const [key, t] of Object.entries(TYPES)) {
   const div = document.createElement('div');
   div.className = 'pitem';
-  div.innerHTML = `<span class="icon">${t.emoji}</span><span>${t.label}</span>`;
+  div.innerHTML = t.imgSrc
+    ? `<img src="${t.imgSrc}" class="icon${t.imgBlend ? ' blend-multiply' : ''}" style="width:36px;height:36px;object-fit:contain;"><span>${t.label}</span>`
+    : `<span class="icon">${t.emoji}</span><span>${t.label}</span>`;
   div.addEventListener('click', () => {
     const x = 160 + Math.random() * (canvas.width  - 320);
     const y = 100 + Math.random() * (canvas.height - 220);
@@ -751,9 +1018,13 @@ resetBtn.className = 'pitem';
 resetBtn.style.cssText = 'margin-left:auto; border-color:#ef4444;';
 resetBtn.innerHTML = '<span class="icon">↺</span><span>Reset</span>';
 resetBtn.addEventListener('click', () => {
-  instances.length = 0;
-  sparks.length    = 0;
-  labels.length    = 0;
+  instances.length   = 0;
+  sparks.length      = 0;
+  labels.length      = 0;
+  scopeGlyphs.length = 0;
+  pith.angle         = 0;
+  pith.angleV        = 0;
+  pith.charge        = 0;
 });
 toolbar.appendChild(resetBtn);
 
