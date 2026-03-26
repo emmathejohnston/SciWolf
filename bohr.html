@@ -18,6 +18,27 @@
       --electron: #60a5fa;
     }
 
+    body.light {
+      --bg:       #f1f5f9;
+      --surface:  #ffffff;
+      --surface2: #e2e8f0;
+      --accent:   #0284c7;
+      --text:     #0f172a;
+      --muted:    #475569;
+      --border:   #cbd5e1;
+      --electron: #1d4ed8;
+    }
+
+    #theme-toggle {
+      position: fixed; top: 12px; right: 12px; z-index: 1000;
+      padding: 5px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -167,6 +188,72 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
+    }
+    #orbital-canvas {
+      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    #orbital-canvas:active { cursor: grabbing; }
+    #orbital-cfg {
+      display: none;
+      position: absolute;
+      bottom: 10px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-family: 'Courier New', monospace;
+      pointer-events: none;
+      line-height: 1.5;
+    }
+
+    /* ── View toggle ── */
+    .view-toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      padding: 0.4rem 0 0.1rem;
+    }
+    .view-toggle-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--surface2);
+      border-radius: 24px;
+      transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; top: 3px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(22px);
+      background: #fff;
     }
 
     #diagram {
@@ -251,6 +338,7 @@
 </head>
 <body>
 <a href="index.html" class="home-btn" title="Home">⌂</a>
+<button id="theme-toggle">☀️ Light</button>
 <div class="container">
 
   <header>
@@ -305,6 +393,14 @@
         <div class="lewis-wrap">
           <svg id="lewis-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-60 -45 140 90"></svg>
         </div>
+        <div class="view-toggle-wrap" style="margin-top:0.75rem; border-top:1px solid var(--border); padding-top:0.75rem;">
+          <span class="view-toggle-label">Bohr-Rutherford</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="view-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="view-toggle-label">Orbital Clouds</span>
+        </div>
       </div>
 
       <div class="info-card">
@@ -335,7 +431,7 @@
 
     </div>
 
-    <!-- Right column: Bohr diagram -->
+    <!-- Right column: Bohr / Orbital diagram -->
     <div class="svg-wrap">
       <svg id="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="-180 -180 360 360">
         <defs>
@@ -359,11 +455,14 @@
         </defs>
         <!-- populated by JS -->
       </svg>
+      <canvas id="orbital-canvas"></canvas>
+      <div id="orbital-cfg"></div>
     </div>
 
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
 // ────────────────────────────────────────────────────────────────
 // Data
@@ -419,6 +518,7 @@ const SHELL_CAP = [2, 8, 18, 32, 32, 18, 8];
 // State
 // ────────────────────────────────────────────────────────────────
 let P = 0, N = 0, E = 0;
+let viewMode = 'bohr'; // 'bohr' | 'orbital'
 
 // ────────────────────────────────────────────────────────────────
 // Shell distribution
@@ -549,205 +649,280 @@ function configToString(config) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// Render orbital diagram for Z > 20 (KAN-21)
+// 3-D Orbital Probability Cloud viewer  (KAN-21)
+// Uses Three.js — loaded via CDN script tag above <script>
 // ────────────────────────────────────────────────────────────────
-function renderOrbitalDiagram(numElec, nucR) {
-  const config = getElectronConfig(numElec);
+let o3d = null; // lazy-initialised Three.js context
 
-  // Clear diagram
-  [...diagramSVG.children].forEach(c => { if (c.tagName !== 'defs') c.remove(); });
+function initOrbital3D() {
+  if (o3d) return;
 
-  // Background
-  diagramSVG.setAttribute('viewBox', '-220 -210 440 420');
+  const canvas = document.getElementById('orbital-canvas');
+  const wrap   = document.querySelector('.svg-wrap');
+  const W = wrap.clientWidth  || 400;
+  const H = wrap.clientHeight || 400;
 
-  // Title: "Orbital Notation" banner
-  diagramSVG.appendChild(svgTxt('Orbital Probability Clouds', {
-    x: 0, y: -195,
-    'font-size': 11, fill: '#475569',
-    'font-style': 'italic',
-  }));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(W, H, false);
+  renderer.setClearColor(0x000000, 0);
 
-  // ── Draw nucleus ──
-  diagramSVG.appendChild(svgEl('circle', {
-    cx: 0, cy: 0, r: nucR + 10,
-    fill: 'rgba(251,191,36,0.10)',
-  }));
-  diagramSVG.appendChild(svgEl('circle', {
-    cx: 0, cy: 0, r: nucR,
-    fill: 'url(#nucGrad)',
-    filter: 'url(#nucGlow)',
-  }));
-  const fontSize = Math.max(9, Math.min(15, nucR * 0.31));
-  if (P > 0 && N > 0) {
-    diagramSVG.appendChild(svgTxt(`${P}p⁺`, { x: 0, y: -(nucR * 0.27), 'font-size': fontSize, 'font-weight': '700', fill: '#1c1917' }));
-    diagramSVG.appendChild(svgTxt(`${N}n⁰`, { x: 0, y:  (nucR * 0.27), 'font-size': fontSize, 'font-weight': '700', fill: '#1c1917' }));
-  } else if (P > 0) {
-    diagramSVG.appendChild(svgTxt(`${P}p⁺`, { x: 0, y: 0, 'font-size': fontSize + 1, 'font-weight': '700', fill: '#1c1917' }));
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, W / H, 0.01, 100);
+  camera.position.z = 5.5;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(4, 6, 5);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x8ab4f8, 0.3);
+  fill.position.set(-4, -2, -3);
+  scene.add(fill);
+
+  const group = new THREE.Group();
+  scene.add(group);
+  group.rotation.x = 0.35;
+  group.rotation.y = 0.55;
+
+  // ── Drag rotation ──
+  let drag = null, rot = { x: 0.35, y: 0.55 };
+  function startDrag(px, py) { drag = { px, py, rx: rot.x, ry: rot.y }; }
+  function moveDrag(px, py)  {
+    if (!drag) return;
+    rot.x = drag.rx + (py - drag.py) * 0.009;
+    rot.y = drag.ry + (px - drag.px) * 0.009;
+    group.rotation.x = rot.x;
+    group.rotation.y = rot.y;
+  }
+  function endDrag() { drag = null; }
+
+  canvas.addEventListener('mousedown',  e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove',  e => moveDrag(e.clientX, e.clientY));
+  window.addEventListener('mouseup',    endDrag);
+  canvas.addEventListener('touchstart', e => { startDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('touchmove',  e => { moveDrag(e.touches[0].clientX,  e.touches[0].clientY);  e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('touchend',   endDrag);
+
+  // ── Resize ──
+  new ResizeObserver(() => {
+    const w2 = wrap.clientWidth, h2 = wrap.clientHeight;
+    renderer.setSize(w2, h2, false);
+    camera.aspect = w2 / h2;
+    camera.updateProjectionMatrix();
+  }).observe(wrap);
+
+  // ── Render loop ──
+  (function tick() { requestAnimationFrame(tick); renderer.render(scene, camera); })();
+
+  o3d = { renderer, scene, camera, group };
+}
+
+// Colour per angular-momentum quantum number (s / p / d / f)
+const ORB_COLOR = [0x60a5fa, 0x34d399, 0xfb923c, 0xc084fc];
+
+function orbMat(l, fillFrac) {
+  return new THREE.MeshPhongMaterial({
+    color:       ORB_COLOR[l] ?? 0xaaaaaa,
+    transparent: true,
+    opacity:     0.17 + fillFrac * 0.23,
+    side:        THREE.DoubleSide,
+    depthWrite:  false,
+    shininess:   35,
+  });
+}
+
+// Add a lobe: unit sphere scaled to (sx,sy,sz) centred at (x,y,z)
+function addLobe(group, x, y, z, sx, sy, sz, mat) {
+  const geo  = new THREE.SphereGeometry(1, 18, 12);
+  const mesh = new THREE.Mesh(geo, mat.clone());
+  mesh.position.set(x, y, z);
+  mesh.scale.set(sx, sy, sz);
+  group.add(mesh);
+}
+
+function buildOrbital3D() {
+  initOrbital3D();
+  const { group } = o3d;
+
+  // Dispose previous objects
+  group.traverse(obj => {
+    if (obj.isMesh || obj.isLine) {
+      obj.geometry?.dispose();
+      obj.material?.dispose();
+    }
+  });
+  group.clear();
+
+  // ── Nucleus ──
+  {
+    const nGeo = new THREE.SphereGeometry(0.18, 24, 16);
+    const nMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, emissive: 0x92400e, shininess: 120 });
+    group.add(new THREE.Mesh(nGeo, nMat));
+    const hGeo = new THREE.SphereGeometry(0.27, 16, 12);
+    const hMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.14, depthWrite: false });
+    group.add(new THREE.Mesh(hGeo, hMat));
   }
 
-  // ── Draw orbital clouds ──
-  // Group subshells by n (principal quantum number) → concentric rings
-  // s: small sphere (circle), p: pair of lobes (ellipses at 0/90°), d: 4 lobes, f: complex
-  // We'll draw simplified probability cloud ellipses
+  if (E === 0) { updateLabel(); renderLewisDot(); return; }
 
-  // Color palette per l
-  const L_COLOR = [
-    'rgba(96,165,250,',   // s: blue
-    'rgba(167,243,208,',  // p: green
-    'rgba(253,186,116,',  // d: orange
-    'rgba(216,180,254,',  // f: purple
-  ];
-  const L_STROKE = ['#60a5fa','#6ee7b7','#fdba74','#c084fc'];
-
-  // Assign radii per n shell
-  const nLevels = [...new Set(config.map(s => s.n))].sort((a,b)=>a-b);
-  const baseR = nucR + 30;
-  const gapR  = 28;
+  const config  = getElectronConfig(E);
+  const nLevels = [...new Set(config.map(s => s.n))].sort((a, b) => a - b);
+  const BASE = 0.54, GAP = 0.40;
   const nRadius = {};
-  nLevels.forEach((n, i) => { nRadius[n] = baseR + i * gapR; });
+  nLevels.forEach((n, i) => { nRadius[n] = BASE + i * GAP; });
 
-  // Draw shell ring guides
-  for (const n of nLevels) {
-    const r = nRadius[n];
-    diagramSVG.appendChild(svgEl('circle', {
-      cx: 0, cy: 0, r,
-      fill: 'none', stroke: '#1e293b', 'stroke-width': 1, 'stroke-dasharray': '3 4',
-    }));
-    diagramSVG.appendChild(svgTxt(`n=${n}`, {
-      x: r + 2, y: -5,
-      'text-anchor': 'start',
-      'font-size': 8, fill: '#334155',
-    }));
+  // ── Shell guide rings (one equatorial circle per shell — no faces, no z-fight) ──
+  {
+    const ringMat = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.18 });
+    const SEG = 80;
+    for (const n of nLevels) {
+      const r   = nRadius[n];
+      const pts = [];
+      for (let i = 0; i <= SEG; i++) {
+        const a = (i / SEG) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, 0));
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      group.add(new THREE.Line(geo, ringMat.clone()));
+    }
   }
 
-  // Draw subshell clouds
+  // ── Cartesian axis lines ──
+  {
+    const maxR = nRadius[nLevels[nLevels.length - 1]] + 0.40;
+    const axMat = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.45 });
+    [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].forEach(([ax,ay,az]) => {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0,0,0), new THREE.Vector3(ax*maxR, ay*maxR, az*maxR)
+      ]);
+      group.add(new THREE.Line(geo, axMat.clone()));
+    });
+  }
+
+  // ── Orbital clouds ──
   for (const sub of config) {
-    const r = nRadius[sub.n];
-    const col = L_COLOR[sub.l] || 'rgba(200,200,200,';
-    const stroke = L_STROKE[sub.l] || '#aaa';
-    const fillFrac = sub.count / sub.cap; // how full is this subshell
-    const alpha = (0.12 + fillFrac * 0.25).toFixed(2);
-    const strokeAlpha = (0.4 + fillFrac * 0.4).toFixed(2);
+    const r  = nRadius[sub.n];
+    const f  = sub.count / sub.cap;
+    const mat = orbMat(sub.l, f);
+    const lo = r * 0.40;          // lobe-centre offset from nucleus
+    const ls = r * 0.29;          // lobe short radius
+    const ll = r * 0.44;          // lobe long  radius (along orbital axis)
 
     if (sub.l === 0) {
-      // s orbital: sphere (circle)
-      diagramSVG.appendChild(svgEl('circle', {
-        cx: 0, cy: 0, r: r * 0.35,
-        fill: `${col}${alpha})`,
-        stroke: `${col}${strokeAlpha})`,
-        'stroke-width': 1.5,
-      }));
+      // ── s: translucent sphere ──
+      const geo = new THREE.SphereGeometry(r * 0.42, 20, 14);
+      group.add(new THREE.Mesh(geo, mat));
+
     } else if (sub.l === 1) {
-      // p orbitals: 3 pairs of lobes along x, y, (z shown as ring)
-      const angles = [0, Math.PI / 2, Math.PI / 4]; // px, py, pz approx
-      const numLobes = Math.min(Math.ceil(sub.count / 2), 3);
-      for (let pi = 0; pi < numLobes; pi++) {
-        const a = angles[pi];
-        const rx = r * 0.38;
-        const ry = r * 0.18;
-        // Two lobes
-        for (const sign of [1, -1]) {
-          const cx = Math.cos(a) * r * 0.42 * sign;
-          const cy = Math.sin(a) * r * 0.42 * sign;
-          const g = diagramSVG.appendChild(svgEl('ellipse', {
-            cx, cy,
-            rx, ry,
-            fill: `${col}${alpha})`,
-            stroke: stroke,
-            'stroke-width': 0.8,
-            'stroke-opacity': strokeAlpha,
-            transform: `rotate(${a * 180 / Math.PI}, ${cx}, ${cy})`,
-          }));
-        }
+      // ── p: dumbbell lobes along x / y / z ──
+      const nP   = Math.min(Math.ceil(sub.count / 2), 3);
+      const AXES = [[1,0,0],[0,1,0],[0,0,1]];
+      for (let i = 0; i < nP; i++) {
+        const [ax,ay,az] = AXES[i];
+        addLobe(group,  ax*lo,  ay*lo,  az*lo, ax?ll:ls, ay?ll:ls, az?ll:ls, mat);
+        addLobe(group, -ax*lo, -ay*lo, -az*lo, ax?ll:ls, ay?ll:ls, az?ll:ls, mat);
       }
+
     } else if (sub.l === 2) {
-      // d orbitals: 5 orbital lobes — draw 4 clover lobes + ring
-      const numD = Math.min(Math.ceil(sub.count / 2), 5);
-      const dAngles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, 0]; // 5th is dz2 ~ ring
-      for (let di = 0; di < numD; di++) {
-        if (di === 4) {
-          // dz2: ring around z-axis (shown as outer ring ellipse)
-          diagramSVG.appendChild(svgEl('ellipse', {
-            cx: 0, cy: 0,
-            rx: r * 0.7, ry: r * 0.22,
-            fill: 'none',
-            stroke: stroke,
-            'stroke-width': 1.2,
-            'stroke-opacity': strokeAlpha,
-            'stroke-dasharray': '3 2',
-          }));
-          diagramSVG.appendChild(svgEl('ellipse', {
-            cx: 0, cy: 0,
-            rx: r * 0.12, ry: r * 0.12,
-            fill: `${col}${alpha})`,
-            stroke: stroke,
-            'stroke-width': 0.8,
-            'stroke-opacity': strokeAlpha,
-          }));
-        } else {
-          const a = dAngles[di];
-          const rx = r * 0.32;
-          const ry = r * 0.14;
-          for (const sign of [1, -1]) {
-            const cx = Math.cos(a) * r * 0.36 * sign;
-            const cy = Math.sin(a) * r * 0.36 * sign;
-            diagramSVG.appendChild(svgEl('ellipse', {
-              cx, cy, rx, ry,
-              fill: `${col}${alpha})`,
-              stroke: stroke,
-              'stroke-width': 0.7,
-              'stroke-opacity': strokeAlpha,
-              transform: `rotate(${a * 180 / Math.PI + 45}, ${cx}, ${cy})`,
-            }));
-          }
-        }
+      // ── d: five orbitals ──
+      const nD = Math.min(Math.ceil(sub.count / 2), 5);
+      const d  = lo / Math.SQRT2;
+
+      // dz²  — two lobes along z  +  toroidal ring in xy-plane
+      if (nD >= 1) {
+        addLobe(group, 0, 0,  lo*1.15, ls*0.85, ls*0.85, ll*1.15, mat);
+        addLobe(group, 0, 0, -lo*1.15, ls*0.85, ls*0.85, ll*1.15, mat);
+        const tGeo = new THREE.TorusGeometry(lo*0.68, ls*0.33, 10, 30);
+        group.add(new THREE.Mesh(tGeo, mat.clone()));
       }
+      // dx²−y²  — four lobes along ±x, ±y
+      if (nD >= 2) {
+        addLobe(group,  lo, 0, 0, ll, ls*0.65, ls*0.65, mat);
+        addLobe(group, -lo, 0, 0, ll, ls*0.65, ls*0.65, mat);
+        addLobe(group, 0,  lo, 0, ls*0.65, ll, ls*0.65, mat);
+        addLobe(group, 0, -lo, 0, ls*0.65, ll, ls*0.65, mat);
+      }
+      // dxy  — four lobes at 45° in xy-plane
+      if (nD >= 3) {
+        addLobe(group,  d,  d, 0, ls, ls, ls*0.48, mat);
+        addLobe(group, -d, -d, 0, ls, ls, ls*0.48, mat);
+        addLobe(group,  d, -d, 0, ls, ls, ls*0.48, mat);
+        addLobe(group, -d,  d, 0, ls, ls, ls*0.48, mat);
+      }
+      // dxz  — four lobes at 45° in xz-plane
+      if (nD >= 4) {
+        addLobe(group,  d, 0,  d, ls, ls*0.48, ls, mat);
+        addLobe(group, -d, 0, -d, ls, ls*0.48, ls, mat);
+        addLobe(group,  d, 0, -d, ls, ls*0.48, ls, mat);
+        addLobe(group, -d, 0,  d, ls, ls*0.48, ls, mat);
+      }
+      // dyz  — four lobes at 45° in yz-plane
+      if (nD >= 5) {
+        addLobe(group, 0,  d,  d, ls*0.48, ls, ls, mat);
+        addLobe(group, 0, -d, -d, ls*0.48, ls, ls, mat);
+        addLobe(group, 0,  d, -d, ls*0.48, ls, ls, mat);
+        addLobe(group, 0, -d,  d, ls*0.48, ls, ls, mat);
+      }
+
     } else if (sub.l === 3) {
-      // f orbitals: complex — draw as diffuse outer ellipses in 7 orientations
-      const numF = Math.min(Math.ceil(sub.count / 2), 7);
-      for (let fi = 0; fi < numF; fi++) {
-        const a = (fi / 7) * Math.PI;
-        const rx = r * 0.28;
-        const ry = r * 0.12;
-        for (const sign of [1, -1]) {
-          const cx = Math.cos(a) * r * 0.32 * sign;
-          const cy = Math.sin(a) * r * 0.32 * sign;
-          diagramSVG.appendChild(svgEl('ellipse', {
-            cx, cy, rx, ry,
-            fill: `${col}${(parseFloat(alpha) * 0.75).toFixed(2)})`,
-            stroke: stroke,
-            'stroke-width': 0.6,
-            'stroke-opacity': (parseFloat(strokeAlpha) * 0.7).toFixed(2),
-            transform: `rotate(${a * 180 / Math.PI}, ${cx}, ${cy})`,
-          }));
-        }
+      // ── f: seven orbital sets (simplified) ──
+      const nF  = Math.min(Math.ceil(sub.count / 2), 7);
+      const flo = lo * 0.88, fls = ls * 0.76, fll = ll * 0.80;
+      const fd  = flo / Math.SQRT2, ft = flo * 0.60;
+
+      // fz³: two main lobes along z
+      if (nF >= 1) {
+        addLobe(group, 0, 0,  flo*1.2, fls*0.7, fls*0.7, fll*1.2, mat);
+        addLobe(group, 0, 0, -flo*1.2, fls*0.7, fls*0.7, fll*1.2, mat);
+      }
+      // fxz² (±x, +z quadrant)
+      if (nF >= 2) {
+        addLobe(group,  flo, 0, flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
+        addLobe(group, -flo, 0, flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
+      }
+      // fyz² (±y, +z quadrant)
+      if (nF >= 3) {
+        addLobe(group, 0,  flo, flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
+        addLobe(group, 0, -flo, flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
+      }
+      // fx(x²−3y²): rosette lobes at 45° in xy-plane
+      if (nF >= 4) {
+        addLobe(group,  fd,  fd, 0, fls, fls, fls*0.38, mat);
+        addLobe(group, -fd, -fd, 0, fls, fls, fls*0.38, mat);
+        addLobe(group,  fd, -fd, 0, fls, fls, fls*0.38, mat);
+        addLobe(group, -fd,  fd, 0, fls, fls, fls*0.38, mat);
+      }
+      // fxyz: off-axis lobes in +z octants
+      if (nF >= 5) {
+        addLobe(group,  ft,  ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
+        addLobe(group, -ft,  ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
+        addLobe(group,  ft, -ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
+        addLobe(group, -ft, -ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
+      }
+      // fyz² mirrored below z=0
+      if (nF >= 6) {
+        addLobe(group, 0,  flo, -flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
+        addLobe(group, 0, -flo, -flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
+      }
+      // fxz² mirrored below z=0
+      if (nF >= 7) {
+        addLobe(group,  flo, 0, -flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
+        addLobe(group, -flo, 0, -flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
       }
     }
   }
 
-  // ── Electron configuration text ──
-  // Group by rows of ~40 chars
-  const cfgStr = configToString(config);
-  // Break into lines of ~5 subshells each
+  // ── Electron-configuration overlay ──
   const cfgLines = [];
-  let line = [];
+  let ln = [];
   for (const sub of config) {
-    line.push(`${sub.n}${sub.letter}${fmtSup(sub.count)}`);
-    if (line.length >= 5) { cfgLines.push(line.join(' ')); line = []; }
+    ln.push(`${sub.n}${sub.letter}${fmtSup(sub.count)}`);
+    if (ln.length >= 5) { cfgLines.push(ln.join(' ')); ln = []; }
   }
-  if (line.length > 0) cfgLines.push(line.join(' '));
-
-  const textStartY = 145;
-  diagramSVG.appendChild(svgTxt('Electron Configuration:', {
-    x: 0, y: textStartY,
-    'font-size': 9, fill: '#64748b',
-  }));
-  cfgLines.forEach((ln, i) => {
-    diagramSVG.appendChild(svgTxt(ln, {
-      x: 0, y: textStartY + 14 + i * 13,
-      'font-size': 10.5, fill: '#94a3b8', 'font-weight': '600',
-    }));
-  });
+  if (ln.length) cfgLines.push(ln.join(' '));
+  const cfgEl = document.getElementById('orbital-cfg');
+  cfgEl.innerHTML = cfgLines.join('<br>');
+  cfgEl.style.display = 'block';
 
   updateLabel();
   renderLewisDot();
@@ -781,12 +956,23 @@ function svgTxt(str, attrs) {
 const diagramSVG = document.getElementById('diagram');
 
 function render() {
-  // For Z > 20: switch to orbital diagram (KAN-21)
-  const nucR = Math.max(34, Math.min(52, 34 + (P + N) * 0.28));
-  if (P > 20) {
-    renderOrbitalDiagram(E, nucR);
+  const diagramEl  = document.getElementById('diagram');
+  const canvasEl   = document.getElementById('orbital-canvas');
+  const cfgEl      = document.getElementById('orbital-cfg');
+
+  if (viewMode === 'orbital') {
+    diagramEl.style.display = 'none';
+    canvasEl.style.display  = 'block';
+    buildOrbital3D();
     return;
   }
+
+  // Bohr-Rutherford view
+  diagramEl.style.display = '';
+  canvasEl.style.display  = 'none';
+  cfgEl.style.display     = 'none';
+
+  const nucR = Math.max(34, Math.min(52, 34 + (P + N) * 0.28));
 
   // Remove all children except <defs>
   [...diagramSVG.children].forEach(c => { if (c.tagName !== 'defs') c.remove(); });
@@ -1063,6 +1249,27 @@ handleInput('e-v', v => { E = v; }, 0, 118);
 
 // Boot
 update();
+
+// View toggle (KAN-21)
+document.getElementById('view-toggle').addEventListener('change', function() {
+  viewMode = this.checked ? 'orbital' : 'bohr';
+  render();
+});
+
+// Theme toggle (KAN-26)
+(function() {
+  const btn = document.getElementById('theme-toggle');
+  const apply = (light) => {
+    document.body.classList.toggle('light', light);
+    btn.textContent = light ? '🌙 Dark' : '☀️ Light';
+  };
+  apply(localStorage.getItem('theme') === 'light');
+  btn.addEventListener('click', () => {
+    const light = !document.body.classList.contains('light');
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+    apply(light);
+  });
+})();
 </script>
 </body>
 </html>

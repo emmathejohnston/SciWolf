@@ -50,8 +50,8 @@
 
   @media (max-width: 768px) {
     #main { flex-direction: column; }
-    #controls { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid #2a2a4a; }
-    #canvas-area { padding: 8px; }
+    #canvas-area { order: -1; padding: 8px; }
+    #controls { width: 100%; min-width: unset; border-right: none; border-top: 1px solid #2a2a4a; }
     canvas { width: 100% !important; height: auto !important; }
   }
 </style>
@@ -186,7 +186,7 @@ let state = {
 // Coordinate system helpers
 // Canvas centre = optical centre
 // Scale: pixels per cm
-const SCALE = 10; // 10px per cm
+let SCALE = 10; // 10px per cm — reduced on mobile in resizeCanvas()
 
 function getCanvasCentre() {
   return { x: canvas.width / 2, y: canvas.height / 2 };
@@ -372,7 +372,9 @@ function draw() {
       if (state.showLabels) {
         ctx.fillStyle = '#ffa500';
         ctx.font = '12px monospace';
-        ctx.fillText(fp.label, fp.x + 7, cy - 8);
+        ctx.textAlign = 'center';
+        ctx.fillText(fp.label, fp.x, cy - 16);
+        ctx.textAlign = 'left';
       }
       ctx.restore();
 
@@ -402,7 +404,9 @@ function draw() {
       if (state.showLabels) {
         ctx.fillStyle = '#ff7700';
         ctx.font = '11px monospace';
-        ctx.fillText('2F', fp.x + 4, cy + 20);
+        ctx.textAlign = 'center';
+        ctx.fillText('2F', fp.x, cy - 16);
+        ctx.textAlign = 'left';
       }
       ctx.restore();
     });
@@ -422,12 +426,15 @@ function draw() {
   // Draw object tree
   drawTree(objX, objY, objHpx, '#90ee90');
 
-  // Object label
+  // Object label — above the tree tip so it doesn't overlap the tree or axis labels
   if (state.showLabels) {
     ctx.save();
     ctx.fillStyle = '#90ee90';
     ctx.font = '11px monospace';
-    ctx.fillText(`Object  u = ${u} cm`, objX - 20, cy + 25);
+    ctx.textAlign = 'center';
+    ctx.fillText(`Object`, objX, cy - objHpx - 22);
+    ctx.fillText(`u = ${u} cm`, objX, cy - objHpx - 10);
+    ctx.textAlign = 'left';
     ctx.restore();
   }
 
@@ -453,8 +460,17 @@ function draw() {
           ctx.save();
           ctx.fillStyle = imgColor;
           ctx.font = '11px monospace';
-          ctx.fillText(`Image  v = ${img.v.toFixed(1)} cm`, imgX + 5, cy + 25);
-          ctx.fillText(img.real ? 'Real · Inverted' : 'Virtual · Upright', imgX + 5, cy + 38);
+          ctx.textAlign = 'center';
+          // Place label above or below the tree tip depending on inversion
+          const imgTipY = imgY - imgHpx;
+          const above = imgHpx >= 0; // upright image: label above tip; inverted: below tip
+          const line1Y = above ? imgTipY - 22 : imgTipY + 12;
+          const line2Y = above ? imgTipY - 10 : imgTipY + 24;
+          const line3Y = above ? imgTipY + 2  : imgTipY + 36;
+          ctx.fillText(`Image`, imgX, line1Y);
+          ctx.fillText(`v = ${img.v.toFixed(1)} cm`, imgX, line2Y);
+          ctx.fillText(img.real ? 'Real · Inv.' : 'Virtual · Up.', imgX, line3Y);
+          ctx.textAlign = 'left';
           ctx.restore();
         }
       }
@@ -1175,6 +1191,20 @@ function canvasPos(e) {
   };
 }
 
+function applyDrag(canvasX, canvasY) {
+  const cx = canvas.width / 2;
+  if (drag.target === 'object') {
+    state.u = Math.max(2, Math.min(60, Math.round((cx - canvasX) / SCALE)));
+    document.getElementById('uSlider').value = state.u;
+    document.getElementById('uVal').textContent = state.u;
+  } else {
+    state.f = Math.max(2, Math.min(30, Math.round(Math.abs(canvasX - cx) / SCALE)));
+    document.getElementById('fSlider').value = state.f;
+    document.getElementById('fVal').textContent = state.f;
+  }
+  draw();
+}
+
 canvas.addEventListener('mousedown', e => {
   const { x, y } = canvasPos(e);
   const hit = getHitTarget(canvas.width / 2, canvas.height / 2, x, y);
@@ -1189,26 +1219,42 @@ canvas.addEventListener('mousemove', e => {
   const { x, y } = canvasPos(e);
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-
   if (!drag) {
     canvas.style.cursor = getHitTarget(cx, cy, x, y) ? 'grab' : 'default';
     return;
   }
-
-  if (drag.target === 'object') {
-    state.u = Math.max(2, Math.min(60, Math.round((cx - x) / SCALE)));
-    document.getElementById('uSlider').value = state.u;
-    document.getElementById('uVal').textContent = state.u;
-  } else {
-    state.f = Math.max(2, Math.min(30, Math.round(Math.abs(x - cx) / SCALE)));
-    document.getElementById('fSlider').value = state.f;
-    document.getElementById('fVal').textContent = state.f;
-  }
-  draw();
+  applyDrag(x, y);
 });
 
 window.addEventListener('mouseup', () => {
   if (drag) { drag = null; canvas.style.cursor = 'default'; }
+});
+
+// Touch support for drag
+canvas.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  const x = (t.clientX - r.left) * (canvas.width / r.width);
+  const y = (t.clientY - r.top)  * (canvas.height / r.height);
+  const hit = getHitTarget(canvas.width / 2, canvas.height / 2, x, y);
+  if (hit) {
+    drag = { target: hit };
+    e.preventDefault();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  if (!drag) return;
+  const t = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  const x = (t.clientX - r.left) * (canvas.width / r.width);
+  const y = (t.clientY - r.top)  * (canvas.height / r.height);
+  applyDrag(x, y);
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+  if (drag) drag = null;
 });
 
 // Responsive canvas
@@ -1218,6 +1264,8 @@ function resizeCanvas() {
   const h = Math.round(w * 0.51);
   canvas.width = w;
   canvas.height = h;
+  // Zoom out on mobile so object + image stay visible at large distances
+  SCALE = w < 600 ? w / 130 : 10;
   draw();
 }
 
