@@ -245,7 +245,7 @@ const SKY_W  = 210, SKY_H_TOTAL = 150, SKY_H = 108; // sky area vs ground area
 // ZS scales the orbital scene so Earth's orbit diameter ≈ 80% of canvas width.
 // Base projection scale at z=0: 680/(680+280) ≈ 0.708.  ZS = W*0.4 / (R_EARTH*0.708)
 let ZS = 1;
-function updateZS() { ZS = canvas.width * 0.4 / (175 * (680 / 960)); }
+function updateZS() { ZS = canvas.width * 0.3 / (175 * (680 / 960)); }
 
 function resize() {
   canvas.width  = canvas.offsetWidth;
@@ -289,7 +289,12 @@ const KNOWN_NEW_MS   = Date.UTC(2000, 0, 6, 18, 14, 0);
 const MOON_CYCLE_MS  = 29.53058867 * 86400000;
 const EARTH_CYCLE_MS = 365.25      * 86400000;
 const VERNAL_2000_MS = Date.UTC(2000, 2, 20, 7, 35, 0);
+const J2000_MS       = Date.UTC(2000, 0, 1, 12, 0, 0);
 const R_EARTH = 175, R_MOON = 54;
+// Moon orbital inclination (~5.145° to ecliptic) and precessing ascending node
+const MOON_INC   = 5.145 * Math.PI / 180;
+const MOON_NODE0 = 125.1 * Math.PI / 180;                         // Ω at J2000
+const NODE_RATE  = -2 * Math.PI / (18.6 * 365.25 * 86400000);    // rad/ms (18.6-yr precession)
 
 // ── Speed table ───────────────────────────────────────────────────────────────
 const SPEEDS       = [0.25, 1, 7, 30, 182];
@@ -316,11 +321,21 @@ function getPositions(t) {
   const earthAngle = ((t - VERNAL_2000_MS) / EARTH_CYCLE_MS) * Math.PI * 2;
   const moonAbsAngle = earthAngle + Math.PI + moonPhase * Math.PI * 2;
   const earth = { x: Math.cos(earthAngle) * R_EARTH, y: 0, z: Math.sin(earthAngle) * R_EARTH };
-  const moon  = { x: earth.x + Math.cos(moonAbsAngle) * R_MOON, y: 0, z: earth.z + Math.sin(moonAbsAngle) * R_MOON };
-  // Ecliptic longitudes (for sky pane hour angles)
-  const sunEclLon  = Math.atan2(-earth.z, -earth.x);          // sun dir as seen from Earth
-  const moonEclLon = Math.atan2(moon.z - earth.z, moon.x - earth.x); // moon dir from Earth
-  return { earth, moon, moonPhase, earthAngle, sunEclLon, moonEclLon };
+
+  // Moon position with orbital inclination and precessing ascending node
+  const Omega = MOON_NODE0 + NODE_RATE * (t - J2000_MS);
+  const u = moonAbsAngle - Omega;          // argument from ascending node
+  const cosI = Math.cos(MOON_INC), sinI = Math.sin(MOON_INC);
+  const cosO = Math.cos(Omega),    sinO = Math.sin(Omega);
+  const mx = R_MOON * (cosO * Math.cos(u) - sinO * Math.sin(u) * cosI);
+  const my = R_MOON * Math.sin(u) * sinI;
+  const mz = R_MOON * (sinO * Math.cos(u) + cosO * Math.sin(u) * cosI);
+  const moon = { x: earth.x + mx, y: my, z: earth.z + mz };
+
+  const sunEclLon  = Math.atan2(-earth.z, -earth.x);
+  const moonEclLon = Math.atan2(moon.z - earth.z, moon.x - earth.x);
+  const moonEclLat = Math.asin(my / R_MOON);   // ecliptic latitude for sky pane
+  return { earth, moon, moonPhase, earthAngle, sunEclLon, moonEclLon, moonEclLat, Omega };
 }
 
 // ── 3D projection ─────────────────────────────────────────────────────────────
@@ -339,14 +354,34 @@ function proj(px, py, pz, cx, cy) {
 
 // ── Moon sun-direction in screen space ────────────────────────────────────────
 function moonSunDir2D(moon, cx, cy) {
-  const len = Math.hypot(moon.x, moon.z);
+  const len = Math.hypot(moon.x, moon.y, moon.z);
   if (len < 0.001) return null;
-  const dx = -moon.x / len, dz = -moon.z / len;
-  const pm = proj(moon.x, 0, moon.z, cx, cy);
-  const ps = proj(moon.x + dx * 8, 0, moon.z + dz * 8, cx, cy);
+  const dx = -moon.x / len, dy = -moon.y / len, dz = -moon.z / len;
+  const pm = proj(moon.x, moon.y, moon.z, cx, cy);
+  const ps = proj(moon.x + dx * 8, moon.y + dy * 8, moon.z + dz * 8, cx, cy);
   const sdx = ps.sx - pm.sx, sdy = ps.sy - pm.sy;
   const slen = Math.hypot(sdx, sdy);
   return slen > 0.01 ? { x: sdx / slen, y: sdy / slen } : null;
+}
+
+// Camera world-space direction (unit vector from scene origin toward camera)
+function getCamWorldDir() {
+  return {
+    x: -Math.cos(camPhi) * Math.sin(camTheta),
+    y:  Math.sin(camPhi),
+    z:  Math.cos(camPhi) * Math.cos(camTheta)
+  };
+}
+
+// Phase fraction as seen from the camera (0=camera on Sun side → sees dark; 1=camera on far side → sees full lit)
+function camMoonPhase(moon) {
+  const mlen = Math.hypot(moon.x, moon.y, moon.z);
+  if (mlen < 0.001) return 0;
+  // moon-to-sun direction (sun at origin)
+  const mtsx = -moon.x / mlen, mtsy = -moon.y / mlen, mtsz = -moon.z / mlen;
+  const cam = getCamWorldDir();
+  const dot = mtsx * cam.x + mtsy * cam.y + mtsz * cam.z;
+  return (1 - dot) / 2;
 }
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
@@ -491,7 +526,7 @@ function drawTree(c, x, y, season) {
 }
 
 // ── Sky pane ──────────────────────────────────────────────────────────────────
-function drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon) {
+function drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon, moonEclLat) {
   const W = SKY_W, H = SKY_H_TOTAL, SH = SKY_H;
   skyCtx.clearRect(0, 0, W, H);
 
@@ -512,7 +547,7 @@ function drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon) {
 
   // Y position in sky pane (horizon = SH, top = 0)
   const sunSkyY  = SH * (1 - sunEl  * 0.82);
-  const moonSkyY = SH * (1 - moonEl * 0.82);
+  const moonSkyY = SH * (1 - moonEl * 0.82) - (moonEclLat || 0) * SH * 0.5;
 
   const sunAbove  = showSun  && sunEl  > 0;
   const moonAbove = showMoon && moonEl > 0;
@@ -612,18 +647,30 @@ function render() {
     });
   }
 
-  const { earth, moon, moonPhase, earthAngle, sunEclLon, moonEclLon } = getPositions(simTime);
+  const { earth, moon, moonPhase, earthAngle, sunEclLon, moonEclLon, moonEclLat, Omega } = getPositions(simTime);
 
   const pSun   = proj(0, 0, 0, cx, cy);
   const pEarth = proj(earth.x, 0, earth.z, cx, cy);
-  const pMoon  = proj(moon.x,  0, moon.z,  cx, cy);
+  const pMoon  = proj(moon.x, moon.y, moon.z, cx, cy);
 
   // Orbit rings
   ctx.save();
   ctx.setLineDash([3, 7]); ctx.globalAlpha = 0.22;
   orbitRing(ctx, cx, cy, 0, 0, R_EARTH, '#4a88b0');
+  // Inclined lunar orbit ring
   ctx.setLineDash([2, 5]); ctx.globalAlpha = 0.18;
-  orbitRing(ctx, cx, cy, earth.x, earth.z, R_MOON, '#9090a0');
+  ctx.beginPath();
+  const cosI = Math.cos(MOON_INC), sinI = Math.sin(MOON_INC);
+  const cosO = Math.cos(Omega),    sinO = Math.sin(Omega);
+  for (let i = 0; i <= 100; i++) {
+    const u = (i / 100) * Math.PI * 2;
+    const lx = R_MOON * (cosO * Math.cos(u) - sinO * Math.sin(u) * cosI);
+    const ly = R_MOON * Math.sin(u) * sinI;
+    const lz = R_MOON * (sinO * Math.cos(u) + cosO * Math.sin(u) * cosI);
+    const p  = proj(earth.x + lx, ly, earth.z + lz, cx, cy);
+    i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+  }
+  ctx.strokeStyle = '#9090a0'; ctx.lineWidth = 1; ctx.stroke();
   ctx.restore();
 
   // Depth-sort and draw bodies
@@ -651,7 +698,7 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon);
+  drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon, moonEclLat);
   updateHUD(moonPhase);
 }
 
@@ -703,9 +750,10 @@ function drawMoonBody(p, moon, phase, cx, cy) {
   const mg = ctx.createRadialGradient(p.sx, p.sy, r*0.8, p.sx, p.sy, r*1.8);
   mg.addColorStop(0, 'rgba(210,200,180,0.12)'); mg.addColorStop(1, 'transparent');
   ctx.beginPath(); ctx.arc(p.sx, p.sy, r*1.8, 0, Math.PI*2); ctx.fillStyle = mg; ctx.fill();
-  // Use sun direction in 3D screen space to orient the phase disc correctly
   const sd = moonSunDir2D(moon, cx, cy);
-  phaseDisc(ctx, p.sx, p.sy, r, phase, sd);
+  // Camera-perspective phase: how much of the lit hemisphere faces the camera
+  const cp = camMoonPhase(moon);
+  phaseDisc(ctx, p.sx, p.sy, r, cp, sd);
 }
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
