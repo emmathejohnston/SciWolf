@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moon Phase Simulator – Sci Wolf</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #060d1a;
+  --surface: #0e1e33;
+  --border:  #1d3a5c;
+  --text:    #e8f4ff;
+  --sub:     #7ba3c8;
+  --accent:  #38bdf8;
+  --accent2: #818cf8;
+}
+body.light {
+  --bg:      #c8d8e8;
+  --surface: #d8e8f4;
+  --border:  #8aabcc;
+  --text:    #0a1628;
+  --sub:     #3a5878;
+  --accent:  #0284c7;
+  --accent2: #6366f1;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#main-canvas {
+  flex: 1;
+  display: block;
+  cursor: grab;
+  min-height: 0;
+}
+#main-canvas:active { cursor: grabbing; }
+
+/* ── Controls bar ─────────────────────────────────────────────── */
+#controls {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.ctrl-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+#speed-display {
+  font-size: 0.75rem;
+  color: var(--sub);
+  min-width: 52px;
+  flex-shrink: 0;
+}
+#phase-display {
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 108px;
+}
+#date-display {
+  font-size: 0.75rem;
+  color: var(--sub);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* separator */
+.ctrl-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* checkboxes */
+.ctrl-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.73rem;
+  color: var(--sub);
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+}
+.ctrl-check input { accent-color: var(--accent); cursor: pointer; width: 13px; height: 13px; }
+.ctrl-check:hover { color: var(--text); }
+
+/* Phase 2 toggle (disabled) */
+.p2-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.71rem;
+  color: var(--border);
+  flex-shrink: 0;
+  opacity: 0.55;
+  cursor: not-allowed;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+.p2-toggle .p2-switch {
+  width: 26px; height: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  position: relative;
+}
+.p2-toggle .p2-switch::after {
+  content: '';
+  position: absolute;
+  left: 2px; top: 2px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+/* ── Sky pane ─────────────────────────────────────────────────── */
+#sky-pane {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  width: 210px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 10;
+}
+#sky-label {
+  padding: 5px 10px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sub);
+  border-bottom: 1px solid var(--border);
+}
+#sky-canvas { display: block; }
+
+/* ── Fixed chrome ─────────────────────────────────────────────── */
+.home-btn {
+  position: fixed; top: 12px; left: 12px; z-index: 999;
+  width: 36px; height: 36px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.1rem; color: var(--sub);
+  transition: border-color 0.15s, color 0.15s;
+}
+.home-btn:hover { border-color: var(--accent); color: var(--text); }
+
+#theme-toggle {
+  position: fixed; top: 12px; right: 12px; z-index: 1000;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 14px;
+  font-size: 0.78rem; font-weight: 600; color: var(--sub); cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+#sim-title {
+  position: fixed; top: 16px; left: 56px;
+  font-size: 0.82rem; font-weight: 700; color: var(--sub);
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<a href="index.html" class="home-btn" title="Home">⌂</a>
+<span id="sim-title">Moon Phase Simulator</span>
+<button id="theme-toggle">☀️ Light</button>
+
+<canvas id="main-canvas"></canvas>
+
+<div id="sky-pane">
+  <div id="sky-label">View from Earth</div>
+  <canvas id="sky-canvas" width="210" height="150"></canvas>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn" id="btn-reset"  title="Return to today">⏮</button>
+  <button class="ctrl-btn" id="btn-slower" title="Slow down">⏪</button>
+  <button class="ctrl-btn" id="btn-play"   title="Play / Pause">⏸</button>
+  <button class="ctrl-btn" id="btn-faster" title="Speed up">⏩</button>
+  <span id="speed-display">1 wk/s</span>
+  <span id="phase-display"></span>
+
+  <div class="ctrl-sep"></div>
+
+  <label class="ctrl-check"><input type="checkbox" id="chk-sun"  checked> ☀️ Sun</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-moon" checked> 🌙 Moon</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-tree"> 🌳 Tree</label>
+
+  <div class="ctrl-sep"></div>
+
+  <div class="p2-toggle" title="Coming in Phase 2">
+    <div class="p2-switch"></div>
+    🌏 Location <span style="font-size:0.65rem;opacity:0.7">(Phase 2)</span>
+  </div>
+
+  <span id="date-display"></span>
+</div>
+
+<script>
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('main-canvas');
+const ctx    = canvas.getContext('2d');
+const skyC   = document.getElementById('sky-canvas');
+const skyCtx = skyC.getContext('2d');
+const SKY_W  = 210, SKY_H_TOTAL = 150, SKY_H = 108; // sky area vs ground area
+
+// ZS scales the orbital scene so Earth's orbit diameter ≈ 80% of canvas width.
+// Base projection scale at z=0: 680/(680+280) ≈ 0.708.  ZS = W*0.4 / (R_EARTH*0.708)
+let ZS = 1;
+function updateZS() { ZS = canvas.width * 0.4 / (175 * (680 / 960)); }
+
+function resize() {
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  updateZS();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Pre-generate main stars (golden-angle sphere distribution) ────────────────
+const STARS = Array.from({ length: 320 }, (_, i) => {
+  const phi = Math.acos(1 - 2 * (i + 0.5) / 320);
+  const th  = Math.PI * (1 + Math.sqrt(5)) * i;
+  return { x: Math.sin(phi)*Math.cos(th), y: Math.sin(phi)*Math.sin(th), z: Math.cos(phi),
+           r: 0.4 + (i % 4) * 0.28, a: 0.3 + (i % 7) * 0.1 };
+});
+
+// Pre-generate sky-pane stars (deterministic positions)
+const SKY_STARS = Array.from({ length: 60 }, (_, i) => ({
+  x: ((i * 73 + 17) % 196) + 7,
+  y: ((i * 47 + 11) % (SKY_H - 10)) + 4,
+  r: (i % 5 === 0) ? 1.1 : 0.6
+}));
+
+// ── Simplified continents [lon°, lat°, dlon, dlat] in radians ────────────────
+const TILT_RAD = 22.5 * Math.PI / 180;
+const EARTH_PHYS_R = 13; // world units
+
+const CONTINENTS = [
+  { lon:  0.35, lat:  0.09, dlon: 0.42, dlat: 0.50, color: 'rgba(70,140,55,0.60)' }, // Africa
+  { lon:  0.26, lat:  0.87, dlon: 0.28, dlat: 0.22, color: 'rgba(70,140,55,0.55)' }, // Europe
+  { lon:  1.57, lat:  0.65, dlon: 0.68, dlat: 0.38, color: 'rgba(70,140,55,0.58)' }, // Asia
+  { lon: -1.74, lat:  0.78, dlon: 0.46, dlat: 0.33, color: 'rgba(70,140,55,0.55)' }, // N. America
+  { lon: -1.05, lat: -0.26, dlon: 0.24, dlat: 0.38, color: 'rgba(70,140,55,0.55)' }, // S. America
+  { lon:  2.36, lat: -0.44, dlon: 0.28, dlat: 0.18, color: 'rgba(70,140,55,0.55)' }, // Australia
+  { lon:  0.00, lat: -1.40, dlon: 1.20, dlat: 0.10, color: 'rgba(220,230,245,0.65)' }, // Antarctica
+];
+
+// ── Orbital constants ─────────────────────────────────────────────────────────
+const KNOWN_NEW_MS   = Date.UTC(2000, 0, 6, 18, 14, 0);
+const MOON_CYCLE_MS  = 29.53058867 * 86400000;
+const EARTH_CYCLE_MS = 365.25      * 86400000;
+const VERNAL_2000_MS = Date.UTC(2000, 2, 20, 7, 35, 0);
+const R_EARTH = 175, R_MOON = 54;
+
+// ── Speed table ───────────────────────────────────────────────────────────────
+const SPEEDS       = [0.25, 1, 7, 30, 182];
+const SPEED_LABELS = ['¼ day/s', '1 day/s', '1 wk/s', '1 mo/s', '6 mo/s'];
+let simTime  = Date.now();
+let realLast = performance.now();
+let speedIdx = 2;
+let playing  = true;
+let hasDragged = false;
+
+// ── Checkbox state ────────────────────────────────────────────────────────────
+let showSun  = true, showMoon = true, showTree = false;
+document.getElementById('chk-sun' ).addEventListener('change', e => { showSun  = e.target.checked; });
+document.getElementById('chk-moon').addEventListener('change', e => { showMoon = e.target.checked; });
+document.getElementById('chk-tree').addEventListener('change', e => { showTree = e.target.checked; });
+
+// ── Camera ────────────────────────────────────────────────────────────────────
+let camTheta = 0.55, camPhi = 0.40;
+let dragging = false, dragStart = { x:0, y:0, theta:0, phi:0 };
+
+// ── Orbital mechanics ─────────────────────────────────────────────────────────
+function getPositions(t) {
+  const moonPhase = (((t - KNOWN_NEW_MS) % MOON_CYCLE_MS) + MOON_CYCLE_MS) % MOON_CYCLE_MS / MOON_CYCLE_MS;
+  const earthAngle = ((t - VERNAL_2000_MS) / EARTH_CYCLE_MS) * Math.PI * 2;
+  const moonAbsAngle = earthAngle + Math.PI + moonPhase * Math.PI * 2;
+  const earth = { x: Math.cos(earthAngle) * R_EARTH, y: 0, z: Math.sin(earthAngle) * R_EARTH };
+  const moon  = { x: earth.x + Math.cos(moonAbsAngle) * R_MOON, y: 0, z: earth.z + Math.sin(moonAbsAngle) * R_MOON };
+  // Ecliptic longitudes (for sky pane hour angles)
+  const sunEclLon  = Math.atan2(-earth.z, -earth.x);          // sun dir as seen from Earth
+  const moonEclLon = Math.atan2(moon.z - earth.z, moon.x - earth.x); // moon dir from Earth
+  return { earth, moon, moonPhase, earthAngle, sunEclLon, moonEclLon };
+}
+
+// ── 3D projection ─────────────────────────────────────────────────────────────
+function proj(px, py, pz, cx, cy) {
+  // Scale world coords by ZS so the orbital scene fills the viewport.
+  // Scaling fov and camOffset proportionally preserves perspective ratios.
+  const x = px * ZS, y = py * ZS, z = pz * ZS;
+  const x1 =  x * Math.cos(camTheta) + z * Math.sin(camTheta);
+  const z1 = -x * Math.sin(camTheta) + z * Math.cos(camTheta);
+  const y2 = y * Math.cos(camPhi) - z1 * Math.sin(camPhi);
+  const z2 = y * Math.sin(camPhi) + z1 * Math.cos(camPhi);
+  const fov = 680 * ZS, off = 280 * ZS;
+  const f   = fov / (fov + z2 + off);
+  return { sx: cx + x1 * f, sy: cy + y2 * f, scale: f, z: z2 };
+}
+
+// ── Moon sun-direction in screen space ────────────────────────────────────────
+function moonSunDir2D(moon, cx, cy) {
+  const len = Math.hypot(moon.x, moon.z);
+  if (len < 0.001) return null;
+  const dx = -moon.x / len, dz = -moon.z / len;
+  const pm = proj(moon.x, 0, moon.z, cx, cy);
+  const ps = proj(moon.x + dx * 8, 0, moon.z + dz * 8, cx, cy);
+  const sdx = ps.sx - pm.sx, sdy = ps.sy - pm.sy;
+  const slen = Math.hypot(sdx, sdy);
+  return slen > 0.01 ? { x: sdx / slen, y: sdy / slen } : null;
+}
+
+// ── Draw helpers ──────────────────────────────────────────────────────────────
+function sphere(c, x, y, r, hi, mid, lo, lx, ly) {
+  const dx = lx - x, dy = ly - y, len = Math.hypot(dx, dy) || 1;
+  const g = c.createRadialGradient(x + (dx/len)*r*0.38, y + (dy/len)*r*0.38, r*0.04, x, y, r);
+  g.addColorStop(0, hi); g.addColorStop(0.5, mid); g.addColorStop(1, lo);
+  c.beginPath(); c.arc(x, y, r, 0, Math.PI*2); c.fillStyle = g; c.fill();
+}
+
+function glow(c, x, y, r, color) {
+  const g = c.createRadialGradient(x, y, r*0.5, x, y, r*2.8);
+  g.addColorStop(0, color); g.addColorStop(1, 'transparent');
+  c.beginPath(); c.arc(x, y, r*2.8, 0, Math.PI*2); c.fillStyle = g; c.fill();
+}
+
+// Phase disc — sunDir2D orients the lit side to face the sun (3D view).
+// When null, standard north-hemisphere orientation is used (sky pane).
+function phaseDisc(c, x, y, r, phase, sunDir2D) {
+  const lit = '#e6e0cc', dark = '#111827';
+  const ang = phase * Math.PI * 2;
+
+  c.save();
+  c.translate(x, y);
+
+  if (sunDir2D) {
+    const sunAngle = Math.atan2(sunDir2D.y, sunDir2D.x);
+    const litAngle = phase < 0.5 ? 0 : Math.PI;
+    c.rotate(sunAngle - litAngle);
+  }
+
+  c.beginPath(); c.arc(0, 0, r, 0, Math.PI*2); c.fillStyle = dark; c.fill();
+  c.beginPath(); c.arc(0, 0, r, 0, Math.PI*2); c.clip();
+  c.fillStyle = lit;
+  if (phase < 0.5) c.fillRect(0, -r-1, r+2, (r+1)*2);
+  else             c.fillRect(-r-1, -r-1, r+2, (r+1)*2);
+  const xr = Math.abs(Math.cos(ang)) * r;
+  c.beginPath(); c.ellipse(0, 0, xr||0.5, r, 0, 0, Math.PI*2);
+  c.fillStyle = Math.cos(ang) > 0 ? dark : lit; c.fill();
+  c.restore();
+
+  c.beginPath(); c.arc(x, y, r, 0, Math.PI*2);
+  c.strokeStyle = 'rgba(230,224,204,0.25)'; c.lineWidth = 1; c.stroke();
+}
+
+// Orbit ring (projected from world coords)
+function orbitRing(c, cx, cy, ex, ez, radius, color) {
+  c.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const a = (i / 100) * Math.PI * 2;
+    const p = proj(ex + Math.cos(a)*radius, 0, ez + Math.sin(a)*radius, cx, cy);
+    i === 0 ? c.moveTo(p.sx, p.sy) : c.lineTo(p.sx, p.sy);
+  }
+  c.strokeStyle = color; c.lineWidth = 1; c.stroke();
+}
+
+// ── Continent 3D positions ────────────────────────────────────────────────────
+function continentWorld(lon, lat, earthRot, earth) {
+  // 1. Point on unit sphere in Earth body frame
+  let x = Math.cos(lat) * Math.cos(lon);
+  let y = Math.sin(lat);
+  let z = Math.cos(lat) * Math.sin(lon);
+  // 2. Daily spin around Y
+  const cr = Math.cos(earthRot), sr = Math.sin(earthRot);
+  const x2 = x*cr + z*sr, z2 = -x*sr + z*cr; // Ry
+  // 3. Axial tilt around X (22.5°)
+  const ct = Math.cos(TILT_RAD), st = Math.sin(TILT_RAD);
+  const y3 = y*ct - z2*st, z3 = y*st + z2*ct; // Rx
+  return {
+    x: earth.x + x2 * EARTH_PHYS_R,
+    y: y3 * EARTH_PHYS_R,
+    z: earth.z + z3 * EARTH_PHYS_R
+  };
+}
+
+// ── Phase name ────────────────────────────────────────────────────────────────
+function phaseName(p) {
+  if (p < 0.03 || p > 0.97) return 'New Moon';
+  if (p < 0.22) return 'Waxing Crescent';
+  if (p < 0.28) return 'First Quarter';
+  if (p < 0.47) return 'Waxing Gibbous';
+  if (p < 0.53) return 'Full Moon';
+  if (p < 0.72) return 'Waning Gibbous';
+  if (p < 0.78) return 'Last Quarter';
+  return 'Waning Crescent';
+}
+
+// ── Season from Earth orbital angle ──────────────────────────────────────────
+function getSeason(earthAngle) {
+  const a = ((earthAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  if (a < Math.PI*0.5) return 'spring';
+  if (a < Math.PI)     return 'summer';
+  if (a < Math.PI*1.5) return 'autumn';
+  return 'winter';
+}
+
+// ── Cartoon tree ──────────────────────────────────────────────────────────────
+function drawTree(c, x, y, season) {
+  // trunk
+  c.fillStyle = '#5a3a1a';
+  c.fillRect(x - 3, y - 18, 6, 18);
+
+  switch (season) {
+    case 'spring':
+      c.fillStyle = '#98d84a';
+      c.beginPath(); c.arc(x, y-26, 14, 0, Math.PI*2); c.fill();
+      c.fillStyle = 'rgba(255,160,190,0.9)';
+      for (let i = 0; i < 7; i++) {
+        const a = i * Math.PI * 2 / 7;
+        c.beginPath(); c.arc(x + Math.cos(a)*9, y-24 + Math.sin(a)*9, 4, 0, Math.PI*2); c.fill();
+      }
+      break;
+    case 'summer':
+      c.fillStyle = '#1a7a1a';
+      c.beginPath(); c.arc(x-4, y-28, 13, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#227722';
+      c.beginPath(); c.arc(x+5, y-24, 11, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#2a8a2a';
+      c.beginPath(); c.arc(x, y-32, 10, 0, Math.PI*2); c.fill();
+      break;
+    case 'autumn':
+      c.fillStyle = '#c84010';
+      c.beginPath(); c.arc(x, y-28, 14, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#e07820';
+      c.beginPath(); c.arc(x+5, y-24, 10, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#d0b020';
+      c.beginPath(); c.arc(x-4, y-26, 9, 0, Math.PI*2); c.fill();
+      break;
+    case 'winter':
+      c.strokeStyle = '#5a3a1a'; c.lineWidth = 2;
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI/2 + (i - 2.5) * 0.38;
+        c.beginPath(); c.moveTo(x, y-18); c.lineTo(x + Math.cos(a)*16, y-18 + Math.sin(a)*16); c.stroke();
+      }
+      c.fillStyle = 'rgba(210,225,240,0.85)';
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI/2 + (i - 2.5) * 0.38;
+        c.beginPath(); c.arc(x + Math.cos(a)*15, y-18 + Math.sin(a)*15, 3, 0, Math.PI*2); c.fill();
+      }
+      break;
+  }
+}
+
+// ── Sky pane ──────────────────────────────────────────────────────────────────
+function drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon) {
+  const W = SKY_W, H = SKY_H_TOTAL, SH = SKY_H;
+  skyCtx.clearRect(0, 0, W, H);
+
+  // Earth's sidereal rotation angle (one full turn per simulated day)
+  const earthRot = (simTime / 86400000) * Math.PI * 2;
+
+  // Hour angles (position in the sky: 0 = transit/south, ±π/2 = rise/set, ±π = below)
+  const HA_sun  = earthRot - sunEclLon;
+  const HA_moon = earthRot - moonEclLon;
+
+  // Sky x: east (left) to west (right). Transit = center.
+  const sunSkyX  = W/2 + Math.sin(HA_sun)  * W * 0.38;
+  const moonSkyX = W/2 + Math.sin(HA_moon) * W * 0.38;
+
+  // Elevation (0 = horizon, 1 = overhead, <0 = below horizon) — simplified equatorial model
+  const sunEl  = Math.cos(HA_sun);
+  const moonEl = Math.cos(HA_moon);
+
+  // Y position in sky pane (horizon = SH, top = 0)
+  const sunSkyY  = SH * (1 - sunEl  * 0.82);
+  const moonSkyY = SH * (1 - moonEl * 0.82);
+
+  const sunAbove  = showSun  && sunEl  > 0;
+  const moonAbove = showMoon && moonEl > 0;
+
+  // Sky background color — driven by sun elevation (if showSun), else stays night
+  const dayFrac = showSun ? Math.max(0, sunEl) : 0;
+  const skyTop = `hsl(215, ${30 + dayFrac*30}%, ${4 + dayFrac*30}%)`;
+  const skyBot = `hsl(210, ${25 + dayFrac*40}%, ${6 + dayFrac*38}%)`;
+  const sg = skyCtx.createLinearGradient(0, 0, 0, SH);
+  sg.addColorStop(0, skyTop); sg.addColorStop(1, skyBot);
+  skyCtx.fillStyle = sg; skyCtx.fillRect(0, 0, W, SH);
+
+  // Horizon glow when sun is near horizon
+  if (showSun && sunEl > -0.2 && sunEl < 0.3) {
+    const gFrac = 1 - Math.abs(sunEl) / 0.3;
+    skyCtx.save();
+    const hg = skyCtx.createRadialGradient(sunSkyX, SH, 0, sunSkyX, SH, 60);
+    hg.addColorStop(0, `rgba(255,160,50,${0.55 * gFrac})`);
+    hg.addColorStop(1, 'transparent');
+    skyCtx.fillStyle = hg; skyCtx.fillRect(0, SH - 60, W, 60);
+    skyCtx.restore();
+  }
+
+  // Ground
+  const gg = skyCtx.createLinearGradient(0, SH, 0, H);
+  gg.addColorStop(0, '#18281a'); gg.addColorStop(1, '#0e1810');
+  skyCtx.fillStyle = gg; skyCtx.fillRect(0, SH, W, H - SH);
+
+  // Horizon line
+  skyCtx.beginPath(); skyCtx.moveTo(0, SH); skyCtx.lineTo(W, SH);
+  skyCtx.strokeStyle = 'rgba(70,150,70,0.35)'; skyCtx.lineWidth = 1; skyCtx.stroke();
+
+  // Stars (fade when sun is up)
+  const starAlpha = Math.max(0, 1 - dayFrac * 2.5);
+  if (starAlpha > 0.02) {
+    SKY_STARS.forEach(s => {
+      skyCtx.beginPath(); skyCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      skyCtx.fillStyle = `rgba(255,255,230,${starAlpha * 0.65})`; skyCtx.fill();
+    });
+  }
+
+  // Sun
+  if (showSun && sunEl > -0.15) {
+    const alpha = Math.min(1, (sunEl + 0.1) / 0.15);
+    skyCtx.globalAlpha = alpha;
+    glow(skyCtx, sunSkyX, sunSkyY, 11, 'rgba(255,200,50,0.7)');
+    skyCtx.beginPath(); skyCtx.arc(sunSkyX, sunSkyY, 11, 0, Math.PI*2);
+    skyCtx.fillStyle = '#ffd84d'; skyCtx.fill();
+    skyCtx.globalAlpha = 1;
+  }
+
+  // Moon (with phase disc, standard sky-pane orientation — no sunDir2D rotation)
+  if (showMoon && moonEl > -0.15) {
+    const alpha = Math.min(1, (moonEl + 0.1) / 0.15);
+    skyCtx.globalAlpha = alpha * 0.9;
+    glow(skyCtx, moonSkyX, moonSkyY, 16, 'rgba(210,200,180,0.4)');
+    skyCtx.globalAlpha = alpha;
+    phaseDisc(skyCtx, moonSkyX, moonSkyY, 16, moonPhase, null);
+    skyCtx.globalAlpha = 1;
+  }
+
+  // Clip subsequent drawing to pane
+  skyCtx.save();
+
+  // Tree on ground
+  if (showTree) {
+    const season = getSeason(earthAngle);
+    drawTree(skyCtx, W * 0.72, SH, season);
+  }
+
+  // Phase + illumination label
+  const illum = Math.round((1 - Math.cos(moonPhase * Math.PI * 2)) / 2 * 100);
+  skyCtx.fillStyle = 'rgba(170,200,235,0.9)';
+  skyCtx.font = '600 9.5px "Segoe UI", sans-serif';
+  skyCtx.textAlign = 'left';
+  skyCtx.fillText(`${phaseName(moonPhase)}  ·  ${illum}% lit`, 6, H - 6);
+
+  skyCtx.restore();
+}
+
+// ── Main 3D scene ─────────────────────────────────────────────────────────────
+function render() {
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+
+  // Background
+  ctx.fillStyle = document.body.classList.contains('light') ? '#c8d8e8' : '#060d1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  if (!document.body.classList.contains('light')) {
+    STARS.forEach(s => {
+      const p = proj(s.x*2200, s.y*2200, s.z*2200, cx, cy);
+      if (p.sx < -5 || p.sx > W+5 || p.sy < -5 || p.sy > H+5) return;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,230,${s.a})`; ctx.fill();
+    });
+  }
+
+  const { earth, moon, moonPhase, earthAngle, sunEclLon, moonEclLon } = getPositions(simTime);
+
+  const pSun   = proj(0, 0, 0, cx, cy);
+  const pEarth = proj(earth.x, 0, earth.z, cx, cy);
+  const pMoon  = proj(moon.x,  0, moon.z,  cx, cy);
+
+  // Orbit rings
+  ctx.save();
+  ctx.setLineDash([3, 7]); ctx.globalAlpha = 0.22;
+  orbitRing(ctx, cx, cy, 0, 0, R_EARTH, '#4a88b0');
+  ctx.setLineDash([2, 5]); ctx.globalAlpha = 0.18;
+  orbitRing(ctx, cx, cy, earth.x, earth.z, R_MOON, '#9090a0');
+  ctx.restore();
+
+  // Depth-sort and draw bodies
+  const earthRot = (simTime / 86400000) * Math.PI * 2;
+  const bodies = [
+    { z: pSun.z,   draw: () => drawSun(pSun) },
+    { z: pEarth.z, draw: () => drawEarth(pEarth, pSun, earth, earthRot, cx, cy) },
+    { z: pMoon.z,  draw: () => drawMoonBody(pMoon, moon, moonPhase, cx, cy) },
+  ];
+  bodies.sort((a,b) => b.z - a.z).forEach(b => b.draw());
+
+  // Labels
+  ctx.textAlign = 'center';
+  ctx.font = '600 11px "Segoe UI", sans-serif';
+  ctx.fillStyle = document.body.classList.contains('light') ? 'rgba(10,22,40,0.7)' : 'rgba(180,210,240,0.75)';
+  ctx.fillText('Sun',   pSun.sx,   pSun.sy   - sunR(pSun)     - 10);
+  ctx.fillText('Earth', pEarth.sx, pEarth.sy - earthR(pEarth) - 10);
+  ctx.fillText('Moon',  pMoon.sx,  pMoon.sy  - moonRad(pMoon) - 10);
+
+  if (!hasDragged) {
+    ctx.globalAlpha = 0.4;
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#7ba3c8';
+    ctx.fillText('Drag to rotate view', cx, H - 18);
+    ctx.globalAlpha = 1;
+  }
+
+  drawSkyPane(moonPhase, earthAngle, sunEclLon, moonEclLon);
+  updateHUD(moonPhase);
+}
+
+function sunR(p)    { return 36 * p.scale * ZS; }
+function earthR(p)  { return 19 * p.scale * ZS; }
+function moonRad(p) { return 11 * p.scale * ZS; }
+
+function drawSun(p) {
+  const r = sunR(p);
+  glow(ctx, p.sx, p.sy, r, 'rgba(255,180,30,0.16)');
+  sphere(ctx, p.sx, p.sy, r, '#fffbe0', '#ffd700', '#e07800', p.sx - r*0.3, p.sy - r*0.3);
+  ctx.beginPath(); ctx.arc(p.sx, p.sy, r*0.28, 0, Math.PI*2);
+  ctx.fillStyle = '#ffffff'; ctx.fill();
+}
+
+function drawEarth(p, pSun, earth, earthRot, cx, cy) {
+  const r = earthR(p);
+  // Atmosphere glow
+  const ag = ctx.createRadialGradient(p.sx, p.sy, r*0.95, p.sx, p.sy, r*1.55);
+  ag.addColorStop(0, 'rgba(80,160,255,0.18)'); ag.addColorStop(1, 'transparent');
+  ctx.beginPath(); ctx.arc(p.sx, p.sy, r*1.55, 0, Math.PI*2); ctx.fillStyle = ag; ctx.fill();
+  // Ocean sphere
+  sphere(ctx, p.sx, p.sy, r, '#90d0ff', '#1a6ca8', '#061828', pSun.sx, pSun.sy);
+  // Continents (projected from 3D)
+  CONTINENTS.forEach(c => {
+    const cw = continentWorld(c.lon, c.lat, earthRot, earth);
+    const pc = proj(cw.x, cw.y, cw.z, cx, cy);
+    if (pc.z > p.z + 1) return; // back-side cull
+    ctx.save();
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, Math.PI*2); ctx.clip();
+    ctx.beginPath(); ctx.ellipse(pc.sx, pc.sy, c.dlon * r * 0.62, c.dlat * r * 0.62, 0, 0, Math.PI*2);
+    ctx.fillStyle = c.color; ctx.fill();
+    ctx.restore();
+  });
+  // Pole cap hint
+  const np = continentWorld(0, Math.PI/2 - 0.05, earthRot, earth);
+  const pnp = proj(np.x, np.y, np.z, cx, cy);
+  if (pnp.z < p.z + 1) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, Math.PI*2); ctx.clip();
+    ctx.beginPath(); ctx.arc(pnp.sx, pnp.sy, r * 0.22, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(220,235,248,0.55)'; ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawMoonBody(p, moon, phase, cx, cy) {
+  const r = moonRad(p);
+  const mg = ctx.createRadialGradient(p.sx, p.sy, r*0.8, p.sx, p.sy, r*1.8);
+  mg.addColorStop(0, 'rgba(210,200,180,0.12)'); mg.addColorStop(1, 'transparent');
+  ctx.beginPath(); ctx.arc(p.sx, p.sy, r*1.8, 0, Math.PI*2); ctx.fillStyle = mg; ctx.fill();
+  // Use sun direction in 3D screen space to orient the phase disc correctly
+  const sd = moonSunDir2D(moon, cx, cy);
+  phaseDisc(ctx, p.sx, p.sy, r, phase, sd);
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function updateHUD(phase) {
+  const d = new Date(simTime);
+  document.getElementById('date-display').textContent =
+    `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  document.getElementById('phase-display').textContent = phaseName(phase);
+  document.getElementById('speed-display').textContent = playing ? SPEED_LABELS[speedIdx] : 'Paused';
+  document.getElementById('btn-play').textContent = playing ? '⏸' : '▶';
+}
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+function loop(now) {
+  const dt = Math.min(now - realLast, 100);
+  realLast = now;
+  if (playing) simTime += SPEEDS[speedIdx] * 86400000 * (dt / 1000);
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ── Drag to rotate ────────────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  dragging = true; dragStart = { x: e.clientX, y: e.clientY, theta: camTheta, phi: camPhi };
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  camTheta = dragStart.theta + (e.clientX - dragStart.x) * 0.006;
+  camPhi   = Math.max(-1.3, Math.min(1.3, dragStart.phi - (e.clientY - dragStart.y) * 0.006));
+  hasDragged = true;
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) return;
+  dragging = true; dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, theta: camTheta, phi: camPhi };
+}, { passive: true });
+window.addEventListener('touchmove', e => {
+  if (!dragging || e.touches.length !== 1) return;
+  camTheta = dragStart.theta + (e.touches[0].clientX - dragStart.x) * 0.006;
+  camPhi   = Math.max(-1.3, Math.min(1.3, dragStart.phi - (e.touches[0].clientY - dragStart.y) * 0.006));
+  hasDragged = true; e.preventDefault();
+}, { passive: false });
+window.addEventListener('touchend', () => { dragging = false; });
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-play').addEventListener('click', () => { playing = !playing; });
+document.getElementById('btn-faster').addEventListener('click', () => { speedIdx = Math.min(SPEEDS.length-1, speedIdx+1); playing = true; });
+document.getElementById('btn-slower').addEventListener('click', () => { if (speedIdx > 0) speedIdx--; else playing = false; });
+document.getElementById('btn-reset').addEventListener('click', () => { simTime = Date.now(); speedIdx = 2; playing = true; });
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+const themeBtn = document.getElementById('theme-toggle');
+const applyTheme = light => {
+  document.body.classList.toggle('light', light);
+  themeBtn.textContent = light ? '🌙 Dark' : '☀️ Light';
+};
+applyTheme(localStorage.getItem('theme') === 'light');
+themeBtn.addEventListener('click', () => {
+  const light = !document.body.classList.contains('light');
+  localStorage.setItem('theme', light ? 'light' : 'dark');
+  applyTheme(light);
+});
+
+// ── Go ────────────────────────────────────────────────────────────────────────
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
