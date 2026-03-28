@@ -34,10 +34,16 @@
       background: var(--bg);
       color: var(--text);
       font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow-y: auto;
+      display: block;
+      user-select: none;
+    }
+
+    /* ── Main simulator (full-screen top section) ────────────────── */
+    #main-sim {
+      display: flex;
       height: 100vh;
       overflow: hidden;
-      display: flex;
-      user-select: none;
     }
 
     /* ── Sidebar ────────────────────────────────────────────────── */
@@ -278,16 +284,237 @@
     #badge-short { background: #4a1d1d; color: #fca5a5; border: 1px solid #f87171; }
     body.light #badge-open  { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
     body.light #badge-short { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+
+    /* ── Scroll-to-calculator tab ───────────────────────────────── */
+    #calc-scroll-btn {
+      position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 5px 20px;
+      font-size: 0.72rem;
+      color: var(--sub);
+      cursor: pointer;
+      transition: background 0.13s, color 0.13s;
+      z-index: 5;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    #calc-scroll-btn:hover { background: var(--surface2); color: var(--text); }
+
+    /* ── Ohm's Law Calculator section ──────────────────────────── */
+    #calc-section {
+      background: var(--bg);
+      padding: 52px 24px 72px;
+      border-top: 1px solid var(--border);
+    }
+    .calc-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .calc-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .calc-header h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .calc-header h2 em {
+      color: var(--accent);
+      font-style: normal;
+    }
+    .calc-header p {
+      color: var(--sub);
+      font-size: 0.88rem;
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .calc-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 620px) { .calc-body { grid-template-columns: 1fr; } }
+    .calc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .calc-card-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+    }
+    .calc-ref-grid {
+      display: flex;
+      gap: 20px;
+    }
+    .calc-ref-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+    }
+    .calc-sym-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--sub);
+      font-style: italic;
+    }
+    .calc-ref-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .calc-working {
+      font-size: 0.82rem;
+      color: var(--sub);
+      line-height: 2.1;
+      font-family: 'Courier New', monospace;
+      border-left: 3px solid var(--border);
+      padding-left: 12px;
+      min-height: 4.5em;
+    }
+    .calc-working .step { display: block; }
+    .calc-working .step-final { color: var(--accent); font-weight: 700; }
+    .calc-solve-tabs {
+      display: flex;
+      gap: 6px;
+    }
+    .solve-tab {
+      flex: 1;
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--sub);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.13s, border-color 0.13s, color 0.13s;
+      font-family: inherit;
+    }
+    .solve-tab:hover { background: var(--surface2); color: var(--text); }
+    .solve-tab.active { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+    #calc-formula {
+      font-size: 1rem;
+      font-style: italic;
+      color: var(--accent);
+      text-align: center;
+      padding: 4px 0 2px;
+      letter-spacing: 0.03em;
+    }
+    .calc-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .calc-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .calc-input-row label {
+      font-size: 0.78rem;
+      color: var(--sub);
+      min-width: 110px;
+    }
+    .calc-input-row label .sym {
+      font-style: italic;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .calc-input-row input[type=number] {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.88rem;
+      padding: 6px 10px;
+      font-family: inherit;
+      transition: border-color 0.13s;
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+    .calc-input-row input[type=number]::-webkit-outer-spin-button,
+    .calc-input-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .calc-input-row input[type=number]:focus { outline: none; border-color: var(--accent); }
+    .calc-input-row input[type=number]:disabled { opacity: 0.35; cursor: not-allowed; }
+    .calc-input-row .unit {
+      font-size: 0.78rem;
+      color: var(--sub);
+      min-width: 18px;
+    }
+    #calc-go-btn {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 24px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.13s;
+      font-family: inherit;
+    }
+    #calc-go-btn:hover { opacity: 0.82; }
+    #calc-answer {
+      font-size: 0.82rem;
+      line-height: 2.1;
+      font-family: 'Courier New', monospace;
+      border-left: 3px solid var(--border);
+      padding-left: 12px;
+      color: var(--sub);
+      min-height: 4.5em;
+    }
+    #calc-answer .step { display: block; }
+    #calc-answer .step-final { color: var(--accent); font-weight: 700; font-size: 0.95rem; }
+    #calc-answer .step-ok   { color: #4ade80; }
+    #calc-answer .step-err  { color: #f87171; }
+    #calc-back-btn {
+      display: block;
+      margin: 36px auto 0;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 22px;
+      font-size: 0.78rem;
+      color: var(--sub);
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.13s, color 0.13s;
+    }
+    #calc-back-btn:hover { border-color: var(--accent); color: var(--text); }
   </style>
 </head>
 <body>
 
+<div id="main-sim">
 <aside id="sidebar">
   <div id="sidebar-header">
     <span id="sidebar-title">Components</span>
     <button id="collapse-btn" title="Collapse sidebar">◀</button>
   </div>
   <div id="sidebar-body">
+    <div class="sec-label">Connections</div>
+    <button class="comp-btn" data-type="wire"><span class="ci">╌</span>Wire</button>
+
     <div class="sec-label">Sources</div>
     <button class="comp-btn" data-type="battery"><span class="ci">🔋</span>Battery</button>
 
@@ -348,7 +575,79 @@
     <div class="status-badge" id="badge-open">😢 Open circuit</div>
     <div class="status-badge" id="badge-short">🔥 Short circuit!</div>
   </div>
-</div>
+
+  <button id="calc-scroll-btn">▼ V = IR Calculator</button>
+</div><!-- /#canvas-wrap -->
+</div><!-- /#main-sim -->
+
+<!-- ─── Ohm's Law Calculator ─────────────────────────────────────────────── -->
+<section id="calc-section">
+  <div class="calc-container">
+    <div class="calc-header">
+      <h2>Ohm's Law &mdash; <em>V = I &times; R</em></h2>
+      <p>The simulator shows the circuit values live. Use this section to practise rearranging and solving Ohm's law with those values — or any values you choose.</p>
+    </div>
+
+    <div class="calc-body">
+
+      <!-- Left card: live circuit reference + worked example -->
+      <div class="calc-card">
+        <div class="calc-card-title">Live circuit values</div>
+        <div class="calc-ref-grid">
+          <div class="calc-ref-item">
+            <span class="calc-sym-label">V</span>
+            <span class="calc-ref-val" id="calc-live-V">—</span>
+          </div>
+          <div class="calc-ref-item">
+            <span class="calc-sym-label">I</span>
+            <span class="calc-ref-val" id="calc-live-I">—</span>
+          </div>
+          <div class="calc-ref-item">
+            <span class="calc-sym-label">R</span>
+            <span class="calc-ref-val" id="calc-live-R">—</span>
+          </div>
+        </div>
+        <div class="calc-card-title">Worked example (from circuit)</div>
+        <div class="calc-working" id="calc-live-working">
+          <span class="step" style="color:var(--muted)">Complete the circuit to see live working.</span>
+        </div>
+      </div>
+
+      <!-- Right card: student calculator -->
+      <div class="calc-card">
+        <div class="calc-card-title">Solve for&hellip;</div>
+        <div class="calc-solve-tabs">
+          <button class="solve-tab active" data-for="V">Voltage <em>V</em></button>
+          <button class="solve-tab"        data-for="I">Current <em>I</em></button>
+          <button class="solve-tab"        data-for="R">Resistance <em>R</em></button>
+        </div>
+        <div id="calc-formula">V = I &times; R</div>
+        <div class="calc-inputs">
+          <div class="calc-input-row" id="si-row-V">
+            <label for="si-V">Voltage <span class="sym">V</span></label>
+            <input type="number" id="si-V" step="any" placeholder="volts" disabled>
+            <span class="unit">V</span>
+          </div>
+          <div class="calc-input-row" id="si-row-I">
+            <label for="si-I">Current <span class="sym">I</span></label>
+            <input type="number" id="si-I" step="any" placeholder="amps">
+            <span class="unit">A</span>
+          </div>
+          <div class="calc-input-row" id="si-row-R">
+            <label for="si-R">Resistance <span class="sym">R</span></label>
+            <input type="number" id="si-R" step="any" placeholder="ohms">
+            <span class="unit">Ω</span>
+          </div>
+        </div>
+        <button id="calc-go-btn">Calculate &rarr;</button>
+        <div id="calc-answer"></div>
+      </div>
+
+    </div><!-- /.calc-body -->
+
+    <button id="calc-back-btn">↑ Back to circuit</button>
+  </div><!-- /.calc-container -->
+</section>
 
 <script>
 'use strict';
@@ -429,6 +728,38 @@ function nearestTerminal(wx, wy, excludeCompId) {
   return best;
 }
 
+// Returns nearest snappable wire point. Prefers exact corners/endpoints (larger
+// snap radius), falls back to arbitrary segment point (smaller radius).
+function hitWire(wx, wy) {
+  const SNAP_NODE = 16, SNAP_SEG = 8;
+
+  // Pass 1: exact wire nodes (all pts[] — corners and endpoints)
+  let best = null, bestD = SNAP_NODE;
+  for (const w of wires) {
+    for (const pt of w.pts) {
+      const d = Math.hypot(wx - pt.x, wy - pt.y);
+      if (d < bestD) { bestD = d; best = { x: pt.x, y: pt.y }; }
+    }
+  }
+  if (best) return best;
+
+  // Pass 2: nearest point on any wire segment (for drawing T-junctions mid-segment)
+  bestD = SNAP_SEG;
+  for (const w of wires) {
+    for (let i = 0; i < w.pts.length - 1; i++) {
+      const ax = w.pts[i].x, ay = w.pts[i].y;
+      const bx = w.pts[i+1].x, by = w.pts[i+1].y;
+      const dx = bx-ax, dy = by-ay, len2 = dx*dx+dy*dy;
+      if (len2 < 1e-6) continue;
+      const t = Math.max(0, Math.min(1, ((wx-ax)*dx+(wy-ay)*dy)/len2));
+      const px = ax+t*dx, py = ay+t*dy;
+      const d = Math.hypot(wx-px, wy-py);
+      if (d < bestD) { bestD = d; best = { x: px, y: py }; }
+    }
+  }
+  return best;
+}
+
 // ─── Wire routing ─────────────────────────────────────────────────────────────
 // L-shape: go horizontal first, then vertical
 function routeWire(ax, ay, bx, by) {
@@ -450,20 +781,48 @@ function segIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
   return null;
 }
 
-// Returns crossing points AND the wire IDs involved (used by solver + visuals)
+// Returns all wire–wire connection points: interior crossings + any point of one
+// wire touching a segment of another (T-junctions, corner joins, endpoint joins).
 function computeJunctionsWithWires() {
+  const EPS = 3; // world-px snap tolerance
+  const result = [];
+  const seen = new Set();
+  const pairKey = (a, b) => a < b ? `${a}:${b}` : `${b}:${a}`;
+
   const segs = [];
-  for (const w of wires) {
+  for (const w of wires)
     for (let i = 0; i < w.pts.length - 1; i++)
       segs.push({ x1:w.pts[i].x, y1:w.pts[i].y, x2:w.pts[i+1].x, y2:w.pts[i+1].y, wid:w.id });
-  }
-  const result = [];
+
+  // 1. Interior segment crossings (wires that pass through each other)
   for (let i = 0; i < segs.length; i++) for (let j = i+1; j < segs.length; j++) {
     if (segs[i].wid === segs[j].wid) continue;
     const p = segIntersect(segs[i].x1,segs[i].y1,segs[i].x2,segs[i].y2,
                             segs[j].x1,segs[j].y1,segs[j].x2,segs[j].y2);
-    if (p) result.push({ x:p.x, y:p.y, w1id:segs[i].wid, w2id:segs[j].wid });
+    if (p) {
+      const k = pairKey(segs[i].wid, segs[j].wid);
+      if (!seen.has(k)) { seen.add(k); result.push({ x:p.x, y:p.y, w1id:segs[i].wid, w2id:segs[j].wid }); }
+    }
   }
+
+  // 2. Any point (corner or endpoint) of one wire touching a segment of another
+  for (const w1 of wires) {
+    for (const ep of w1.pts) {
+      for (const seg of segs) {
+        if (seg.wid === w1.id) continue;
+        const k = pairKey(w1.id, seg.wid);
+        if (seen.has(k)) continue;
+        const dx = seg.x2-seg.x1, dy = seg.y2-seg.y1, len2 = dx*dx+dy*dy;
+        if (len2 < 1e-6) continue;
+        const t = Math.max(0, Math.min(1, ((ep.x-seg.x1)*dx+(ep.y-seg.y1)*dy)/len2));
+        const px = seg.x1+t*dx, py = seg.y1+t*dy;
+        if (Math.hypot(ep.x-px, ep.y-py) < EPS) {
+          seen.add(k); result.push({ x:ep.x, y:ep.y, w1id:w1.id, w2id:seg.wid });
+        }
+      }
+    }
+  }
+
   return result;
 }
 
@@ -475,10 +834,16 @@ function computeNodeDots() {
   for (const j of computeJunctionsWithWires())
     dots.push({ x:j.x, y:j.y, big:true });
 
-  // 2. Interior corners of wires (pts[1..n-2])
-  for (const w of wires)
-    for (let i = 1; i < w.pts.length - 1; i++)
+  // 2. All wire points: interior corners + free (unbound) endpoints
+  for (const w of wires) {
+    for (let i = 0; i < w.pts.length; i++) {
+      if (i === 0 || i === w.pts.length - 1) {
+        const bind = i === 0 ? w.startBind : w.endBind;
+        if (bind && bind.compId != null) continue; // bound to component — drawn there
+      }
       dots.push({ x:w.pts[i].x, y:w.pts[i].y, big:false });
+    }
+  }
 
   // 3. Terminals shared by 2+ wires
   const cnt = {};
@@ -623,20 +988,16 @@ function solveCircuit() {
     if (!R) continue;
     const Gc = 1 / R;
     const ra = ufFind(tk(c.id,'a')), rb = ufFind(tk(c.id,'b'));
-    const ia = ra === refRoot ? -1 : rootToIdx[ra];
-    const ib = rb === refRoot ? -1 : rootToIdx[rb];
-    const Va_k = ra === refRoot ? 0 : ra === srcRoot ? V_bat : null;
-    const Vb_k = rb === refRoot ? 0 : rb === srcRoot ? V_bat : null;
+    const ia = ra === refRoot ? -1 : rootToIdx[ra] ?? -1;
+    const ib = rb === refRoot ? -1 : rootToIdx[rb] ?? -1;
 
     if (ia >= 0) {
       G[ia][ia] += Gc;
       if (ib >= 0) G[ia][ib] -= Gc;
-      if (Vb_k !== null) bv[ia] += Gc * Vb_k;
     }
     if (ib >= 0) {
       G[ib][ib] += Gc;
       if (ia >= 0) G[ib][ia] -= Gc;
-      if (Va_k !== null) bv[ib] += Gc * Va_k;
     }
   }
 
@@ -685,25 +1046,44 @@ function solveCircuit() {
   }
 
   // ── Per-wire current + active set ─────────────────────────────────────────
+  // Use the minimum of the two endpoint component currents.
+  // In a parallel circuit this correctly assigns each branch wire its own
+  // branch current rather than the (wrong) max-in-net heuristic.
+  // Reasoning: a wire directly in series with a component carries that
+  // component's current; the trunk component (or battery) always carries more,
+  // so min() naturally selects the branch current.
   const activeWireIds = new Set();
   const wireCurrents  = {};
 
   for (const w of wires) {
-    const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
-    if (!sk || !ek) continue;
-    const root = ufFind(sk); // start and end are same net (zero-resistance)
-    // Wire is active if its net node is not isolated
-    // Heuristic: check if any component in this net has non-zero current
-    let maxI = 0;
-    for (const c of comps) {
-      if (c.type === 'battery') continue;
-      const ca = ufFind(tk(c.id,'a')), cb = ufFind(tk(c.id,'b'));
-      if (ca === root || cb === root) {
-        const I = Math.abs(compCurrents[c.id] || 0);
-        if (I > 1e-4) maxI = Math.max(maxI, I);
+    const sId = w.startBind?.compId, eId = w.endBind?.compId;
+    const sComp = sId != null ? comps.find(c => c.id === sId) : null;
+    const eComp = eId != null ? comps.find(c => c.id === eId) : null;
+
+    // Battery carries total current — exclude it so min() picks the branch current.
+    // Null bind (junction/free end) is also treated as unknown (null).
+    const Is = (sComp && sComp.type !== 'battery') ? Math.abs(compCurrents[sId] || 0) : null;
+    const Ie = (eComp && eComp.type !== 'battery') ? Math.abs(compCurrents[eId] || 0) : null;
+
+    let wireI;
+    if (Is !== null && Ie !== null) wireI = Math.min(Is, Ie);
+    else if (Is !== null)           wireI = Is;
+    else if (Ie !== null)           wireI = Ie;
+    else {
+      // Both endpoints are batteries or unbound junctions — fall back to max-in-net heuristic
+      const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
+      const anyKey = sk || ek;
+      if (!anyKey) continue; // floating wire with no component on either end
+      const root = ufFind(anyKey);
+      wireI = 0;
+      for (const c of comps) {
+        if (c.type === 'battery') continue;
+        const ca = ufFind(tk(c.id,'a')), cb = ufFind(tk(c.id,'b'));
+        if (ca === root || cb === root) wireI = Math.max(wireI, Math.abs(compCurrents[c.id] || 0));
       }
     }
-    if (maxI > 1e-4) { activeWireIds.add(w.id); wireCurrents[w.id] = maxI; }
+
+    if (wireI > 1e-4) { activeWireIds.add(w.id); wireCurrents[w.id] = wireI; }
   }
 
   const pathCompIds = new Set(
@@ -880,6 +1260,7 @@ function draw() {
   solveCircuit();
   updateStatusBadges();
   updateReadout();
+  updateCalcLive();
 
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
@@ -903,7 +1284,7 @@ function draw() {
 
   // Node dots: crossings, corners, shared terminals
   for (const d of computeNodeDots()) {
-    ctx.fillStyle = d.big ? cssVar('--accent') : textCol;
+    ctx.fillStyle = d.big ? cssVar('--accent') : cssVar('--muted');
     ctx.beginPath();
     ctx.arc(d.x, d.y, d.big ? JUNC_R * 1.4 : JUNC_R * 0.9, 0, Math.PI*2);
     ctx.fill();
@@ -914,9 +1295,10 @@ function draw() {
 
   // Wire preview
   if (mode === 'wire' && wireState) {
-    const snap = nearestTerminal(mouseW.x, mouseW.y, wireState.startCompId);
-    const ex = snap ? snap.x : mouseW.x;
-    const ey = snap ? snap.y : mouseW.y;
+    const snapT = nearestTerminal(mouseW.x, mouseW.y, wireState.startBind?.compId);
+    const snapW = !snapT ? hitWire(mouseW.x, mouseW.y) : null;
+    const ex = snapT ? snapT.x : snapW ? snapW.x : mouseW.x;
+    const ey = snapT ? snapT.y : snapW ? snapW.y : mouseW.y;
     const pts = routeWire(wireState.x, wireState.y, ex, ey);
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
@@ -926,9 +1308,12 @@ function draw() {
     ctx.setLineDash([6, 4]);
     ctx.stroke();
     ctx.setLineDash([]);
-    if (snap) {
-      ctx.beginPath(); ctx.arc(snap.x, snap.y, SNAP_R * 0.55, 0, Math.PI*2);
+    if (snapT) {
+      ctx.beginPath(); ctx.arc(snapT.x, snapT.y, SNAP_R * 0.55, 0, Math.PI*2);
       ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 1.5; ctx.stroke();
+    } else if (snapW) {
+      ctx.beginPath(); ctx.arc(snapW.x, snapW.y, JUNC_R * 1.6, 0, Math.PI*2);
+      ctx.fillStyle = cssVar('--accent'); ctx.fill();
     }
   }
 
@@ -1044,17 +1429,25 @@ function drawWire(w, col) {
     const I = circuitState.wireCurrents[w.id] || 0;
     if (I < 1e-4) return;
 
-    // Speed: electrons travel negative→positive (opposite conventional current)
-    // Determine direction: conventional current flows from higher-V end to lower-V end
-    const bindKey = b => (b && b.compId != null) ? `t:${b.compId}:${b.side}` : null;
-    const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
-    let dir = 1; // 1 = particle moves from pts[0] toward pts[last] (electron flow)
-    if (sk && ek && circuitState.ufFind && circuitState.nodeVoltage) {
-      const Vs = circuitState.nodeVoltage(circuitState.ufFind(sk));
-      const Ve = circuitState.nodeVoltage(circuitState.ufFind(ek));
-      // Conventional current: high→low voltage. Electrons: low→high.
-      // If Vs > Ve: conventional current flows start→end → electrons flow end→start (dir=-1)
-      dir = Vs > Ve ? -1 : 1;
+    // Determine electron flow direction from the component current sign.
+    // compCurrents[id] = (Vb−Va)/R; positive = conventional current a→b = electrons b→a.
+    // Battery: effective I = −1 (always drives electrons out of terminal-a into the circuit).
+    // At start (pts[0]): side=b → electrons leave b → dir=+sign; side=a → dir=−sign.
+    // At end (pts[last]): side=a → electrons arrive at a → dir=+sign; side=b → dir=−sign.
+    let dir = 1; // 1 = particle moves from pts[0] toward pts[last]
+    if (circuitState.compCurrents) {
+      const tryDir = (bind, isStart) => {
+        if (!bind || bind.compId == null) return null;
+        const c = comps.find(c => c.id === bind.compId);
+        if (!c) return null;
+        const I = c.type === 'battery' ? -1 : (circuitState.compCurrents[bind.compId] || 0);
+        if (Math.abs(I) < 1e-9) return null;
+        const sign = I > 0 ? 1 : -1;
+        return isStart ? (bind.side === 'b' ? sign : -sign)
+                       : (bind.side === 'a' ? sign : -sign);
+      };
+      const d = tryDir(w.startBind, true) ?? tryDir(w.endBind, false);
+      if (d != null) dir = d;
     }
 
     const speed = Math.min(0.8, 0.05 + I * 0.12); // 0..1 fraction of wire per second
@@ -1099,7 +1492,9 @@ function drawComp(comp, selected) {
   if (comp.type === 'bulb' && circuitState.pathCompIds.has(comp.id) && !circuitState.open) {
     const bat = comps.find(c => c.type === 'battery');
     const vBat = bat ? (bat.props.voltage || 9) : 9;
-    const vBulb = circuitState.current * (comp.props.resistance || 10);
+    // Use this bulb's own current (correct for parallel circuits)
+    const bulbI = Math.abs(circuitState.compCurrents[comp.id] || 0);
+    const vBulb = bulbI * (comp.props.resistance || 10);
     brightness = Math.min(1, vBulb / vBat);
   }
 
@@ -1141,10 +1536,13 @@ function _drawBattery(col, sub) {
 
 function _drawBulb(col, brightness) {
   const r = 14;
+  // v² maps linear voltage ratio to luminous intensity (P ∝ V²), giving
+  // much more perceptible difference between dim and bright bulbs.
+  const v = brightness * brightness;
   // Glow halo when lit
   if (brightness > 0.05) {
-    const glowR = r + 6 + brightness * 18;
-    const alpha = brightness * 0.55;
+    const glowR = r + 4 + v * 34;
+    const alpha = v * 0.85;
     const grad = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, glowR);
     grad.addColorStop(0, `rgba(255,230,80,${alpha})`);
     grad.addColorStop(1, 'rgba(255,200,0,0)');
@@ -1154,7 +1552,7 @@ function _drawBulb(col, brightness) {
   // Bulb fill colour (warm yellow when lit)
   ctx.lineWidth = 2;
   if (brightness > 0.05) {
-    ctx.fillStyle = `rgba(255,230,80,${brightness * 0.7})`;
+    ctx.fillStyle = `rgba(255,230,80,${v * 0.85})`;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
   }
   ctx.strokeStyle = brightness > 0.05 ? `rgba(255,220,60,1)` : col;
@@ -1330,34 +1728,36 @@ function onDown(e) {
   // Wire mode: start / complete wire
   if (mode === 'wire') {
     if (wireState) {
-      const term = hitTerminal(wx, wy, wireState.startCompId);
-      if (term) {
+      // Complete — snap priority: terminal > wire point > blank canvas
+      const term = hitTerminal(wx, wy, wireState.startBind?.compId);
+      const wHit = !term ? hitWire(wx, wy) : null;
+      const ex = term ? term.x : wHit ? wHit.x : wx;
+      const ey = term ? term.y : wHit ? wHit.y : wy;
+      if (Math.hypot(ex - wireState.x, ey - wireState.y) > 5) {
+        const endBind = term ? { compId: term.compId, side: term.side } : null;
         snapshot();
         wires.push({ id:nextId++,
-          pts: routeWire(wireState.x, wireState.y, term.x, term.y),
-          startBind:{ compId:wireState.startCompId, side:wireState.startSide },
-          endBind:  { compId:term.compId,           side:term.side } });
-        wireState = null; mode = 'select'; updateCursor();
-      } else {
-        wireState = null; mode = 'select'; updateCursor();
+          pts: routeWire(wireState.x, wireState.y, ex, ey),
+          startBind: wireState.startBind,
+          endBind });
       }
+      wireState = null; updateCursor(); // stay in wire mode for next wire
     } else {
+      // Start — terminal > wire point > blank canvas
       const term = hitTerminal(wx, wy);
-      if (term) wireState = { startCompId:term.compId, startSide:term.side, x:term.x, y:term.y };
-      else { mode = 'select'; updateCursor(); }
+      const wHit = !term ? hitWire(wx, wy) : null;
+      if (term) {
+        wireState = { startBind: { compId: term.compId, side: term.side }, x: term.x, y: term.y, held: true };
+      } else if (wHit) {
+        wireState = { startBind: null, x: wHit.x, y: wHit.y, held: true };
+      } else {
+        wireState = { startBind: null, x: wx, y: wy, held: true };
+      }
     }
     draw(); return;
   }
 
-  // Select mode: terminal → start wire
-  const term = hitTerminal(wx, wy);
-  if (term) {
-    mode = 'wire';
-    wireState = { startCompId:term.compId, startSide:term.side, x:term.x, y:term.y, held:true };
-    updateCursor(); draw(); return;
-  }
-
-  // Select mode: component hit
+  // Select mode: component hit (wire drawing requires the Wire tool)
   const c = hitComp(wx, wy);
   if (c) {
     if (c.type === 'switch') {
@@ -1379,30 +1779,62 @@ function onDown(e) {
 }
 
 function onUp() {
-  // Wire drag: if the button was held since wire started, try to complete on release
+  // Wire drag: complete on release if dragged far enough
   if (wireState && wireState.held) {
     wireState.held = false;
-    const snap = nearestTerminal(mouseW.x, mouseW.y, wireState.startCompId);
-    if (snap) {
+    const term = nearestTerminal(mouseW.x, mouseW.y, wireState.startBind?.compId);
+    const wHit = !term ? hitWire(mouseW.x, mouseW.y) : null;
+    const ex = term ? term.x : wHit ? wHit.x : mouseW.x;
+    const ey = term ? term.y : wHit ? wHit.y : mouseW.y;
+    if (Math.hypot(ex - wireState.x, ey - wireState.y) > 5) {
+      const endBind = term ? { compId: term.compId, side: term.side } : null;
       snapshot();
       wires.push({ id:nextId++,
-        pts: routeWire(wireState.x, wireState.y, snap.x, snap.y),
-        startBind:{ compId:wireState.startCompId, side:wireState.startSide },
-        endBind:  { compId:snap.compId,           side:snap.side } });
-      wireState = null; mode = 'select'; updateCursor();
+        pts: routeWire(wireState.x, wireState.y, ex, ey),
+        startBind: wireState.startBind,
+        endBind });
+      wireState = null; updateCursor(); // stay in wire mode for next wire
     }
-    // If not on a terminal: keep wireState active for click-click completion
-    draw();
+    // else: keep wireState active for click-click completion
+    dragState = null; panState = null;
+    draw(); return;
   }
+
   dragState = null;
   panState  = null;
 }
 
-// Double-click: first = detach wires, second = delete component
+// Returns the wire whose segment is nearest to (wx,wy) within tolerance, or null
+function hitWireSegment(wx, wy, tol = 6) {
+  let best = null, bestD = tol;
+  for (const w of wires) {
+    for (let i = 0; i < w.pts.length - 1; i++) {
+      const ax = w.pts[i].x, ay = w.pts[i].y;
+      const bx = w.pts[i+1].x, by = w.pts[i+1].y;
+      const dx = bx-ax, dy = by-ay, len2 = dx*dx+dy*dy;
+      if (len2 < 1e-6) continue;
+      const t = Math.max(0, Math.min(1, ((wx-ax)*dx+(wy-ay)*dy)/len2));
+      const d = Math.hypot(wx-(ax+t*dx), wy-(ay+t*dy));
+      if (d < bestD) { bestD = d; best = w; }
+    }
+  }
+  return best;
+}
+
+// Double-click: first = detach wires, second = delete component; wire = delete immediately
 const dblInfo = {};
 function onDblClick(e) {
   const { sx, sy } = evXY(e);
   mouseW = screenToWorld(sx, sy);
+
+  // Wire hit takes priority — single double-click deletes
+  const w = hitWireSegment(mouseW.x, mouseW.y);
+  if (w) {
+    snapshot();
+    wires = wires.filter(x => x.id !== w.id);
+    draw(); return;
+  }
+
   const c = hitComp(mouseW.x, mouseW.y);
   if (!c) return;
 
@@ -1474,8 +1906,8 @@ function updateCursor() {
 
 function updateHint() {
   const H = {
-    select: 'Click terminal to draw wire · Click switch to toggle · Drag to move · Double-click to detach/delete · R to rotate',
-    wire:   wireState ? 'Click another terminal to complete wire · Esc to cancel' : 'Click a terminal to start a wire',
+    select: 'Click switch to toggle · Drag to move · Double-click to detach/delete · R to rotate · Select Wire tool to draw wires',
+    wire:   wireState ? 'Click terminal, wire, or blank spot to complete · Esc to cancel' : 'Click or drag anywhere to draw a wire · Esc to exit',
     place:  `Placing ${placeType ? COMP_DEFS[placeType].label : ''} — click to drop · Esc to cancel`,
   };
   document.getElementById('hint').textContent = H[mode] || '';
@@ -1485,12 +1917,14 @@ function updateHint() {
 document.querySelectorAll('.comp-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const type = btn.dataset.type;
-    if (mode === 'place' && placeType === type) {
-      mode = 'select'; placeType = null;
+    const targetMode = type === 'wire' ? 'wire' : 'place';
+    if (placeType === type && mode === targetMode) {
+      // Toggle off
+      mode = 'select'; placeType = null; wireState = null;
       btn.classList.remove('active');
     } else {
       document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('active'));
-      placeType = type; mode = 'place'; wireState = null;
+      placeType = type; mode = targetMode; wireState = null;
       btn.classList.add('active');
     }
     updateCursor(); draw();
@@ -1565,6 +1999,131 @@ sliderF.addEventListener('input', () => {
   const c = comps.find(c => c.id === selId);
   if (c) c.props.rating = parseFloat(sliderF.value);
 });
+
+// ─── Ohm's Law Calculator ────────────────────────────────────────────────────
+let calcSolveFor = 'V';
+
+// Rearrangement definitions for each solve-for target
+const CALC_FORMULA = {
+  V: { display: 'V = I &times; R', text: 'V = I × R', operand: '×', keys: ['I','R'], units: ['A','Ω'], resultUnit: 'V',  fn: (a,b) => a * b },
+  I: { display: 'I = V &divide; R', text: 'I = V ÷ R', operand: '÷', keys: ['V','R'], units: ['V','Ω'], resultUnit: 'A',  fn: (a,b) => a / b },
+  R: { display: 'R = V &divide; I', text: 'R = V ÷ I', operand: '÷', keys: ['V','I'], units: ['V','A'], resultUnit: 'Ω',  fn: (a,b) => a / b },
+};
+
+function updateCalcLive() {
+  const lV = document.getElementById('calc-live-V');
+  const lI = document.getElementById('calc-live-I');
+  const lR = document.getElementById('calc-live-R');
+  const lW = document.getElementById('calc-live-working');
+  if (!lV) return;
+
+  const bat = comps.find(c => c.type === 'battery');
+  if (!bat || circuitState.open || circuitState.short || circuitState.current < 1e-4) {
+    lV.textContent = bat ? fmt(bat.props.voltage || 9, 'V') : '—';
+    lI.textContent = (bat && circuitState.open) ? '0 A' : '—';
+    lR.textContent = '—';
+    lW.innerHTML = '<span class="step" style="color:var(--muted)">Complete the circuit to see working.</span>';
+    return;
+  }
+
+  const V = bat.props.voltage || 9;
+  const I = circuitState.current;
+  const R = I > 1e-9 ? V / I : 0;
+
+  lV.textContent = fmt(V, 'V', 2);
+  lI.textContent = fmt(I, 'A', 2);
+  lR.textContent = fmt(R, 'Ω', 2);
+
+  // Show the rearranged working for the currently selected solve-for target
+  let html;
+  const fV = fmt(V,'V',2), fI = fmt(I,'A',2), fR = fmt(R,'Ω',2);
+  if (calcSolveFor === 'V') {
+    html = `<span class="step">V = I × R</span>` +
+           `<span class="step">V = ${fI} × ${fR}</span>` +
+           `<span class="step step-final">V = ${fV}</span>`;
+  } else if (calcSolveFor === 'I') {
+    html = `<span class="step">I = V ÷ R</span>` +
+           `<span class="step">I = ${fV} ÷ ${fR}</span>` +
+           `<span class="step step-final">I = ${fI}</span>`;
+  } else {
+    html = `<span class="step">R = V ÷ I</span>` +
+           `<span class="step">R = ${fV} ÷ ${fI}</span>` +
+           `<span class="step step-final">R = ${fR}</span>`;
+  }
+  lW.innerHTML = html;
+}
+
+function setCalcSolveFor(target) {
+  calcSolveFor = target;
+  document.querySelectorAll('.solve-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.for === target));
+  document.getElementById('calc-formula').innerHTML = CALC_FORMULA[target].display;
+  ['V','I','R'].forEach(k => {
+    const inp = document.getElementById('si-' + k);
+    const isTarget = k === target;
+    inp.disabled = isTarget;
+    if (isTarget) inp.value = '';
+  });
+  document.getElementById('calc-answer').innerHTML = '';
+}
+
+function runCalc() {
+  const target = calcSolveFor;
+  const f = CALC_FORMULA[target];
+  const ansEl = document.getElementById('calc-answer');
+
+  const aVal = parseFloat(document.getElementById('si-' + f.keys[0]).value);
+  const bVal = parseFloat(document.getElementById('si-' + f.keys[1]).value);
+
+  if (isNaN(aVal) || isNaN(bVal)) {
+    ansEl.innerHTML = '<span class="step" style="color:var(--muted)">Enter both known values above.</span>';
+    return;
+  }
+  if (aVal <= 0 || bVal <= 0) {
+    ansEl.innerHTML = '<span class="step step-err">Values must be greater than zero.</span>';
+    return;
+  }
+
+  const result = f.fn(aVal, bVal);
+  if (!isFinite(result) || isNaN(result)) {
+    ansEl.innerHTML = '<span class="step step-err">Cannot divide by zero.</span>';
+    return;
+  }
+
+  const fA = fmt(aVal, f.units[0], 2);
+  const fB = fmt(bVal, f.units[1], 2);
+  const fRes = fmt(result, f.resultUnit, 2);
+
+  let html =
+    `<span class="step">${f.text}</span>` +
+    `<span class="step">${target} = ${fA} ${f.operand} ${fB}</span>` +
+    `<span class="step step-final">${target} = ${fRes}</span>`;
+
+  // Compare to live circuit if available
+  const bat = comps.find(c => c.type === 'battery');
+  if (bat && !circuitState.open && !circuitState.short && circuitState.current > 1e-4) {
+    const cV = bat.props.voltage || 9;
+    const cI = circuitState.current;
+    const cR = cI > 1e-9 ? cV / cI : 0;
+    const circuitVal = target === 'V' ? cV : target === 'I' ? cI : cR;
+    const pct = Math.abs(result - circuitVal) / (Math.abs(circuitVal) + 1e-9);
+    if (pct < 0.02) {
+      html += `<span class="step step-ok">&#10003; Matches your circuit!</span>`;
+    } else {
+      html += `<span class="step step-err">Circuit shows ${fmt(circuitVal, f.resultUnit, 2)} — check your values.</span>`;
+    }
+  }
+  ansEl.innerHTML = html;
+}
+
+// Init calculator controls
+document.querySelectorAll('.solve-tab').forEach(b =>
+  b.addEventListener('click', () => { setCalcSolveFor(b.dataset.for); updateCalcLive(); }));
+document.getElementById('calc-go-btn').addEventListener('click', runCalc);
+document.getElementById('calc-scroll-btn').addEventListener('click', () =>
+  document.getElementById('calc-section').scrollIntoView({ behavior: 'smooth' }));
+document.getElementById('calc-back-btn').addEventListener('click', () =>
+  document.getElementById('main-sim').scrollIntoView({ behavior: 'smooth' }));
 
 // ─── World → screen ───────────────────────────────────────────────────────────
 function worldToScreen(wx, wy) {
