@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circuit Simulation — Sci Wolf</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --surface2: #243044;
+      --border:   #334155;
+      --muted:    #475569;
+      --text:     #f1f5f9;
+      --sub:      #94a3b8;
+      --accent:   #38bdf8;
+      --accent2:  #818cf8;
+    }
+    body.light {
+      --bg:       #f1f5f9;
+      --surface:  #ffffff;
+      --surface2: #f8fafc;
+      --border:   #cbd5e1;
+      --muted:    #94a3b8;
+      --text:     #0f172a;
+      --sub:      #475569;
+      --accent:   #0284c7;
+      --accent2:  #6366f1;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      user-select: none;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────────── */
+    #sidebar {
+      width: 196px;
+      min-width: 196px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.2s, min-width 0.2s;
+      overflow: hidden;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+    #sidebar.collapsed { width: 40px; min-width: 40px; }
+
+    #sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 12px 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #sidebar-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    #collapse-btn {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 2px 0;
+      transition: color 0.15s;
+    }
+    #collapse-btn:hover { color: var(--text); }
+
+    #sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sec-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 8px 4px 2px;
+      white-space: nowrap;
+    }
+    .comp-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: none;
+      color: var(--sub);
+      cursor: pointer;
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      transition: background 0.13s, border-color 0.13s, color 0.13s;
+      text-align: left;
+    }
+    .comp-btn:hover  { background: var(--surface2); color: var(--text); }
+    .comp-btn.active { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+    .comp-btn .ci    { font-size: 1rem; flex-shrink: 0; line-height: 1; }
+
+    /* ── Canvas area ────────────────────────────────────────────── */
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    #c {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: default;
+      touch-action: none;
+    }
+    #c.wire-mode  { cursor: crosshair; }
+    #c.place-mode { cursor: cell; }
+    #c.pan-active { cursor: grabbing; }
+
+    /* ── Top bar ────────────────────────────────────────────────── */
+    #topbar {
+      position: absolute;
+      top: 10px; left: 10px; right: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    #topbar > * { pointer-events: auto; }
+
+    .tb-btn, #home-btn, #theme-toggle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--sub);
+      font-size: 0.78rem;
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: border-color 0.13s, color 0.13s;
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .tb-btn:hover, #home-btn:hover, #theme-toggle:hover {
+      border-color: var(--accent); color: var(--text);
+    }
+    .tb-btn:disabled { opacity: 0.35; pointer-events: none; }
+    .spacer { flex: 1; }
+
+    /* ── Hint bar ───────────────────────────────────────────────── */
+    #hint {
+      position: absolute;
+      bottom: 14px; left: 50%; transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 16px;
+      font-size: 0.72rem;
+      color: var(--sub);
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 90%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Property panel ─────────────────────────────────────────── */
+    #prop-panel {
+      position: absolute;
+      bottom: 46px; left: 50%; transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px 10px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 220px;
+      z-index: 5;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    #prop-panel.visible { display: flex; }
+    #prop-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .prop-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .prop-row label {
+      font-size: 0.75rem;
+      color: var(--sub);
+      white-space: nowrap;
+      min-width: 60px;
+    }
+    .prop-row input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .prop-val {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* ── V=IR readout ───────────────────────────────────────────── */
+    #readout {
+      position: absolute;
+      top: 46px; right: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.72rem;
+      color: var(--sub);
+      min-width: 140px;
+      pointer-events: none;
+      line-height: 1.7;
+    }
+    #readout .r-title {
+      font-weight: 700; font-size: 0.65rem; text-transform: uppercase;
+      letter-spacing: 0.07em; margin-bottom: 2px; color: var(--muted);
+    }
+    #readout .r-val { color: var(--text); font-weight: 600; }
+    #readout .r-eq  { color: var(--accent); font-style: italic; font-size: 0.68rem; }
+
+    /* ── Circuit status overlay ─────────────────────────────────── */
+    #circuit-status {
+      position: absolute;
+      top: 50px; left: 50%; transform: translateX(-50%);
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-badge {
+      padding: 6px 16px;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      display: none;
+    }
+    .status-badge.visible { display: block; }
+    #badge-open  { background: #1e3a5f; color: #7dd3fc; border: 1px solid #0ea5e9; }
+    #badge-short { background: #4a1d1d; color: #fca5a5; border: 1px solid #f87171; }
+    body.light #badge-open  { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+    body.light #badge-short { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+  </style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div id="sidebar-header">
+    <span id="sidebar-title">Components</span>
+    <button id="collapse-btn" title="Collapse sidebar">◀</button>
+  </div>
+  <div id="sidebar-body">
+    <div class="sec-label">Sources</div>
+    <button class="comp-btn" data-type="battery"><span class="ci">🔋</span>Battery</button>
+
+    <div class="sec-label">Loads</div>
+    <button class="comp-btn" data-type="bulb"><span class="ci">💡</span>Light Bulb</button>
+    <button class="comp-btn" data-type="resistor"><span class="ci">〰️</span>Resistor</button>
+
+    <div class="sec-label">Controls</div>
+    <button class="comp-btn" data-type="switch"><span class="ci">🔌</span>Switch</button>
+    <button class="comp-btn" data-type="fuse"><span class="ci">⚡</span>Fuse</button>
+  </div>
+</aside>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+
+  <div id="topbar">
+    <a id="home-btn" href="index.html">← Home</a>
+    <button id="undo-btn" class="tb-btn" disabled>↩ Undo</button>
+    <button id="clear-btn" class="tb-btn">🗑 Clear</button>
+    <div class="spacer"></div>
+    <button id="theme-toggle">☀️ Light</button>
+  </div>
+
+  <div id="hint">Click a component in the sidebar to place · Click a terminal to draw a wire</div>
+
+  <!-- Property panel -->
+  <div id="prop-panel">
+    <div id="prop-title">Properties</div>
+    <div class="prop-row" id="prop-row-v">
+      <label>Voltage</label>
+      <input type="range" id="slider-v" min="1" max="24" step="0.5" value="9">
+      <span class="prop-val"><span id="val-v">9</span> V</span>
+    </div>
+    <div class="prop-row" id="prop-row-r">
+      <label>Resistance</label>
+      <input type="range" id="slider-r" min="1" max="1000" step="1" value="100">
+      <span class="prop-val"><span id="val-r">100</span> Ω</span>
+    </div>
+    <div class="prop-row" id="prop-row-f">
+      <label>Fuse rating</label>
+      <input type="range" id="slider-f" min="0.1" max="5" step="0.1" value="1">
+      <span class="prop-val"><span id="val-f">1.0</span> A</span>
+    </div>
+  </div>
+
+  <!-- V=IR live readout -->
+  <div id="readout">
+    <div class="r-title">Circuit</div>
+    <div id="ro-v">V = <span class="r-val" id="ro-v-val">—</span></div>
+    <div id="ro-i">I = <span class="r-val" id="ro-i-val">—</span></div>
+    <div id="ro-r">R = <span class="r-val" id="ro-r-val">—</span></div>
+    <div class="r-eq" id="ro-eq"></div>
+  </div>
+
+  <!-- Circuit status badges -->
+  <div id="circuit-status">
+    <div class="status-badge" id="badge-open">😢 Open circuit</div>
+    <div class="status-badge" id="badge-short">🔥 Short circuit!</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── Component definitions ────────────────────────────────────────────────────
+const COMP_DEFS = {
+  battery:  { label: 'Battery',   halfLen: 38, bodyHalf: 14, defaultProps: { voltage: 9 } },
+  bulb:     { label: 'Light Bulb',halfLen: 30, bodyHalf: 14, defaultProps: { resistance: 10 } },
+  resistor: { label: 'Resistor',  halfLen: 34, bodyHalf: 18, defaultProps: { resistance: 100 } },
+  fuse:     { label: 'Fuse',      halfLen: 30, bodyHalf: 14, defaultProps: { rating: 1 } },
+  switch:   { label: 'Switch',    halfLen: 30, bodyHalf: 16, defaultProps: {} },
+};
+
+const TERM_R   = 5;   // terminal dot radius (world px)
+const SNAP_R   = 20;  // snap-to-terminal distance (world px)
+const JUNC_R   = 4;   // junction dot radius
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let comps  = [];   // {id, type, x, y, angle, props, state}
+let wires  = [];   // {id, pts, startBind, endBind}  pts=[{x,y},…]
+let nextId = 1;
+let undoStack = [];
+
+// View transform (in CSS-pixel space × dpr → canvas pixels)
+let viewX = 0, viewY = 0, viewScale = 1;
+
+// Interaction
+let mode      = 'select';  // 'select' | 'place' | 'wire'
+let placeType = null;
+let wireState = null;   // {startCompId, startSide, x, y}
+let selId     = null;
+let dragState = null;   // {compId, ox, oy}
+let panState  = null;   // {sx, sy, vx, vy, moved}
+let pinchState = null;  // {dist0, scale0, cx0, cy0, vx0, vy0}
+let mouseW    = { x: 0, y: 0 };  // current mouse in world coords
+
+// ─── Canvas ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = canvas.offsetWidth  * devicePixelRatio;
+  canvas.height = canvas.offsetHeight * devicePixelRatio;
+}
+window.addEventListener('resize', () => { resize(); draw(); });
+resize();
+
+// ─── Coord utils ─────────────────────────────────────────────────────────────
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx * devicePixelRatio - viewX) / viewScale,
+    y: (sy * devicePixelRatio - viewY) / viewScale,
+  };
+}
+
+function getTerminals(comp) {
+  const hl  = COMP_DEFS[comp.type].halfLen;
+  const cos = Math.cos(comp.angle);
+  const sin = Math.sin(comp.angle);
+  return {
+    a: { x: comp.x - cos * hl, y: comp.y - sin * hl },
+    b: { x: comp.x + cos * hl, y: comp.y + sin * hl },
+  };
+}
+
+function dist2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+function nearestTerminal(wx, wy, excludeCompId) {
+  let best = null, bestD = SNAP_R;
+  for (const c of comps) {
+    if (c.id === excludeCompId) continue;
+    const t = getTerminals(c);
+    for (const [side, pt] of [['a', t.a], ['b', t.b]]) {
+      const d = dist2(wx, wy, pt.x, pt.y);
+      if (d < bestD) { bestD = d; best = { compId: c.id, side, x: pt.x, y: pt.y }; }
+    }
+  }
+  return best;
+}
+
+// ─── Wire routing ─────────────────────────────────────────────────────────────
+// L-shape: go horizontal first, then vertical
+function routeWire(ax, ay, bx, by) {
+  if (Math.abs(ax - bx) < 0.5 || Math.abs(ay - by) < 0.5) {
+    return [{ x: ax, y: ay }, { x: bx, y: by }];
+  }
+  return [{ x: ax, y: ay }, { x: bx, y: ay }, { x: bx, y: by }];
+}
+
+// ─── Junction detection ───────────────────────────────────────────────────────
+function segIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+  const d1x = bx-ax, d1y = by-ay, d2x = dx-cx, d2y = dy-cy;
+  const den = d1x*d2y - d1y*d2x;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((cx-ax)*d2y - (cy-ay)*d2x) / den;
+  const u = ((cx-ax)*d1y - (cy-ay)*d1x) / den;
+  if (t > 1e-6 && t < 1-1e-6 && u > 1e-6 && u < 1-1e-6)
+    return { x: ax + t*d1x, y: ay + t*d1y };
+  return null;
+}
+
+// Returns crossing points AND the wire IDs involved (used by solver + visuals)
+function computeJunctionsWithWires() {
+  const segs = [];
+  for (const w of wires) {
+    for (let i = 0; i < w.pts.length - 1; i++)
+      segs.push({ x1:w.pts[i].x, y1:w.pts[i].y, x2:w.pts[i+1].x, y2:w.pts[i+1].y, wid:w.id });
+  }
+  const result = [];
+  for (let i = 0; i < segs.length; i++) for (let j = i+1; j < segs.length; j++) {
+    if (segs[i].wid === segs[j].wid) continue;
+    const p = segIntersect(segs[i].x1,segs[i].y1,segs[i].x2,segs[i].y2,
+                            segs[j].x1,segs[j].y1,segs[j].x2,segs[j].y2);
+    if (p) result.push({ x:p.x, y:p.y, w1id:segs[i].wid, w2id:segs[j].wid });
+  }
+  return result;
+}
+
+// All visual node dots: crossings, L-shape corners, shared terminals (≥2 wires)
+function computeNodeDots() {
+  const dots = [];
+
+  // 1. Wire crossings
+  for (const j of computeJunctionsWithWires())
+    dots.push({ x:j.x, y:j.y, big:true });
+
+  // 2. Interior corners of wires (pts[1..n-2])
+  for (const w of wires)
+    for (let i = 1; i < w.pts.length - 1; i++)
+      dots.push({ x:w.pts[i].x, y:w.pts[i].y, big:false });
+
+  // 3. Terminals shared by 2+ wires
+  const cnt = {};
+  for (const w of wires) {
+    for (const bind of [w.startBind, w.endBind]) {
+      if (!bind || bind.compId == null) continue;
+      const k = `${bind.compId}:${bind.side}`;
+      cnt[k] = (cnt[k] || 0) + 1;
+    }
+  }
+  for (const c of comps) {
+    for (const side of ['a','b']) {
+      if ((cnt[`${c.id}:${side}`] || 0) >= 2) {
+        const t = getTerminals(c)[side];
+        dots.push({ x:t.x, y:t.y, big:true });
+      }
+    }
+  }
+
+  return dots;
+}
+
+// ─── Circuit solver  (Union-Find + Nodal Analysis) ────────────────────────────
+let circuitState = { open: true, short: false, current: 0,
+                     pathCompIds: new Set(), activeWireIds: new Set(),
+                     compCurrents: {}, wireCurrents: {} };
+let fireT = 0;
+
+// Component resistance (Ω). Returns null for open/disabled components.
+function compResistance(c) {
+  if (c.type === 'resistor') return c.props.resistance || 100;
+  if (c.type === 'bulb')     return c.props.resistance || 10;
+  if (c.type === 'fuse'  && !c.state.blown)   return 0.01; // ideal fuse ≈ wire
+  if (c.type === 'switch' && c.state.closed)  return 0.01; // ideal closed switch
+  return null; // open switch, blown fuse, battery — excluded from matrix
+}
+
+// Gauss-Jordan elimination. Returns solution vector or null if singular.
+function gaussSolve(A, b) {
+  const n = b.length;
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < n; col++) {
+    let maxRow = col;
+    for (let row = col+1; row < n; row++)
+      if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row;
+    [M[col], M[maxRow]] = [M[maxRow], M[col]];
+    if (Math.abs(M[col][col]) < 1e-12) return null;
+    for (let row = 0; row < n; row++) {
+      if (row === col) continue;
+      const f = M[row][col] / M[col][col];
+      for (let j = col; j <= n; j++) M[row][j] -= f * M[col][j];
+    }
+  }
+  return M.map((row, i) => row[n] / row[i]);
+}
+
+function solveCircuit() {
+  const EMPTY = { open: true, short: false, current: 0,
+                  pathCompIds: new Set(), activeWireIds: new Set(),
+                  compCurrents: {}, wireCurrents: {} };
+
+  const bat = comps.find(c => c.type === 'battery');
+  if (!bat) { circuitState = EMPTY; return; }
+
+  // ── Union-Find ────────────────────────────────────────────────────────────
+  const par = {}, rnk = {};
+  const ufInit = k => { if (par[k] === undefined) { par[k] = k; rnk[k] = 0; } };
+  function ufFind(k) {
+    ufInit(k);
+    if (par[k] !== k) par[k] = ufFind(par[k]);
+    return par[k];
+  }
+  function ufUnion(a, b) {
+    ufInit(a); ufInit(b);
+    const ra = ufFind(a), rb = ufFind(b);
+    if (ra === rb) return;
+    if (rnk[ra] < rnk[rb]) par[ra] = rb;
+    else if (rnk[ra] > rnk[rb]) par[rb] = ra;
+    else { par[rb] = ra; rnk[ra]++; }
+  }
+
+  const tk = (id, side) => `t:${id}:${side}`;
+  const bindKey = b => (b && b.compId != null) ? tk(b.compId, b.side) : null;
+
+  // Init all terminal keys
+  for (const c of comps) { ufInit(tk(c.id,'a')); ufInit(tk(c.id,'b')); }
+
+  // Wires: union their two bound terminals (zero-resistance conductor)
+  for (const w of wires) {
+    const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
+    if (sk) ufInit(sk);
+    if (ek) ufInit(ek);
+    if (sk && ek) ufUnion(sk, ek);
+  }
+
+  // Wire crossings: every crossing = automatic electrical junction
+  for (const x of computeJunctionsWithWires()) {
+    const w1 = wires.find(w => w.id === x.w1id);
+    const w2 = wires.find(w => w.id === x.w2id);
+    if (!w1 || !w2) continue;
+    const k1 = bindKey(w1.startBind) || bindKey(w1.endBind);
+    const k2 = bindKey(w2.startBind) || bindKey(w2.endBind);
+    if (k1 && k2) ufUnion(k1, k2);
+  }
+
+  const refRoot = ufFind(tk(bat.id,'a'));  // V = 0
+  const srcRoot = ufFind(tk(bat.id,'b'));  // V = V_bat
+  const V_bat   = bat.props.voltage || 9;
+
+  // Short circuit: battery terminals in same net
+  if (refRoot === srcRoot) {
+    const allW = new Set(wires.map(w => w.id));
+    circuitState = { open:false, short:true, current:Infinity,
+                     pathCompIds: new Set(comps.map(c=>c.id)),
+                     activeWireIds: allW, compCurrents:{}, wireCurrents:{} };
+    return;
+  }
+
+  // ── Nodal Analysis ────────────────────────────────────────────────────────
+  // Collect all unique net node roots (excluding refRoot)
+  const allRoots = new Set();
+  for (const c of comps) {
+    allRoots.add(ufFind(tk(c.id,'a')));
+    allRoots.add(ufFind(tk(c.id,'b')));
+  }
+  allRoots.delete(refRoot);
+
+  // rootToIdx: row 0 = srcRoot (known = V_bat), rest = unknowns
+  const rootToIdx = {};
+  let idx = 0;
+  rootToIdx[srcRoot] = idx++;
+  for (const r of allRoots) if (r !== srcRoot) rootToIdx[r] = idx++;
+  const N = idx;
+  if (N === 0) { circuitState = EMPTY; return; }
+
+  const G = Array.from({length:N}, () => new Float64Array(N));
+  const bv = new Float64Array(N);
+
+  for (const c of comps) {
+    if (c.type === 'battery') continue;
+    const R = compResistance(c);
+    if (!R) continue;
+    const Gc = 1 / R;
+    const ra = ufFind(tk(c.id,'a')), rb = ufFind(tk(c.id,'b'));
+    const ia = ra === refRoot ? -1 : rootToIdx[ra];
+    const ib = rb === refRoot ? -1 : rootToIdx[rb];
+    const Va_k = ra === refRoot ? 0 : ra === srcRoot ? V_bat : null;
+    const Vb_k = rb === refRoot ? 0 : rb === srcRoot ? V_bat : null;
+
+    if (ia >= 0) {
+      G[ia][ia] += Gc;
+      if (ib >= 0) G[ia][ib] -= Gc;
+      if (Vb_k !== null) bv[ia] += Gc * Vb_k;
+    }
+    if (ib >= 0) {
+      G[ib][ib] += Gc;
+      if (ia >= 0) G[ib][ia] -= Gc;
+      if (Va_k !== null) bv[ib] += Gc * Va_k;
+    }
+  }
+
+  // Enforce source voltage: row 0 → V[0] = V_bat
+  for (let j = 0; j < N; j++) G[0][j] = 0;
+  G[0][0] = 1; bv[0] = V_bat;
+
+  const Vsol = gaussSolve(G, bv);
+  if (!Vsol) { circuitState = EMPTY; return; }
+
+  const nodeV = r => r === refRoot ? 0 : (rootToIdx[r] !== undefined ? Vsol[rootToIdx[r]] : 0);
+
+  // ── Per-component currents ────────────────────────────────────────────────
+  const compCurrents = {};
+  for (const c of comps) {
+    if (c.type === 'battery') continue;
+    const R = compResistance(c);
+    if (!R) continue;
+    const Va = nodeV(ufFind(tk(c.id,'a'))), Vb = nodeV(ufFind(tk(c.id,'b')));
+    compCurrents[c.id] = (Vb - Va) / R; // + means a→b conventional flow
+  }
+
+  // Blow fuses
+  for (const c of comps) {
+    if (c.type === 'fuse' && !c.state.blown) {
+      const I = Math.abs(compCurrents[c.id] || 0);
+      if (I > (c.props.rating || 1)) { snapshot(); c.state.blown = true; }
+    }
+  }
+
+  // Total current (sum of |currents| through all loads at the source node)
+  let totalI = 0;
+  for (const c of comps) {
+    if (c.type === 'battery') continue;
+    const ra = ufFind(tk(c.id,'a')), rb = ufFind(tk(c.id,'b'));
+    if (ra === srcRoot || rb === srcRoot) totalI += Math.abs(compCurrents[c.id] || 0);
+  }
+
+  // Short circuit check: no real loads but current is very high
+  if (totalI > 200) {
+    const allW = new Set(wires.map(w => w.id));
+    circuitState = { open:false, short:true, current:totalI,
+                     pathCompIds: new Set(comps.map(c=>c.id)),
+                     activeWireIds: allW, compCurrents, wireCurrents:{} };
+    return;
+  }
+
+  // ── Per-wire current + active set ─────────────────────────────────────────
+  const activeWireIds = new Set();
+  const wireCurrents  = {};
+
+  for (const w of wires) {
+    const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
+    if (!sk || !ek) continue;
+    const root = ufFind(sk); // start and end are same net (zero-resistance)
+    // Wire is active if its net node is not isolated
+    // Heuristic: check if any component in this net has non-zero current
+    let maxI = 0;
+    for (const c of comps) {
+      if (c.type === 'battery') continue;
+      const ca = ufFind(tk(c.id,'a')), cb = ufFind(tk(c.id,'b'));
+      if (ca === root || cb === root) {
+        const I = Math.abs(compCurrents[c.id] || 0);
+        if (I > 1e-4) maxI = Math.max(maxI, I);
+      }
+    }
+    if (maxI > 1e-4) { activeWireIds.add(w.id); wireCurrents[w.id] = maxI; }
+  }
+
+  const pathCompIds = new Set(
+    Object.entries(compCurrents)
+      .filter(([,I]) => Math.abs(I) > 1e-4)
+      .map(([id]) => Number(id))
+  );
+
+  const isOpen = pathCompIds.size === 0 && comps.filter(c => c.type !== 'battery').length > 0;
+
+  circuitState = { open:isOpen, short:false, current:totalI,
+                   pathCompIds, activeWireIds, compCurrents, wireCurrents,
+                   nodeVoltage: nodeV, ufFind, tk };
+}
+
+// ─── Undo ─────────────────────────────────────────────────────────────────────
+function snapshot() {
+  undoStack.push({ comps: JSON.parse(JSON.stringify(comps)),
+                   wires: JSON.parse(JSON.stringify(wires)), nextId });
+  if (undoStack.length > 60) undoStack.shift();
+  syncUndoBtn();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  const s = undoStack.pop();
+  comps = s.comps; wires = s.wires; nextId = s.nextId;
+  selId = null; dragState = null; wireState = null;
+  mode = 'select'; updateCursor();
+  syncUndoBtn(); showPropPanel();
+}
+
+function syncUndoBtn() {
+  document.getElementById('undo-btn').disabled = !undoStack.length;
+}
+
+// ─── Starter circuit ──────────────────────────────────────────────────────────
+function buildStarterCircuit() {
+  comps = []; wires = []; nextId = 1; undoStack = []; selId = null;
+
+  const bat = { id: nextId++, type:'battery',  x:-150, y:0,   angle:Math.PI/2,
+                props:{ voltage:9 },     state:{} };
+  const sw  = { id: nextId++, type:'switch',   x:0,    y:-90, angle:0,
+                props:{},                state:{ closed:true } };
+  const blb = { id: nextId++, type:'bulb',     x:150,  y:0,   angle:Math.PI/2,
+                props:{ resistance:10 }, state:{} };
+  comps = [bat, sw, blb];
+
+  const bt  = getTerminals(bat);   // a=(−150,−38), b=(−150,38)
+  const st  = getTerminals(sw);    // a=(−30,−90),  b=(30,−90)
+  const blt = getTerminals(blb);   // a=(150,−30),  b=(150,30)
+
+  // Top-left: battery-a → corner → switch-a
+  wires.push({ id:nextId++,
+    pts:[{...bt.a}, { x:bt.a.x, y:st.a.y }, {...st.a}],
+    startBind:{ compId:bat.id, side:'a' }, endBind:{ compId:sw.id, side:'a' } });
+
+  // Top-right: switch-b → corner → bulb-a
+  wires.push({ id:nextId++,
+    pts:[{...st.b}, { x:blt.a.x, y:st.b.y }, {...blt.a}],
+    startBind:{ compId:sw.id,  side:'b' }, endBind:{ compId:blb.id, side:'a' } });
+
+  // Bottom: battery-b → corner → corner → bulb-b
+  wires.push({ id:nextId++,
+    pts:[{...bt.b}, { x:bt.b.x, y:90 }, { x:blt.b.x, y:90 }, {...blt.b}],
+    startBind:{ compId:bat.id, side:'b' }, endBind:{ compId:blb.id, side:'b' } });
+
+  syncUndoBtn();
+}
+
+// ─── Bound-point sync ─────────────────────────────────────────────────────────
+// Keep the first/last point of bound wires glued to their terminals.
+// For L-shaped wires (3 pts), also slide the corner to maintain orthogonality.
+function syncBoundPoints() {
+  for (const w of wires) {
+    if (w.startBind) {
+      const c = comps.find(c => c.id === w.startBind.compId);
+      if (c) {
+        const t = getTerminals(c)[w.startBind.side];
+        if (w.pts.length === 3) {
+          // Determine corner orientation: if pts[1].x ≈ pts[2].x → horizontal-first route
+          if (Math.abs(w.pts[1].y - w.pts[0].y) < 1) {
+            // pts[1] shares y with pts[0]
+            w.pts[1] = { x: w.pts[1].x, y: t.y };
+          } else {
+            w.pts[1] = { x: t.x, y: w.pts[1].y };
+          }
+        }
+        w.pts[0] = { ...t };
+      }
+    }
+    if (w.endBind) {
+      const c = comps.find(c => c.id === w.endBind.compId);
+      if (c) {
+        const t = getTerminals(c)[w.endBind.side];
+        const last = w.pts.length - 1;
+        if (w.pts.length === 3) {
+          if (Math.abs(w.pts[1].y - w.pts[last].y) < 1) {
+            w.pts[1] = { x: w.pts[1].x, y: t.y };
+          } else {
+            w.pts[1] = { x: t.x, y: w.pts[1].y };
+          }
+        }
+        w.pts[last] = { ...t };
+      }
+    }
+  }
+}
+
+// ─── CSS helper ──────────────────────────────────────────────────────────────
+function cssVar(v) { return getComputedStyle(document.body).getPropertyValue(v).trim(); }
+
+// ─── Circuit status badges ────────────────────────────────────────────────────
+function updateStatusBadges() {
+  document.getElementById('badge-open').classList.toggle('visible',  circuitState.open  && comps.length > 0);
+  document.getElementById('badge-short').classList.toggle('visible', circuitState.short && comps.length > 0);
+}
+
+// ─── V=IR readout ─────────────────────────────────────────────────────────────
+function fmt(n, unit, digits=2) {
+  if (!isFinite(n)) return '∞ ' + unit;
+  const abs = Math.abs(n);
+  if (abs >= 1000) return (n/1000).toFixed(digits) + ' k' + unit;
+  if (abs < 0.01 && abs > 0)  return (n*1000).toFixed(digits) + ' m' + unit;
+  return n.toFixed(digits) + ' ' + unit;
+}
+
+function updateReadout() {
+  const bat = comps.find(c => c.type === 'battery');
+  const vEl = document.getElementById('ro-v-val');
+  const iEl = document.getElementById('ro-i-val');
+  const rEl = document.getElementById('ro-r-val');
+  const eqEl = document.getElementById('ro-eq');
+
+  if (!bat || circuitState.open) {
+    vEl.textContent = bat ? fmt(bat.props.voltage || 9, 'V') : '—';
+    iEl.textContent = '0 A';
+    rEl.textContent = '—';
+    eqEl.textContent = '';
+    return;
+  }
+  if (circuitState.short) {
+    vEl.textContent = fmt(bat.props.voltage || 9, 'V');
+    iEl.textContent = '∞ A';
+    rEl.textContent = '≈ 0 Ω';
+    eqEl.textContent = 'Short circuit!';
+    return;
+  }
+
+  const V = bat.props.voltage || 9;
+  const I = circuitState.current;
+  const R = I > 1e-9 ? V / I : 0;
+
+  vEl.textContent = fmt(V, 'V');
+  iEl.textContent = fmt(I, 'A');
+  rEl.textContent = fmt(R, 'Ω');
+
+  // Show selected component's values if any
+  if (selId) {
+    const c = comps.find(c => c.id === selId);
+    if (c && c.type !== 'battery' && c.type !== 'switch') {
+      const cI = Math.abs(circuitState.compCurrents[c.id] || 0);
+      const cR = compResistance(c) || 0;
+      const cV = cI * cR;
+      eqEl.textContent = `${COMP_DEFS[c.type].label}: ${fmt(cV,'V',1)} · ${fmt(cI,'A',2)} · ${fmt(cR,'Ω',0)}`;
+      return;
+    }
+  }
+  eqEl.textContent = `V = I × R  →  ${fmt(V,'V',1)} = ${fmt(I,'A',2)} × ${fmt(R,'Ω',1)}`;
+}
+
+// ─── Draw ─────────────────────────────────────────────────────────────────────
+function draw() {
+  solveCircuit();
+  updateStatusBadges();
+  updateReadout();
+
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background fill
+  ctx.fillStyle = cssVar('--bg');
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid dots
+  drawGrid(W, H);
+
+  ctx.save();
+  ctx.translate(viewX, viewY);
+  ctx.scale(viewScale, viewScale);
+
+  syncBoundPoints();
+
+  // Wires
+  const textCol = cssVar('--text');
+  for (const w of wires) drawWire(w, textCol);
+
+  // Node dots: crossings, corners, shared terminals
+  for (const d of computeNodeDots()) {
+    ctx.fillStyle = d.big ? cssVar('--accent') : textCol;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.big ? JUNC_R * 1.4 : JUNC_R * 0.9, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Components
+  for (const c of comps) drawComp(c, c.id === selId);
+
+  // Wire preview
+  if (mode === 'wire' && wireState) {
+    const snap = nearestTerminal(mouseW.x, mouseW.y, wireState.startCompId);
+    const ex = snap ? snap.x : mouseW.x;
+    const ey = snap ? snap.y : mouseW.y;
+    const pts = routeWire(wireState.x, wireState.y, ex, ey);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.strokeStyle = cssVar('--accent');
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (snap) {
+      ctx.beginPath(); ctx.arc(snap.x, snap.y, SNAP_R * 0.55, 0, Math.PI*2);
+      ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+
+  // Ghost component (place mode)
+  if (mode === 'place' && placeType) {
+    ctx.globalAlpha = 0.5;
+    drawComp({ id:-1, type:placeType, x:mouseW.x, y:mouseW.y, angle:0,
+               props:{ ...COMP_DEFS[placeType].defaultProps }, state:{} }, false);
+    ctx.globalAlpha = 1;
+  }
+
+  // Open-circuit / short-circuit feedback
+  drawCircuitFeedback();
+
+  ctx.restore();
+}
+
+// Draw open-circuit sad face or short-circuit fire on the canvas (world space)
+function drawCircuitFeedback() {
+  if (circuitState.open) {
+    // Find the most likely gap: open switch, or centre of canvas
+    let gapX = 0, gapY = 0;
+    const openSw = comps.find(c => c.type === 'switch' && !c.state.closed);
+    if (openSw) { gapX = openSw.x; gapY = openSw.y - 38; }
+    ctx.font = '28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('😢', gapX, gapY);
+    ctx.textBaseline = 'alphabetic';
+    return;
+  }
+  if (circuitState.short) {
+    const bat = comps.find(c => c.type === 'battery');
+    const fx = bat ? bat.x : 0;
+    const fy = bat ? bat.y : 0;
+    // Animated flame particles (3 columns)
+    const cols = [-14, 0, 14];
+    ctx.save();
+    for (let ci = 0; ci < cols.length; ci++) {
+      const phase = fireT * 0.003 + ci * 1.1;
+      const wobble = Math.sin(phase) * 6;
+      const height = 20 + Math.abs(Math.sin(phase * 1.3)) * 14;
+      for (let layer = 0; layer < 3; layer++) {
+        const lp = phase + layer * 0.7;
+        const lh = height * (1 - layer * 0.28);
+        const lw = (10 - layer * 2.5) * (0.7 + Math.abs(Math.sin(lp)) * 0.3);
+        const alpha = 0.9 - layer * 0.22;
+        const colors = ['rgba(255,80,0,', 'rgba(255,160,0,', 'rgba(255,230,80,'];
+        ctx.beginPath();
+        ctx.ellipse(fx + cols[ci] + wobble, fy - 20 - layer * 8, lw, lh, 0, 0, Math.PI*2);
+        ctx.fillStyle = colors[layer] + alpha + ')';
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+function drawGrid(W, H) {
+  const sp = 40 * viewScale;
+  const ox = ((viewX % sp) + sp) % sp;
+  const oy = ((viewY % sp) + sp) % sp;
+  ctx.fillStyle = cssVar('--border');
+  for (let x = ox; x < W; x += sp) for (let y = oy; y < H; y += sp) {
+    ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+// ─── Wire geometry helpers ────────────────────────────────────────────────────
+function wireLen(pts) {
+  let l = 0;
+  for (let i = 0; i < pts.length - 1; i++)
+    l += Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+  return l;
+}
+function wirePosAt(pts, t) {  // t = 0..1
+  const total = wireLen(pts);
+  let d = Math.max(0, Math.min(1, t)) * total;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const sl = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+    if (d <= sl + 1e-6 || i === pts.length - 2) {
+      const f = sl > 1e-6 ? d / sl : 0;
+      return { x: pts[i].x + f*(pts[i+1].x-pts[i].x), y: pts[i].y + f*(pts[i+1].y-pts[i].y) };
+    }
+    d -= sl;
+  }
+  return pts[pts.length-1];
+}
+
+function drawWire(w, col) {
+  if (w.pts.length < 2) return;
+  const active = circuitState.activeWireIds.has(w.id);
+  ctx.beginPath();
+  ctx.moveTo(w.pts[0].x, w.pts[0].y);
+  for (let i = 1; i < w.pts.length; i++) ctx.lineTo(w.pts[i].x, w.pts[i].y);
+  if (active && !circuitState.open) {
+    ctx.strokeStyle = circuitState.short ? '#f87171' : '#4ade80';
+    ctx.lineWidth   = 3;
+    ctx.shadowColor = circuitState.short ? '#f87171' : '#4ade80';
+    ctx.shadowBlur  = 6;
+  } else {
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = 2.5;
+    ctx.shadowBlur  = 0;
+  }
+  ctx.lineJoin = 'round';
+  ctx.lineCap  = 'round';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Electron particles (only when current flows, not short circuit)
+  if (active && !circuitState.open && !circuitState.short) {
+    const I = circuitState.wireCurrents[w.id] || 0;
+    if (I < 1e-4) return;
+
+    // Speed: electrons travel negative→positive (opposite conventional current)
+    // Determine direction: conventional current flows from higher-V end to lower-V end
+    const bindKey = b => (b && b.compId != null) ? `t:${b.compId}:${b.side}` : null;
+    const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
+    let dir = 1; // 1 = particle moves from pts[0] toward pts[last] (electron flow)
+    if (sk && ek && circuitState.ufFind && circuitState.nodeVoltage) {
+      const Vs = circuitState.nodeVoltage(circuitState.ufFind(sk));
+      const Ve = circuitState.nodeVoltage(circuitState.ufFind(ek));
+      // Conventional current: high→low voltage. Electrons: low→high.
+      // If Vs > Ve: conventional current flows start→end → electrons flow end→start (dir=-1)
+      dir = Vs > Ve ? -1 : 1;
+    }
+
+    const speed = Math.min(0.8, 0.05 + I * 0.12); // 0..1 fraction of wire per second
+    const offset = ((fireT * speed / 1000) * dir + 10) % 1;
+    const nDots = Math.max(1, Math.floor(wireLen(w.pts) / 32));
+
+    ctx.fillStyle = '#93c5fd';
+    for (let i = 0; i < nDots; i++) {
+      const t = ((i / nDots) + offset + 1) % 1;
+      const p = wirePosAt(w.pts, t);
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.8, 0, Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+function drawComp(comp, selected) {
+  ctx.save();
+  ctx.translate(comp.x, comp.y);
+  ctx.rotate(comp.angle);
+
+  const def  = COMP_DEFS[comp.type];
+  const hl   = def.halfLen;
+  const bhl  = def.bodyHalf;
+  const col  = selected ? cssVar('--accent') : cssVar('--text');
+  const bg   = cssVar('--surface');
+  const sub  = cssVar('--sub');
+
+  // Lead lines
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-hl, 0); ctx.lineTo(-bhl, 0);
+  ctx.moveTo(bhl,  0); ctx.lineTo(hl,  0);
+  ctx.stroke();
+
+  ctx.strokeStyle = col;
+  ctx.fillStyle   = bg;
+
+  // Compute brightness for bulb (0–1)
+  let brightness = 0;
+  if (comp.type === 'bulb' && circuitState.pathCompIds.has(comp.id) && !circuitState.open) {
+    const bat = comps.find(c => c.type === 'battery');
+    const vBat = bat ? (bat.props.voltage || 9) : 9;
+    const vBulb = circuitState.current * (comp.props.resistance || 10);
+    brightness = Math.min(1, vBulb / vBat);
+  }
+
+  switch (comp.type) {
+    case 'battery':  _drawBattery(col, sub); break;
+    case 'bulb':     _drawBulb(col, brightness); break;
+    case 'resistor': _drawResistor(col);     break;
+    case 'fuse':     _drawFuse(col, comp.state); break;
+    case 'switch':   _drawSwitch(col, comp.state); break;
+  }
+
+  // Terminal dots
+  const tc = selected ? cssVar('--accent') : cssVar('--muted');
+  ctx.fillStyle   = tc;
+  ctx.strokeStyle = cssVar('--bg');
+  ctx.lineWidth   = 1.5;
+  for (const tx of [-hl, hl]) {
+    ctx.beginPath(); ctx.arc(tx, 0, TERM_R, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function _drawBattery(col, sub) {
+  ctx.lineWidth = 2;
+  // Long line at x=−7 (negative / a side)
+  ctx.beginPath(); ctx.moveTo(-7, -13); ctx.lineTo(-7, 13); ctx.stroke();
+  // Short thick line at x=+7 (positive / b side)
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(7, -8); ctx.lineTo(7, 8); ctx.stroke();
+  // Small labels
+  ctx.lineWidth = 1;
+  ctx.fillStyle = sub;
+  ctx.font = 'bold 8px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('−', -7, -17);
+  ctx.fillText('+',  7, -17);
+}
+
+function _drawBulb(col, brightness) {
+  const r = 14;
+  // Glow halo when lit
+  if (brightness > 0.05) {
+    const glowR = r + 6 + brightness * 18;
+    const alpha = brightness * 0.55;
+    const grad = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, glowR);
+    grad.addColorStop(0, `rgba(255,230,80,${alpha})`);
+    grad.addColorStop(1, 'rgba(255,200,0,0)');
+    ctx.beginPath(); ctx.arc(0, 0, glowR, 0, Math.PI*2);
+    ctx.fillStyle = grad; ctx.fill();
+  }
+  // Bulb fill colour (warm yellow when lit)
+  ctx.lineWidth = 2;
+  if (brightness > 0.05) {
+    ctx.fillStyle = `rgba(255,230,80,${brightness * 0.7})`;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle = brightness > 0.05 ? `rgba(255,220,60,1)` : col;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.stroke();
+  const d = r * 0.62;
+  ctx.beginPath();
+  ctx.moveTo(-d,-d); ctx.lineTo(d, d);
+  ctx.moveTo( d,-d); ctx.lineTo(-d, d);
+  ctx.stroke();
+}
+
+function _drawResistor(col) {
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = col;
+  ctx.strokeRect(-18, -8, 36, 16);
+}
+
+function _drawFuse(col, state) {
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = col;
+  if (state && state.blown) {
+    ctx.setLineDash([3, 2]);
+    ctx.strokeRect(-14, -7, 28, 14);
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(-7,-5); ctx.lineTo(7, 5);
+    ctx.moveTo( 7,-5); ctx.lineTo(-7, 5);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(-14, -7, 28, 14);
+    ctx.beginPath(); ctx.moveTo(-9,0); ctx.lineTo(9,0); ctx.stroke();
+  }
+}
+
+function _drawSwitch(col, state) {
+  const closed = state && state.closed;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = col;
+  ctx.fillStyle   = col;
+  // Contact dots
+  for (const tx of [-16, 16]) {
+    ctx.beginPath(); ctx.arc(tx, 0, 3.5, 0, Math.PI*2); ctx.fill();
+  }
+  // Lever
+  ctx.beginPath();
+  ctx.moveTo(-16, 0);
+  if (closed) ctx.lineTo(16, 0);
+  else        ctx.lineTo(11, -13);
+  ctx.stroke();
+}
+
+// ─── Hit testing ──────────────────────────────────────────────────────────────
+function hitComp(wx, wy) {
+  for (let i = comps.length - 1; i >= 0; i--) {
+    const c = comps[i];
+    const hl = COMP_DEFS[c.type].halfLen;
+    const dx = wx - c.x, dy = wy - c.y;
+    const cos = Math.cos(-c.angle), sin = Math.sin(-c.angle);
+    const lx = dx*cos - dy*sin, ly = dx*sin + dy*cos;
+    if (Math.abs(lx) <= hl + 4 && Math.abs(ly) <= hl*0.45 + 6) return c;
+  }
+  return null;
+}
+
+function hitTerminal(wx, wy, excludeCompId) {
+  for (const c of comps) {
+    if (c.id === excludeCompId) continue;
+    const t = getTerminals(c);
+    for (const [side, pt] of [['a', t.a], ['b', t.b]]) {
+      if (dist2(wx, wy, pt.x, pt.y) <= TERM_R + 6) return { compId: c.id, side, x: pt.x, y: pt.y };
+    }
+  }
+  return null;
+}
+
+// ─── Mouse / pointer events ───────────────────────────────────────────────────
+function evXY(e) {
+  const r = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { sx: src.clientX - r.left, sy: src.clientY - r.top };
+}
+
+canvas.addEventListener('mousemove',    onMove);
+canvas.addEventListener('mousedown',    onDown);
+canvas.addEventListener('mouseup',      onUp);
+canvas.addEventListener('dblclick',     onDblClick);
+canvas.addEventListener('wheel',        onWheel, { passive: false });
+canvas.addEventListener('contextmenu',  e => e.preventDefault());
+
+// ─── Touch support ────────────────────────────────────────────────────────────
+canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
+
+function touchSpan(touches) {
+  return Math.hypot(touches[0].clientX - touches[1].clientX,
+                    touches[0].clientY - touches[1].clientY);
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    const cx0 = (e.touches[0].clientX + e.touches[1].clientX) / 2 * devicePixelRatio;
+    const cy0 = (e.touches[0].clientY + e.touches[1].clientY) / 2 * devicePixelRatio;
+    pinchState = { dist0: touchSpan(e.touches), scale0: viewScale,
+                   cx0, cy0, vx0: viewX, vy0: viewY };
+    panState = null; dragState = null;
+    if (wireState) { wireState = null; mode = 'select'; updateCursor(); }
+  } else if (e.touches.length === 1) {
+    onDown(e);
+  }
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  if (e.touches.length === 2 && pinchState) {
+    const factor = touchSpan(e.touches) / pinchState.dist0;
+    const newScale = Math.max(0.15, Math.min(6, pinchState.scale0 * factor));
+    const r = newScale / pinchState.scale0;
+    viewX = pinchState.cx0 - (pinchState.cx0 - pinchState.vx0) * r;
+    viewY = pinchState.cy0 - (pinchState.cy0 - pinchState.vy0) * r;
+    viewScale = newScale;
+    draw();
+  } else if (e.touches.length === 1) {
+    onMove(e);
+  }
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  pinchState = null;
+  if (e.touches.length === 0) onUp();
+}
+
+function onMove(e) {
+  const { sx, sy } = evXY(e);
+  mouseW = screenToWorld(sx, sy);
+
+  if (panState) {
+    panState.moved = true;
+    viewX = panState.vx + (sx - panState.sx) * devicePixelRatio;
+    viewY = panState.vy + (sy - panState.sy) * devicePixelRatio;
+    draw(); return;
+  }
+  if (dragState) {
+    const c = comps.find(c => c.id === dragState.compId);
+    if (c) { c.x = mouseW.x - dragState.ox; c.y = mouseW.y - dragState.oy; }
+    draw(); return;
+  }
+  draw();
+}
+
+function onDown(e) {
+  e.preventDefault();
+  const { sx, sy } = evXY(e);
+  mouseW = screenToWorld(sx, sy);
+  const wx = mouseW.x, wy = mouseW.y;
+
+  // Middle / right mouse → pan
+  if (e.button === 1 || e.button === 2) {
+    panState = { sx, sy, vx: viewX, vy: viewY, moved: false }; return;
+  }
+
+  // Place mode: drop component
+  if (mode === 'place' && placeType) {
+    snapshot();
+    comps.push({ id:nextId++, type:placeType, x:wx, y:wy, angle:0,
+                 props:{ ...COMP_DEFS[placeType].defaultProps },
+                 state: placeType === 'switch' ? { closed:true } : {} });
+    draw(); return;
+  }
+
+  // Wire mode: start / complete wire
+  if (mode === 'wire') {
+    if (wireState) {
+      const term = hitTerminal(wx, wy, wireState.startCompId);
+      if (term) {
+        snapshot();
+        wires.push({ id:nextId++,
+          pts: routeWire(wireState.x, wireState.y, term.x, term.y),
+          startBind:{ compId:wireState.startCompId, side:wireState.startSide },
+          endBind:  { compId:term.compId,           side:term.side } });
+        wireState = null; mode = 'select'; updateCursor();
+      } else {
+        wireState = null; mode = 'select'; updateCursor();
+      }
+    } else {
+      const term = hitTerminal(wx, wy);
+      if (term) wireState = { startCompId:term.compId, startSide:term.side, x:term.x, y:term.y };
+      else { mode = 'select'; updateCursor(); }
+    }
+    draw(); return;
+  }
+
+  // Select mode: terminal → start wire
+  const term = hitTerminal(wx, wy);
+  if (term) {
+    mode = 'wire';
+    wireState = { startCompId:term.compId, startSide:term.side, x:term.x, y:term.y, held:true };
+    updateCursor(); draw(); return;
+  }
+
+  // Select mode: component hit
+  const c = hitComp(wx, wy);
+  if (c) {
+    if (c.type === 'switch') {
+      snapshot();
+      c.state.closed = !c.state.closed;
+      draw(); return;
+    }
+    selId     = c.id;
+    snapshot();
+    dragState = { compId:c.id, ox:wx - c.x, oy:wy - c.y };
+    showPropPanel();
+    return;
+  }
+
+  // Background → pan
+  selId     = null;
+  showPropPanel();
+  panState  = { sx, sy, vx:viewX, vy:viewY, moved:false };
+}
+
+function onUp() {
+  // Wire drag: if the button was held since wire started, try to complete on release
+  if (wireState && wireState.held) {
+    wireState.held = false;
+    const snap = nearestTerminal(mouseW.x, mouseW.y, wireState.startCompId);
+    if (snap) {
+      snapshot();
+      wires.push({ id:nextId++,
+        pts: routeWire(wireState.x, wireState.y, snap.x, snap.y),
+        startBind:{ compId:wireState.startCompId, side:wireState.startSide },
+        endBind:  { compId:snap.compId,           side:snap.side } });
+      wireState = null; mode = 'select'; updateCursor();
+    }
+    // If not on a terminal: keep wireState active for click-click completion
+    draw();
+  }
+  dragState = null;
+  panState  = null;
+}
+
+// Double-click: first = detach wires, second = delete component
+const dblInfo = {};
+function onDblClick(e) {
+  const { sx, sy } = evXY(e);
+  mouseW = screenToWorld(sx, sy);
+  const c = hitComp(mouseW.x, mouseW.y);
+  if (!c) return;
+
+  const info = dblInfo[c.id] || { n: 0 };
+  info.n++;
+  clearTimeout(info.t);
+
+  if (info.n === 1) {
+    // Detach wires
+    snapshot();
+    wires = wires.filter(w =>
+      !(w.startBind && w.startBind.compId === c.id) &&
+      !(w.endBind   && w.endBind.compId   === c.id));
+    info.t = setTimeout(() => { dblInfo[c.id] = { n:0 }; }, 700);
+    dblInfo[c.id] = info;
+  } else {
+    // Delete
+    dblInfo[c.id] = { n:0 };
+    snapshot();
+    wires = wires.filter(w =>
+      !(w.startBind && w.startBind.compId === c.id) &&
+      !(w.endBind   && w.endBind.compId   === c.id));
+    comps = comps.filter(x => x.id !== c.id);
+    if (selId === c.id) { selId = null; showPropPanel(); }
+  }
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const { sx, sy } = evXY(e);
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const px = sx * devicePixelRatio, py = sy * devicePixelRatio;
+  viewX = px - (px - viewX) * factor;
+  viewY = py - (py - viewY) * factor;
+  viewScale = Math.max(0.15, Math.min(6, viewScale * factor));
+  draw();
+}
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    wireState = null; placeType = null; mode = 'select';
+    document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('active'));
+    updateCursor(); draw();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+  if ((e.key === 'r' || e.key === 'R') && selId) {
+    snapshot();
+    const c = comps.find(c => c.id === selId);
+    if (c) { c.angle += Math.PI/2; draw(); }
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selId) {
+    snapshot();
+    wires = wires.filter(w =>
+      !(w.startBind && w.startBind.compId === selId) &&
+      !(w.endBind   && w.endBind.compId   === selId));
+    comps = comps.filter(c => c.id !== selId);
+    selId = null; showPropPanel();
+  }
+});
+
+// ─── Cursor & hint ────────────────────────────────────────────────────────────
+function updateCursor() {
+  canvas.className = '';
+  if (mode === 'wire')  canvas.classList.add('wire-mode');
+  if (mode === 'place') canvas.classList.add('place-mode');
+  updateHint();
+}
+
+function updateHint() {
+  const H = {
+    select: 'Click terminal to draw wire · Click switch to toggle · Drag to move · Double-click to detach/delete · R to rotate',
+    wire:   wireState ? 'Click another terminal to complete wire · Esc to cancel' : 'Click a terminal to start a wire',
+    place:  `Placing ${placeType ? COMP_DEFS[placeType].label : ''} — click to drop · Esc to cancel`,
+  };
+  document.getElementById('hint').textContent = H[mode] || '';
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.comp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.type;
+    if (mode === 'place' && placeType === type) {
+      mode = 'select'; placeType = null;
+      btn.classList.remove('active');
+    } else {
+      document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('active'));
+      placeType = type; mode = 'place'; wireState = null;
+      btn.classList.add('active');
+    }
+    updateCursor(); draw();
+  });
+});
+
+document.getElementById('collapse-btn').addEventListener('click', () => {
+  const c = document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('collapse-btn').textContent = c ? '▶' : '◀';
+});
+
+document.getElementById('undo-btn').addEventListener('click', undo);
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  if (!confirm('Clear the canvas and start fresh?')) return;
+  snapshot(); comps = []; wires = []; selId = null; draw();
+});
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+const themeBtn = document.getElementById('theme-toggle');
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  themeBtn.textContent = light ? '🌙 Dark' : '☀️ Light';
+}
+applyTheme(localStorage.getItem('theme') === 'light');
+themeBtn.addEventListener('click', () => {
+  const light = !document.body.classList.contains('light');
+  localStorage.setItem('theme', light ? 'light' : 'dark');
+  applyTheme(light); draw();
+});
+
+// ─── Property panel ───────────────────────────────────────────────────────────
+const propPanel = document.getElementById('prop-panel');
+const propTitle = document.getElementById('prop-title');
+const rowV      = document.getElementById('prop-row-v');
+const rowR      = document.getElementById('prop-row-r');
+const rowF      = document.getElementById('prop-row-f');
+const sliderV   = document.getElementById('slider-v');
+const sliderR   = document.getElementById('slider-r');
+const sliderF   = document.getElementById('slider-f');
+const valV      = document.getElementById('val-v');
+const valR      = document.getElementById('val-r');
+const valF      = document.getElementById('val-f');
+
+function showPropPanel() {
+  const c = selId ? comps.find(c => c.id === selId) : null;
+  if (!c || c.type === 'switch' || c.type === 'wire') {
+    propPanel.classList.remove('visible'); return;
+  }
+  propTitle.textContent = COMP_DEFS[c.type].label;
+  rowV.style.display = c.type === 'battery'                       ? '' : 'none';
+  rowR.style.display = (c.type === 'resistor' || c.type === 'bulb') ? '' : 'none';
+  rowF.style.display = c.type === 'fuse'                          ? '' : 'none';
+  if (c.type === 'battery')                        { sliderV.value = c.props.voltage    || 9;   valV.textContent = sliderV.value; }
+  if (c.type === 'resistor' || c.type === 'bulb')  { sliderR.value = c.props.resistance || 100; valR.textContent = sliderR.value; }
+  if (c.type === 'fuse')                           { sliderF.value = c.props.rating     || 1;   valF.textContent = parseFloat(sliderF.value).toFixed(1); }
+  propPanel.classList.add('visible');
+}
+
+sliderV.addEventListener('input', () => {
+  valV.textContent = sliderV.value;
+  const c = comps.find(c => c.id === selId);
+  if (c) c.props.voltage = parseFloat(sliderV.value);
+});
+sliderR.addEventListener('input', () => {
+  valR.textContent = sliderR.value;
+  const c = comps.find(c => c.id === selId);
+  if (c) c.props.resistance = parseFloat(sliderR.value);
+});
+sliderF.addEventListener('input', () => {
+  valF.textContent = parseFloat(sliderF.value).toFixed(1);
+  const c = comps.find(c => c.id === selId);
+  if (c) c.props.rating = parseFloat(sliderF.value);
+});
+
+// ─── World → screen ───────────────────────────────────────────────────────────
+function worldToScreen(wx, wy) {
+  return {
+    sx: (wx * viewScale + viewX) / devicePixelRatio,
+    sy: (wy * viewScale + viewY) / devicePixelRatio,
+  };
+}
+
+// ─── Animation loop ───────────────────────────────────────────────────────────
+function tick(ts) {
+  fireT = ts;
+  draw();
+  requestAnimationFrame(tick);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+buildStarterCircuit();
+
+// Centre the view on the world origin
+viewX = (canvas.offsetWidth  / 2) * devicePixelRatio;
+viewY = (canvas.offsetHeight / 2) * devicePixelRatio;
+viewScale = 1;
+
+updateHint();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
