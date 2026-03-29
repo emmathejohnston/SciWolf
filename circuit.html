@@ -521,10 +521,17 @@
     <div class="sec-label">Loads</div>
     <button class="comp-btn" data-type="bulb"><span class="ci">💡</span>Light Bulb</button>
     <button class="comp-btn" data-type="resistor"><span class="ci">〰️</span>Resistor</button>
+    <button class="comp-btn" data-type="led"><span class="ci">🔆</span>LED</button>
+    <button class="comp-btn" data-type="motor"><span class="ci">⚙️</span>Motor</button>
+    <button class="comp-btn" data-type="capacitor"><span class="ci">⚡</span>Capacitor</button>
 
     <div class="sec-label">Controls</div>
     <button class="comp-btn" data-type="switch"><span class="ci">🔌</span>Switch</button>
     <button class="comp-btn" data-type="fuse"><span class="ci">⚡</span>Fuse</button>
+
+    <div class="sec-label">Meters</div>
+    <button class="comp-btn" data-type="voltmeter"><span class="ci" style="font-style:italic;font-weight:700">V</span>Voltmeter</button>
+    <button class="comp-btn" data-type="ammeter"><span class="ci" style="font-style:italic;font-weight:700">A</span>Ammeter</button>
   </div>
 </aside>
 
@@ -536,6 +543,7 @@
     <button id="undo-btn" class="tb-btn" disabled>↩ Undo</button>
     <button id="clear-btn" class="tb-btn">🗑 Clear</button>
     <div class="spacer"></div>
+    <button id="schematic-toggle" class="tb-btn">📐 Schematic</button>
     <button id="theme-toggle">☀️ Light</button>
   </div>
 
@@ -654,11 +662,16 @@
 
 // ─── Component definitions ────────────────────────────────────────────────────
 const COMP_DEFS = {
-  battery:  { label: 'Battery',   halfLen: 38, bodyHalf: 14, defaultProps: { voltage: 9 } },
-  bulb:     { label: 'Light Bulb',halfLen: 30, bodyHalf: 14, defaultProps: { resistance: 10 } },
-  resistor: { label: 'Resistor',  halfLen: 34, bodyHalf: 18, defaultProps: { resistance: 100 } },
-  fuse:     { label: 'Fuse',      halfLen: 30, bodyHalf: 14, defaultProps: { rating: 1 } },
-  switch:   { label: 'Switch',    halfLen: 30, bodyHalf: 16, defaultProps: {} },
+  battery:   { label: 'Battery',    halfLen: 38, bodyHalf: 14, defaultProps: { voltage: 9 } },
+  bulb:      { label: 'Light Bulb', halfLen: 30, bodyHalf: 14, defaultProps: { resistance: 10 } },
+  resistor:  { label: 'Resistor',   halfLen: 34, bodyHalf: 18, defaultProps: { resistance: 100 } },
+  fuse:      { label: 'Fuse',       halfLen: 30, bodyHalf: 14, defaultProps: { rating: 1 } },
+  switch:    { label: 'Switch',     halfLen: 30, bodyHalf: 16, defaultProps: {} },
+  led:       { label: 'LED',        halfLen: 30, bodyHalf: 14, defaultProps: { resistance: 20 } },
+  motor:     { label: 'Motor',      halfLen: 34, bodyHalf: 18, defaultProps: { resistance: 5 } },
+  capacitor: { label: 'Capacitor',  halfLen: 28, bodyHalf: 10, defaultProps: {} },
+  voltmeter: { label: 'Voltmeter',  halfLen: 30, bodyHalf: 18, defaultProps: {} },
+  ammeter:   { label: 'Ammeter',    halfLen: 30, bodyHalf: 18, defaultProps: {} },
 };
 
 const TERM_R   = 5;   // terminal dot radius (world px)
@@ -874,11 +887,16 @@ let fireT = 0;
 
 // Component resistance (Ω). Returns null for open/disabled components.
 function compResistance(c) {
-  if (c.type === 'resistor') return c.props.resistance || 100;
-  if (c.type === 'bulb')     return c.props.resistance || 10;
-  if (c.type === 'fuse'  && !c.state.blown)   return 0.01; // ideal fuse ≈ wire
-  if (c.type === 'switch' && c.state.closed)  return 0.01; // ideal closed switch
-  return null; // open switch, blown fuse, battery — excluded from matrix
+  if (c.type === 'resistor')  return c.props.resistance || 100;
+  if (c.type === 'bulb')      return c.props.resistance || 10;
+  if (c.type === 'led')       return c.props.resistance || 20;
+  if (c.type === 'motor')     return c.props.resistance || 5;
+  if (c.type === 'voltmeter') return 1e6;  // ideal voltmeter: near-open
+  if (c.type === 'ammeter')   return 0.001; // ideal ammeter: near-short
+  if (c.type === 'capacitor') return null; // DC open circuit
+  if (c.type === 'fuse'  && !c.state.blown)  return 0.01;
+  if (c.type === 'switch' && c.state.closed) return 0.01;
+  return null; // open switch, blown fuse, battery, capacitor — excluded
 }
 
 // Gauss-Jordan elimination. Returns solution vector or null if singular.
@@ -1245,6 +1263,25 @@ function updateReadout() {
   if (selId) {
     const c = comps.find(c => c.id === selId);
     if (c && c.type !== 'battery' && c.type !== 'switch') {
+      // Meters: show their measured quantity
+      if (c.type === 'voltmeter' && circuitState.nodeVoltage) {
+        const { nodeVoltage: nv, ufFind: uf, tk: tkf } = circuitState;
+        const measV = nv(uf(tkf(c.id,'b'))) - nv(uf(tkf(c.id,'a')));
+        eqEl.textContent = `Voltmeter: ${fmt(Math.abs(measV),'V',2)}`;
+        return;
+      }
+      if (c.type === 'ammeter') {
+        const measI = Math.abs(circuitState.compCurrents[c.id] || 0);
+        eqEl.textContent = `Ammeter: ${fmt(measI,'A',2)}`;
+        return;
+      }
+      if (c.type === 'capacitor' && circuitState.nodeVoltage) {
+        const { nodeVoltage: nv, ufFind: uf, tk: tkf } = circuitState;
+        const measV = nv(uf(tkf(c.id,'b'))) - nv(uf(tkf(c.id,'a')));
+        eqEl.textContent = `Capacitor: ${fmt(Math.abs(measV),'V',2)} charged (DC open)`;
+        return;
+      }
+      // Normal load components
       const cI = Math.abs(circuitState.compCurrents[c.id] || 0);
       const cR = compResistance(c) || 0;
       const cV = cI * cR;
@@ -1349,6 +1386,14 @@ function drawCircuitFeedback() {
     const bat = comps.find(c => c.type === 'battery');
     const fx = bat ? bat.x : 0;
     const fy = bat ? bat.y : 0;
+    if (schematicMode) {
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⚡ SHORT CIRCUIT', fx, fy - 38);
+      ctx.textBaseline = 'alphabetic';
+      return;
+    }
     // Animated flame particles (3 columns)
     const cols = [-14, 0, 14];
     ctx.save();
@@ -1410,13 +1455,19 @@ function drawWire(w, col) {
   ctx.moveTo(w.pts[0].x, w.pts[0].y);
   for (let i = 1; i < w.pts.length; i++) ctx.lineTo(w.pts[i].x, w.pts[i].y);
   if (active && !circuitState.open) {
-    ctx.strokeStyle = circuitState.short ? '#f87171' : '#4ade80';
-    ctx.lineWidth   = 3;
-    ctx.shadowColor = circuitState.short ? '#f87171' : '#4ade80';
-    ctx.shadowBlur  = 6;
+    if (schematicMode) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth   = 2;
+      ctx.shadowBlur  = 0;
+    } else {
+      ctx.strokeStyle = circuitState.short ? '#f87171' : '#4ade80';
+      ctx.lineWidth   = 3;
+      ctx.shadowColor = circuitState.short ? '#f87171' : '#4ade80';
+      ctx.shadowBlur  = 6;
+    }
   } else {
     ctx.strokeStyle = col;
-    ctx.lineWidth   = 2.5;
+    ctx.lineWidth   = schematicMode ? 1.5 : 2.5;
     ctx.shadowBlur  = 0;
   }
   ctx.lineJoin = 'round';
@@ -1424,8 +1475,8 @@ function drawWire(w, col) {
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Electron particles (only when current flows, not short circuit)
-  if (active && !circuitState.open && !circuitState.short) {
+  // Electron particles (only when current flows, not short circuit, not schematic mode)
+  if (active && !circuitState.open && !circuitState.short && !schematicMode) {
     const I = circuitState.wireCurrents[w.id] || 0;
     if (I < 1e-4) return;
 
@@ -1487,23 +1538,60 @@ function drawComp(comp, selected) {
   ctx.strokeStyle = col;
   ctx.fillStyle   = bg;
 
-  // Compute brightness for bulb (0–1)
+  // Brightness for bulb/LED; current for motor; voltage reading for meters/capacitor
   let brightness = 0;
-  if (comp.type === 'bulb' && circuitState.pathCompIds.has(comp.id) && !circuitState.open) {
+  const isLit = (comp.type === 'bulb' || comp.type === 'led') &&
+                !schematicMode &&
+                circuitState.pathCompIds.has(comp.id) && !circuitState.open;
+  if (isLit) {
     const bat = comps.find(c => c.type === 'battery');
     const vBat = bat ? (bat.props.voltage || 9) : 9;
-    // Use this bulb's own current (correct for parallel circuits)
-    const bulbI = Math.abs(circuitState.compCurrents[comp.id] || 0);
-    const vBulb = bulbI * (comp.props.resistance || 10);
-    brightness = Math.min(1, vBulb / vBat);
+    const compI = circuitState.compCurrents[comp.id] || 0;
+    const vComp = Math.abs(compI) * (comp.props.resistance || (comp.type === 'led' ? 20 : 10));
+    brightness = Math.min(1, vComp / vBat);
+    // LED only glows when forward-biased: compCurrents > 0 means conventional current b→a (anode=b)
+    if (comp.type === 'led' && compI <= 1e-9) brightness = 0;
   }
 
+  const motorCurrent = comp.type === 'motor'
+    ? Math.abs(circuitState.compCurrents[comp.id] || 0) : 0;
+
+  // Voltage across this component (for voltmeter, capacitor)
+  let meterV = null;
+  if ((comp.type === 'voltmeter' || comp.type === 'capacitor') &&
+      circuitState.nodeVoltage && circuitState.ufFind && circuitState.tk) {
+    const { nodeVoltage: nv, ufFind: uf, tk: tkf } = circuitState;
+    meterV = nv(uf(tkf(comp.id, 'b'))) - nv(uf(tkf(comp.id, 'a')));
+  }
+
+  // Current through ammeter
+  const meterI = comp.type === 'ammeter'
+    ? (circuitState.compCurrents[comp.id] ?? null) : null;
+
   switch (comp.type) {
-    case 'battery':  _drawBattery(col, sub); break;
-    case 'bulb':     _drawBulb(col, brightness); break;
-    case 'resistor': _drawResistor(col);     break;
-    case 'fuse':     _drawFuse(col, comp.state); break;
-    case 'switch':   _drawSwitch(col, comp.state); break;
+    case 'battery':   _drawBattery(col, sub); break;
+    case 'bulb':      _drawBulb(col, brightness); break;
+    case 'resistor':  _drawResistor(col); break;
+    case 'fuse':      _drawFuse(col, comp.state); break;
+    case 'switch':    _drawSwitch(col, comp.state); break;
+    case 'led':       _drawLED(col, brightness); break;
+    case 'motor':     _drawMotor(col, motorCurrent); break;
+    case 'capacitor': _drawCapacitor(col, meterV); break;
+    case 'voltmeter': _drawVoltmeter(col, meterV); break;
+    case 'ammeter':   _drawAmmeter(col, meterI); break;
+  }
+
+  // Schematic mode: show component value label
+  if (schematicMode) {
+    const lbl = getSchematicLabel(comp);
+    if (lbl) {
+      ctx.fillStyle = cssVar('--sub');
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(lbl, 0, COMP_DEFS[comp.type].bodyHalf + 5);
+      ctx.textBaseline = 'alphabetic';
+    }
   }
 
   // Terminal dots
@@ -1602,6 +1690,175 @@ function _drawSwitch(col, state) {
   if (closed) ctx.lineTo(16, 0);
   else        ctx.lineTo(11, -13);
   ctx.stroke();
+}
+
+function _drawLED(col, brightness) {
+  ctx.lineWidth = 2;
+  // Triangle: base on right (b=anode), tip on left (a=cathode)
+  // Forward biased when compCurrents > 0 (Vb > Va)
+  ctx.beginPath();
+  ctx.moveTo(-10, 0);   // tip / cathode side
+  ctx.lineTo(10, -10);  // base top
+  ctx.lineTo(10,  10);  // base bottom
+  ctx.closePath();
+  if (brightness > 0.05) {
+    const v = brightness * brightness;
+    ctx.fillStyle = `rgba(80,255,80,${v * 0.65})`;
+  } else {
+    ctx.fillStyle = 'transparent';
+  }
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.stroke();
+
+  // Cathode bar on left
+  ctx.beginPath(); ctx.moveTo(-10, -11); ctx.lineTo(-10, 11);
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Glow halo + light-ray arrows
+  if (brightness > 0.05) {
+    const v = brightness * brightness;
+    const glowR = 14 + v * 24;
+    const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, glowR);
+    grad.addColorStop(0, `rgba(80,255,80,${v * 0.7})`);
+    grad.addColorStop(1, 'rgba(80,255,80,0)');
+    ctx.beginPath(); ctx.arc(0, 0, glowR, 0, Math.PI*2);
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.strokeStyle = `rgba(120,255,120,${Math.min(1, v * 1.3)})`;
+    ctx.lineWidth = 1.5;
+    // Arrow 1 — up-left
+    ctx.beginPath(); ctx.moveTo(-2, -8); ctx.lineTo(-8, -15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-8,-15); ctx.lineTo(-8,-11); ctx.moveTo(-8,-15); ctx.lineTo(-5,-15); ctx.stroke();
+    // Arrow 2 — up-left (offset)
+    ctx.beginPath(); ctx.moveTo(5, -5); ctx.lineTo(-1, -12); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-1,-12); ctx.lineTo(-1,-8); ctx.moveTo(-1,-12); ctx.lineTo(2,-12); ctx.stroke();
+  }
+}
+
+function _drawMotor(col, current) {
+  const r = 15;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.strokeStyle = col;
+  ctx.fillStyle = cssVar('--surface');
+  ctx.fill(); ctx.stroke();
+
+  // Spinning arc when current flows
+  if (current > 1e-4) {
+    const speed = Math.min(3, 0.3 + current);
+    const rot = (fireT * 0.003 * speed) % (Math.PI * 2);
+    ctx.save();
+    ctx.rotate(rot);
+    ctx.strokeStyle = cssVar('--accent');
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, 0, r + 6, 0, Math.PI * 1.5); ctx.stroke();
+    // Arrowhead at end
+    const ea = Math.PI * 1.5;
+    const ex = (r+6)*Math.cos(ea), ey = (r+6)*Math.sin(ea);
+    const tx = Math.cos(ea+Math.PI/2), ty = Math.sin(ea+Math.PI/2);
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - tx*5 + ty*4, ey - ty*5 - tx*4);
+    ctx.lineTo(ex - tx*5 - ty*4, ey - ty*5 + tx*4);
+    ctx.closePath();
+    ctx.fillStyle = cssVar('--accent'); ctx.fill();
+    ctx.restore();
+  }
+
+  // M label
+  ctx.fillStyle = col;
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('M', 0, 1);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function _drawCapacitor(col, voltageAcross) {
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = col;
+  ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.moveTo(-5, -12); ctx.lineTo(-5, 12); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo( 5, -12); ctx.lineTo( 5, 12); ctx.stroke();
+  ctx.lineCap = 'round';
+
+  // Charge fill between plates
+  if (voltageAcross !== null && Math.abs(voltageAcross) > 0.1) {
+    const bat = comps.find(c => c.type === 'battery');
+    const vMax = bat ? (bat.props.voltage || 9) : 9;
+    const level = Math.min(1, Math.abs(voltageAcross) / vMax);
+    const h = level * 20;
+    ctx.fillStyle = `rgba(56,189,248,${level * 0.45})`;
+    ctx.fillRect(-4, -h / 2, 8, h);
+
+    // Voltage reading above
+    ctx.fillStyle = cssVar('--accent');
+    ctx.font = '7px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(fmt(Math.abs(voltageAcross), 'V', 1), 0, -14);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+function _drawVoltmeter(col, voltage) {
+  const r = 15;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.strokeStyle = col;
+  ctx.fillStyle = cssVar('--surface');
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = col;
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('V', 0, 1);
+  ctx.textBaseline = 'alphabetic';
+
+  if (voltage !== null && isFinite(voltage)) {
+    ctx.font = '7px sans-serif';
+    ctx.fillStyle = cssVar('--accent');
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(fmt(Math.abs(voltage), 'V', 1), 0, -r - 2);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+function _drawAmmeter(col, current) {
+  const r = 15;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.strokeStyle = col;
+  ctx.fillStyle = cssVar('--surface');
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = col;
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('A', 0, 1);
+  ctx.textBaseline = 'alphabetic';
+
+  if (current !== null && isFinite(current)) {
+    ctx.font = '7px sans-serif';
+    ctx.fillStyle = cssVar('--accent');
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(fmt(Math.abs(current), 'A', 2), 0, -r - 2);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+function getSchematicLabel(c) {
+  if (c.type === 'battery')   return `${c.props.voltage || 9} V`;
+  if (c.type === 'resistor')  return `${c.props.resistance || 100} Ω`;
+  if (c.type === 'bulb')      return `${c.props.resistance || 10} Ω`;
+  if (c.type === 'led')       return `LED  ${c.props.resistance || 20} Ω`;
+  if (c.type === 'motor')     return `M  ${c.props.resistance || 5} Ω`;
+  if (c.type === 'fuse')      return `${(c.props.rating || 1).toFixed(1)} A`;
+  if (c.type === 'switch')    return c.state.closed ? 'SW ●' : 'SW ○';
+  if (c.type === 'voltmeter') return 'VM';
+  if (c.type === 'ammeter')   return 'AM';
+  if (c.type === 'capacitor') return 'C';
+  return null;
 }
 
 // ─── Hit testing ──────────────────────────────────────────────────────────────
@@ -1956,6 +2213,16 @@ themeBtn.addEventListener('click', () => {
   applyTheme(light); draw();
 });
 
+// ─── Schematic / cartoon toggle ───────────────────────────────────────────────
+let schematicMode = false;
+document.getElementById('schematic-toggle').addEventListener('click', () => {
+  schematicMode = !schematicMode;
+  const btn = document.getElementById('schematic-toggle');
+  btn.textContent = schematicMode ? '🎨 Cartoon' : '📐 Schematic';
+  btn.classList.toggle('active', schematicMode);
+  draw();
+});
+
 // ─── Property panel ───────────────────────────────────────────────────────────
 const propPanel = document.getElementById('prop-panel');
 const propTitle = document.getElementById('prop-title');
@@ -1971,16 +2238,31 @@ const valF      = document.getElementById('val-f');
 
 function showPropPanel() {
   const c = selId ? comps.find(c => c.id === selId) : null;
-  if (!c || c.type === 'switch' || c.type === 'wire') {
+  // No panel for these types
+  if (!c || c.type === 'switch' || c.type === 'voltmeter' ||
+      c.type === 'ammeter' || c.type === 'capacitor') {
     propPanel.classList.remove('visible'); return;
   }
   propTitle.textContent = COMP_DEFS[c.type].label;
-  rowV.style.display = c.type === 'battery'                       ? '' : 'none';
-  rowR.style.display = (c.type === 'resistor' || c.type === 'bulb') ? '' : 'none';
-  rowF.style.display = c.type === 'fuse'                          ? '' : 'none';
-  if (c.type === 'battery')                        { sliderV.value = c.props.voltage    || 9;   valV.textContent = sliderV.value; }
-  if (c.type === 'resistor' || c.type === 'bulb')  { sliderR.value = c.props.resistance || 100; valR.textContent = sliderR.value; }
-  if (c.type === 'fuse')                           { sliderF.value = c.props.rating     || 1;   valF.textContent = parseFloat(sliderF.value).toFixed(1); }
+  rowV.style.display = c.type === 'battery' ? '' : 'none';
+  rowR.style.display = (c.type === 'resistor' || c.type === 'bulb' ||
+                        c.type === 'led'      || c.type === 'motor') ? '' : 'none';
+  rowF.style.display = c.type === 'fuse' ? '' : 'none';
+  if (c.type === 'battery') {
+    sliderV.value = c.props.voltage || 9; valV.textContent = sliderV.value;
+  }
+  if (c.type === 'resistor' || c.type === 'bulb') {
+    sliderR.value = c.props.resistance || 100; valR.textContent = sliderR.value;
+  }
+  if (c.type === 'led') {
+    sliderR.value = c.props.resistance || 20; valR.textContent = sliderR.value;
+  }
+  if (c.type === 'motor') {
+    sliderR.value = c.props.resistance || 5; valR.textContent = sliderR.value;
+  }
+  if (c.type === 'fuse') {
+    sliderF.value = c.props.rating || 1; valF.textContent = parseFloat(sliderF.value).toFixed(1);
+  }
   propPanel.classList.add('visible');
 }
 
