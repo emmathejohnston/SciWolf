@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C3 — Neutralize the Spill / Is the Soil Safe? · Sci Wolf</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --surface2:#253448;
+      --border:  #334155;
+      --muted:   #475569;
+      --text:    #f1f5f9;
+      --sub:     #94a3b8;
+      --accent:  #38bdf8;
+      --accent2: #818cf8;
+      --green:   #34d399;
+      --yellow:  #fbbf24;
+      --red:     #f87171;
+      --pink:    #f472b6;
+    }
+
+    body.light {
+      --bg:      #f1f5f9;
+      --surface: #ffffff;
+      --surface2:#f8fafc;
+      --border:  #cbd5e1;
+      --muted:   #94a3b8;
+      --text:    #0f172a;
+      --sub:     #475569;
+      --accent:  #0284c7;
+      --accent2: #6366f1;
+      --green:   #059669;
+      --yellow:  #d97706;
+      --red:     #dc2626;
+      --pink:    #db2777;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ───────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px;
+    }
+    .nav-back {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; font-size: 1rem; color: var(--sub);
+      transition: color 0.15s, border-color 0.15s; flex-shrink: 0;
+    }
+    .nav-back:hover { color: var(--accent); border-color: var(--accent); }
+    .nav-crumb {
+      font-size: 0.8rem; color: var(--muted);
+      display: flex; align-items: center; gap: 6px; flex: 1;
+    }
+    .nav-crumb a { color: var(--sub); text-decoration: none; }
+    .nav-crumb a:hover { color: var(--accent); }
+    .nav-crumb .sep { color: var(--border); }
+    .nav-crumb .current { color: var(--text); font-weight: 600; }
+    #theme-toggle {
+      margin-left: auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 5px 10px;
+      font-size: 0.75rem; color: var(--sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Layout ─────────────────────────────────── */
+    .page { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Name / date row ─────────────────────────── */
+    .name-row {
+      display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+    }
+    .name-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+    .name-field label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted);
+    }
+    .name-field input {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 13px; color: var(--text);
+      font-size: 0.88rem; font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .name-field input:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Lesson header ───────────────────────────── */
+    .lesson-header { margin-bottom: 28px; }
+    .lesson-meta {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .badge-code {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      padding: 3px 9px; border-radius: 6px;
+      background: rgba(56,189,248,0.12); color: var(--accent);
+      border: 1px solid rgba(56,189,248,0.25);
+    }
+    .badge-time, .badge-grade {
+      font-size: 0.7rem; color: var(--sub);
+      padding: 3px 9px; border-radius: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .lesson-title {
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 800; letter-spacing: -0.02em;
+      line-height: 1.25; margin-bottom: 10px;
+    }
+    .lesson-subtitle { font-size: 0.9rem; color: var(--sub); line-height: 1.6; }
+
+    /* ── Scenario cards ──────────────────────────── */
+    .scenarios {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      margin: 28px 0;
+    }
+    @media (max-width: 540px) { .scenarios { grid-template-columns: 1fr; } }
+    .scenario-card { border-radius: 14px; padding: 20px; border: 1px solid var(--border); }
+    .scenario-card.lab  { background: rgba(248,113,113,0.06); border-color: rgba(248,113,113,0.25); }
+    .scenario-card.farm { background: rgba(52,211,153,0.06);  border-color: rgba(52,211,153,0.25); }
+    .scenario-icon { font-size: 2rem; margin-bottom: 8px; }
+    .scenario-label {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .scenario-card.lab  .scenario-label { color: var(--red); }
+    .scenario-card.farm .scenario-label { color: var(--green); }
+    .scenario-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+    .scenario-body { font-size: 0.82rem; color: var(--sub); line-height: 1.6; }
+
+    /* ── Section headers ─────────────────────────── */
+    .section { margin: 44px 0 0; }
+    .section-header {
+      display: flex; align-items: baseline; gap: 12px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+      margin-bottom: 22px;
+    }
+    .section-num {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent);
+      background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 5px; padding: 2px 8px; flex-shrink: 0;
+    }
+    .section-title { font-size: 1.1rem; font-weight: 700; flex: 1; }
+    .section-time { font-size: 0.75rem; color: var(--muted); }
+
+    /* ── Reference card ──────────────────────────── */
+    .ref-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 22px; margin-bottom: 24px;
+    }
+    .ref-card summary {
+      font-size: 0.82rem; font-weight: 600; color: var(--sub);
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ref-card summary:hover { color: var(--text); }
+    .ref-card[open] summary { margin-bottom: 16px; }
+    .ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 500px) { .ref-grid { grid-template-columns: 1fr; } }
+    .ref-block h4 {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px;
+    }
+    .ref-block p, .ref-block li { font-size: 0.82rem; color: var(--sub); line-height: 1.6; }
+    .ref-block ul { padding-left: 16px; }
+    .ph-scale { margin: 8px 0 12px; }
+    .ph-scale-bar {
+      height: 18px; border-radius: 4px;
+      background: linear-gradient(to right,
+        #dc2626 0%, #ea580c 16.7%, #ca8a04 25%,
+        #84cc16 41.7%, #16a34a 50%, #0284c7 66.7%,
+        #4f46e5 75%, #7c3aed 100%);
+    }
+    .ph-scale-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.65rem; color: var(--muted); margin-top: 3px; padding: 0 2px;
+    }
+    .ph-endpoints { display: flex; justify-content: space-between; font-size: 0.7rem; margin-top: 4px; }
+    .ph-acid { color: var(--red); font-weight: 600; }
+    .ph-base { color: var(--accent2); font-weight: 600; }
+    .ph-neut { color: var(--green); font-weight: 600; text-align: center; flex: 1; }
+
+    /* ── Sim launch block ────────────────────────── */
+    .sim-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px 24px;
+      display: flex; align-items: center; gap: 18px; margin: 20px 0;
+    }
+    .sim-block .sim-icon { font-size: 2.2rem; flex-shrink: 0; }
+    .sim-block .sim-body { flex: 1; }
+    .sim-block .sim-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+    .sim-block .sim-desc { font-size: 0.8rem; color: var(--sub); line-height: 1.5; }
+    .sim-launch {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 10px; padding: 8px 16px;
+      background: var(--accent); color: #0c1e30; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 700; text-decoration: none;
+      transition: filter 0.15s;
+    }
+    .sim-launch:hover { filter: brightness(1.1); }
+    @media (max-width: 500px) { .sim-block { flex-direction: column; align-items: flex-start; } }
+
+    /* ── Instruction steps ───────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .step { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; line-height: 1.6; color: var(--sub); }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.68rem; font-weight: 700; color: var(--accent); margin-top: 1px;
+    }
+    .step strong { color: var(--text); }
+
+    /* ── Observation table ───────────────────────── */
+    .obs-table-wrap { overflow-x: auto; margin: 16px 0; }
+    .obs-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 560px; }
+    .obs-table th {
+      text-align: left; padding: 9px 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted);
+    }
+    .obs-table td { padding: 6px 8px; border: 1px solid var(--border); color: var(--sub); vertical-align: middle; }
+    .obs-table tr:nth-child(even) td { background: var(--surface2); }
+    .obs-table .substance-cell { color: var(--text); font-weight: 600; display: flex; align-items: center; gap: 7px; padding: 6px 4px; }
+
+    /* ── Fillable inputs ─────────────────────────── */
+    .fill-input {
+      width: 100%; background: transparent;
+      border: none; border-bottom: 1px solid var(--border);
+      padding: 5px 4px; color: var(--text);
+      font-size: 0.8rem; font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .fill-input:focus { outline: none; border-bottom-color: var(--accent); }
+    .fill-input::placeholder { color: var(--muted); font-style: italic; }
+
+    .answer-box {
+      width: 100%; min-height: 80px; resize: vertical;
+      background: var(--surface2); border: 1px dashed var(--border);
+      border-radius: 7px; padding: 10px 13px; margin-top: 10px;
+      color: var(--text); font-size: 0.85rem; font-family: inherit; line-height: 1.6;
+      transition: border-color 0.15s, border-style 0.15s;
+    }
+    .answer-box:focus { outline: none; border-color: var(--accent); border-style: solid; }
+    .answer-box::placeholder { color: var(--muted); font-style: italic; }
+
+    .rxn-input {
+      display: inline-block; width: 96px;
+      background: transparent; border: none;
+      border-bottom: 2px solid var(--accent);
+      color: var(--text); font-size: 0.88rem; font-family: inherit;
+      text-align: center; padding: 1px 4px; margin: 0 3px;
+      transition: border-color 0.15s;
+    }
+    .rxn-input:focus { outline: none; border-bottom-color: var(--pink); }
+    .rxn-input::placeholder { color: var(--muted); font-size: 0.72rem; }
+
+    /* ── Callout boxes ───────────────────────────── */
+    .callout {
+      border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+      font-size: 0.83rem; line-height: 1.6;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .callout-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 3px; }
+    .callout.tip   { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.2); color: var(--sub); }
+    .callout.warn  { background: rgba(251,191,36,0.07);  border: 1px solid rgba(251,191,36,0.2);  color: var(--sub); }
+    .callout.check { background: rgba(52,211,153,0.07);  border: 1px solid rgba(52,211,153,0.2);  color: var(--sub); }
+
+    /* ── Reaction scaffold ───────────────────────── */
+    .rxn-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 22px; margin: 18px 0;
+    }
+    .rxn-scenario-tag {
+      font-size: 0.67rem; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; margin-bottom: 10px;
+      padding: 2px 8px; border-radius: 5px; display: inline-block;
+    }
+    .rxn-scenario-tag.lab  { background: rgba(248,113,113,0.12); color: var(--red); }
+    .rxn-scenario-tag.farm { background: rgba(52,211,153,0.12);  color: var(--green); }
+    .rxn-label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted); margin-bottom: 8px;
+    }
+    .rxn-line {
+      font-size: 0.92rem; color: var(--text); line-height: 2.4;
+      font-family: 'Segoe UI', monospace; margin-bottom: 14px;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+    }
+    .rxn-line .given { color: var(--text); white-space: nowrap; }
+    .rxn-line .arrow { color: var(--accent); margin: 0 6px; }
+    .rxn-line .plus  { color: var(--muted); margin: 0 4px; }
+    .rxn-hint {
+      font-size: 0.75rem; color: var(--muted);
+      border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px;
+    }
+
+    /* ── Questions ───────────────────────────────── */
+    .questions { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
+    .q { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+    .q-num { font-size: 0.67rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+    .q-text { font-size: 0.88rem; line-height: 1.6; }
+    .q-sub  { font-size: 0.8rem; color: var(--sub); margin-top: 5px; line-height: 1.6; }
+
+    /* ── Print block ─────────────────────────────── */
+    .print-block {
+      margin: 52px 0 0;
+      background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(129,140,248,0.08));
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; text-align: center;
+    }
+    .print-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+    .print-sub { font-size: 0.83rem; color: var(--sub); margin-bottom: 18px; line-height: 1.6; }
+    .print-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 26px; border-radius: 10px;
+      background: var(--accent); color: #0c1e30;
+      font-size: 0.9rem; font-weight: 700; border: none;
+      cursor: pointer; transition: filter 0.15s; font-family: inherit;
+    }
+    .print-btn:hover { filter: brightness(1.1); }
+    .print-note { font-size: 0.73rem; color: var(--muted); margin-top: 14px; line-height: 1.6; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    @media (max-width: 420px) { .page { padding: 28px 16px 60px; } }
+
+    /* ════════════════════════════════════════════
+       PRINT STYLES
+    ════════════════════════════════════════════ */
+    @media print {
+      @page { margin: 1.8cm 1.5cm; }
+
+      /* Hide all chrome */
+      nav,
+      #theme-toggle,
+      .sim-block,
+      .callout,
+      .steps,
+      .ref-card,
+      .section-time,
+      .print-block,
+      .rxn-hint,
+      .lesson-subtitle,
+      .lesson-meta { display: none !important; }
+
+      body { background: white; color: #111; font-size: 10.5pt; }
+      .page { max-width: 100%; padding: 0; }
+
+      /* Print header */
+      .lesson-header { margin-bottom: 14pt; }
+      .lesson-title {
+        font-size: 15pt; font-weight: 800; color: #111;
+        background: none; -webkit-text-fill-color: #111;
+        margin-bottom: 0;
+      }
+
+      /* Name row */
+      .name-row { margin-bottom: 16pt; padding-bottom: 10pt; border-bottom: 1pt solid #ccc; }
+      .name-field label { color: #555; font-size: 7pt; }
+      .name-field input {
+        background: white; border: none; border-radius: 0;
+        border-bottom: 1pt solid #333; padding: 3pt 0;
+        color: #111; font-size: 10pt;
+        box-shadow: none;
+      }
+
+      /* Scenario cards */
+      .scenarios { break-inside: avoid; margin: 10pt 0; }
+      .scenario-card { border: 1pt solid #aaa; background: white !important; padding: 10pt 12pt; border-radius: 0; }
+      .scenario-card.lab  { border-left: 3pt solid #c53030; }
+      .scenario-card.farm { border-left: 3pt solid #276749; }
+      .scenario-icon { font-size: 1.2rem; margin-bottom: 4pt; }
+      .scenario-label { font-size: 7pt; }
+      .scenario-card.lab  .scenario-label { color: #c53030; }
+      .scenario-card.farm .scenario-label { color: #276749; }
+      .scenario-name { font-size: 10pt; }
+      .scenario-body { color: #333; font-size: 9pt; }
+
+      /* Sections */
+      .section { margin-top: 18pt; }
+      .section-header { border-bottom: 1pt solid #333; padding-bottom: 5pt; margin-bottom: 10pt; }
+      .section-num { background: none; border: 1pt solid #333; color: #333; font-size: 7pt; padding: 1pt 5pt; }
+      .section-title { font-size: 12pt; color: #111; }
+
+      /* Observation table */
+      .obs-table-wrap { overflow: visible; }
+      .obs-table { font-size: 9pt; min-width: 0; }
+      .obs-table th { background: #eee; color: #333; border: 0.5pt solid #999; font-size: 7.5pt; padding: 5pt 7pt; }
+      .obs-table td { border: 0.5pt solid #bbb; padding: 4pt 6pt; }
+      .obs-table tr:nth-child(even) td { background: #f7f7f7; }
+      .substance-cell { color: #111; font-size: 9pt; }
+      .fill-input {
+        background: white; border: none;
+        border-bottom: 0.5pt solid #999; border-radius: 0;
+        padding: 2pt 0; color: #111; font-size: 9pt;
+      }
+
+      /* Reaction blocks */
+      .rxn-block { background: white; border: 1pt solid #bbb; break-inside: avoid; padding: 10pt 12pt; border-radius: 0; margin: 8pt 0; }
+      .rxn-scenario-tag { background: none !important; border: 0.5pt solid #999; color: #444; font-size: 7pt; }
+      .rxn-label { color: #555; font-size: 7.5pt; margin-bottom: 4pt; }
+      .rxn-line { font-size: 10pt; line-height: 2; color: #111; }
+      .rxn-line .given { color: #111; }
+      .rxn-line .arrow { color: #333; }
+      .rxn-line .plus  { color: #555; }
+      .rxn-input {
+        border-bottom: 1pt solid #333; background: white;
+        color: #111; font-size: 10pt; width: 80px;
+      }
+
+      /* Questions */
+      .q { background: white; border: 0.5pt solid #ccc; break-inside: avoid; padding: 8pt 10pt; margin-bottom: 6pt; border-radius: 0; }
+      .q-num { color: #333; font-size: 7.5pt; }
+      .q-text { font-size: 10pt; color: #111; }
+      .q-sub  { font-size: 9pt; color: #444; }
+      .answer-box {
+        background: white; border: 0.5pt solid #bbb; border-style: solid;
+        min-height: 52pt; color: #111; font-style: normal;
+        font-size: 10pt; padding: 5pt 7pt; border-radius: 0;
+        resize: none;
+      }
+
+      /* No page break inside questions block */
+      .questions { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="standalone.html" class="nav-back" title="Back to lessons">←</a>
+  <div class="nav-crumb">
+    <a href="index.html">Sci Wolf</a>
+    <span class="sep">›</span>
+    <a href="standalone.html">Lessons</a>
+    <span class="sep">›</span>
+    <span class="current">C3 — Neutralize the Spill</span>
+  </div>
+  <button id="theme-toggle">☀️ Light</button>
+</nav>
+
+<div class="page">
+
+  <!-- ── Lesson header ─────────────────────────────────── -->
+  <div class="lesson-header">
+    <div class="lesson-meta">
+      <span class="badge-code">C3 · Chemistry</span>
+      <span class="badge-time">⏱ 70–80 min</span>
+      <span class="badge-grade">Grade 10 Science</span>
+    </div>
+    <div class="lesson-title">Neutralize the Spill<br>/ Is the Soil Safe?</div>
+    <div class="lesson-subtitle">
+      You'll investigate two real problems involving pH — a hazardous chemical spill and damaged farmland — and figure out how to fix them using acid-base chemistry.
+    </div>
+  </div>
+
+  <!-- ── Name / date ───────────────────────────────────── -->
+  <div class="name-row">
+    <div class="name-field">
+      <label for="student-name">Full Name</label>
+      <input type="text" id="student-name" placeholder="First Last" autocomplete="name">
+    </div>
+    <div class="name-field" style="max-width:180px">
+      <label for="student-date">Date</label>
+      <input type="date" id="student-date">
+    </div>
+    <div class="name-field" style="max-width:200px">
+      <label for="student-period">Period / Class</label>
+      <input type="text" id="student-period" placeholder="e.g. Period 3">
+    </div>
+  </div>
+
+  <!-- ── Scenario hook ─────────────────────────────────── -->
+  <div class="scenarios">
+    <div class="scenario-card lab">
+      <div class="scenario-icon">🧪</div>
+      <div class="scenario-label">Scenario A — Lab Spill</div>
+      <div class="scenario-name">The NaOH Incident</div>
+      <div class="scenario-body">
+        A 250 mL bottle of sodium hydroxide solution (NaOH) has spilled on a lab bench. The custodian is asking what to pour on it to neutralize it before cleanup. What do you recommend?
+      </div>
+    </div>
+    <div class="scenario-card farm">
+      <div class="scenario-icon">🌾</div>
+      <div class="scenario-label">Scenario B — Farmland</div>
+      <div class="scenario-name">The Dying Crops</div>
+      <div class="scenario-body">
+        A farmer's soil test comes back at pH&nbsp;4.2. Her wheat is stunted and yellowing. Most crops need pH&nbsp;6–7 to absorb nutrients properly. What does she need to add to the soil, and why?
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Quick reference ───────────────────────────────── -->
+  <details class="ref-card">
+    <summary>📖 Reference — pH, Acids &amp; Bases, Neutralization</summary>
+    <div class="ref-grid">
+      <div class="ref-block">
+        <h4>The pH Scale</h4>
+        <div class="ph-scale">
+          <div class="ph-scale-bar"></div>
+          <div class="ph-scale-labels">
+            <span>0</span><span>2</span><span>4</span><span>6</span>
+            <span>7</span><span>9</span><span>11</span><span>14</span>
+          </div>
+          <div class="ph-endpoints">
+            <span class="ph-acid">◀ Acidic</span>
+            <span class="ph-neut">Neutral</span>
+            <span class="ph-base">Basic ▶</span>
+          </div>
+        </div>
+        <p>pH &lt; 7 = acid &nbsp;·&nbsp; pH = 7 = neutral &nbsp;·&nbsp; pH &gt; 7 = base</p>
+        <p style="margin-top:6px">Each step of 1 on the pH scale is a 10× change in acidity. pH 2 is 100× more acidic than pH 4.</p>
+      </div>
+      <div class="ref-block">
+        <h4>Acids</h4>
+        <ul>
+          <li>Release H⁺ ions in solution</li>
+          <li>pH below 7</li>
+          <li>Taste sour (lemon, vinegar)</li>
+          <li>Turn blue litmus red</li>
+          <li>React with metals and carbonates</li>
+          <li>Examples: HCl, H₂SO₄, CH₃COOH</li>
+        </ul>
+      </div>
+      <div class="ref-block">
+        <h4>Bases</h4>
+        <ul>
+          <li>Release OH⁻ ions in solution</li>
+          <li>pH above 7</li>
+          <li>Feel slippery; taste bitter</li>
+          <li>Turn red litmus blue</li>
+          <li>Examples: NaOH, Ca(OH)₂, NaHCO₃</li>
+        </ul>
+      </div>
+      <div class="ref-block">
+        <h4>Neutralization</h4>
+        <p>When an acid and a base react, the H⁺ and OH⁻ ions combine to form water.</p>
+        <p style="margin-top:8px; font-family:monospace; font-size:0.82rem; color:var(--text)">acid + base → salt + water</p>
+        <p style="margin-top:6px">The products are a salt (ionic compound) and water. The pH moves toward neutral.</p>
+      </div>
+    </div>
+  </details>
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 1 — Investigate
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Section 1</span>
+      <span class="section-title">Investigate the Scenarios</span>
+      <span class="section-time">~20 min</span>
+    </div>
+
+    <p style="font-size:0.88rem; color:var(--sub); line-height:1.7; margin-bottom:16px">
+      Before you can solve either scenario, you need to know how acidic or basic the substances involved are. Use the pH Indicator Lab to find out, then fill in the table directly on this page.
+    </p>
+
+    <div class="sim-block">
+      <div class="sim-icon">🧪</div>
+      <div class="sim-body">
+        <div class="sim-title">pH Indicator Lab</div>
+        <div class="sim-desc">Drag substances into wells, apply indicators, and use the digital pH meter to measure each one. Opens in a new tab — come back here when you're done testing.</div>
+        <a href="ph.html" target="_blank" class="sim-launch">Open pH Indicator Lab ↗</a>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <strong>What to test</strong>
+        Use the pH meter on each substance below. <em>Drain Cleaner</em> represents the NaOH lab spill. <em>Coffee</em> is the closest match to the acidic farmland (pH 4.2) available in this sim.
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>Drag a substance into an empty well. Drag the <strong>pH meter</strong> onto the filled well and read the value shown.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>Also apply <strong>pH Paper</strong> (the rainbow strip) to each well and note the colour.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>Type your results directly into the table below. Your answers are saved automatically.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>Double-click a well to clear it and test the next substance.</div>
+      </div>
+    </div>
+
+    <div class="obs-table-wrap">
+      <table class="obs-table">
+        <thead>
+          <tr>
+            <th style="width:26%">Substance</th>
+            <th style="width:9%">pH</th>
+            <th style="width:23%">pH Paper colour</th>
+            <th style="width:21%">Acid / Base / Neutral</th>
+            <th style="width:21%">Strong or Weak?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="substance-cell">🍋 Lemon Juice</div></td>
+            <td><input class="fill-input" id="t-lemon-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-lemon-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-lemon-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-lemon-str"  placeholder="—"></td>
+          </tr>
+          <tr>
+            <td><div class="substance-cell">🫙 Vinegar</div></td>
+            <td><input class="fill-input" id="t-vin-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-vin-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-vin-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-vin-str"  placeholder="—"></td>
+          </tr>
+          <tr>
+            <td><div class="substance-cell">☕ Coffee</div></td>
+            <td><input class="fill-input" id="t-cof-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-cof-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-cof-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-cof-str"  placeholder="—"></td>
+          </tr>
+          <tr>
+            <td><div class="substance-cell">💧 Water</div></td>
+            <td><input class="fill-input" id="t-wat-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-wat-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-wat-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-wat-str"  placeholder="—"></td>
+          </tr>
+          <tr>
+            <td><div class="substance-cell">🥄 Baking Soda</div></td>
+            <td><input class="fill-input" id="t-bak-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-bak-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-bak-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-bak-str"  placeholder="—"></td>
+          </tr>
+          <tr>
+            <td><div class="substance-cell">🫧 Bleach</div></td>
+            <td><input class="fill-input" id="t-ble-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-ble-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-ble-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-ble-str"  placeholder="—"></td>
+          </tr>
+          <tr>
+            <td><div class="substance-cell">⚗️ Drain Cleaner</div></td>
+            <td><input class="fill-input" id="t-dra-ph"   placeholder="—"></td>
+            <td><input class="fill-input" id="t-dra-col"  placeholder="—"></td>
+            <td><input class="fill-input" id="t-dra-type" placeholder="—"></td>
+            <td><input class="fill-input" id="t-dra-str"  placeholder="—"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="questions">
+      <div class="q">
+        <div class="q-num">Question 1</div>
+        <div class="q-text">Drain Cleaner represents the NaOH lab spill. Based on its pH, is it an acid, base, or neutral? Would you classify it as strong or weak? How do you know?</div>
+        <textarea class="answer-box" id="q1" placeholder="Write your answer here…"></textarea>
+      </div>
+      <div class="q">
+        <div class="q-num">Question 2</div>
+        <div class="q-text">The farmer's soil has a pH of 4.2. Which substance from your testing is the closest match? What type of substance does this tell you the soil is?</div>
+        <textarea class="answer-box" id="q2" placeholder="Write your answer here…"></textarea>
+      </div>
+      <div class="q">
+        <div class="q-num">Question 3</div>
+        <div class="q-text">For each scenario, which type of substance (acid or base) would you need to add to move the pH toward neutral? Pick one substance from your sim results as your proposed neutralizer for each scenario and explain your choice.</div>
+        <textarea class="answer-box" id="q3" placeholder="Write your answer here…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 2 — Plan the Response
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Section 2</span>
+      <span class="section-title">Plan the Response</span>
+      <span class="section-time">~30 min</span>
+    </div>
+
+    <p style="font-size:0.88rem; color:var(--sub); line-height:1.7; margin-bottom:18px">
+      Now that you know what type of substance each scenario involves, write the chemistry. For each scenario, complete the word equation and balanced chemical equation.
+    </p>
+
+    <!-- Scenario A: NaOH spill -->
+    <div class="rxn-block">
+      <span class="rxn-scenario-tag lab">Scenario A — Lab Spill</span>
+
+      <div class="callout warn" style="margin-bottom:16px">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>Realistic chemistry note</strong>
+          In a real lab, a NaOH spill is neutralized with dilute hydrochloric acid (HCl). The products are sodium chloride — table salt — and water.
+        </div>
+      </div>
+
+      <div class="rxn-label">Word Equation — fill in the products</div>
+      <div class="rxn-line">
+        <span class="given">sodium hydroxide</span>
+        <span class="plus">+</span>
+        <span class="given">hydrochloric acid</span>
+        <span class="arrow">→</span>
+        <input class="rxn-input" id="ra-w1" placeholder="product 1">
+        <span class="plus">+</span>
+        <input class="rxn-input" id="ra-w2" placeholder="product 2">
+      </div>
+
+      <div class="rxn-label">Chemical Equation — balance it</div>
+      <div class="rxn-line">
+        <span class="given">NaOH</span>
+        <span class="plus">+</span>
+        <span class="given">HCl</span>
+        <span class="arrow">→</span>
+        <input class="rxn-input" id="ra-c1" placeholder="product 1">
+        <span class="plus">+</span>
+        <input class="rxn-input" id="ra-c2" placeholder="product 2">
+      </div>
+
+      <div class="rxn-hint">💡 Count Na, O, H, Cl on both sides. Make sure they match — you may need coefficients.</div>
+    </div>
+
+    <div class="questions">
+      <div class="q">
+        <div class="q-num">Question 4</div>
+        <div class="q-text">Label each component in your equation above: which is the acid? The base? The salt product? What is the other product?</div>
+        <textarea class="answer-box" id="q4" placeholder="Write your answer here…"></textarea>
+      </div>
+      <div class="q">
+        <div class="q-num">Question 5</div>
+        <div class="q-text">After the neutralization reaction, predict whether the pH of the solution will be less than 7, equal to 7, or greater than 7. Explain why using the concept of neutralization.</div>
+        <textarea class="answer-box" id="q5" placeholder="Write your answer here…"></textarea>
+      </div>
+    </div>
+
+    <!-- Scenario B: Acidic soil -->
+    <div class="rxn-block" style="margin-top:28px">
+      <span class="rxn-scenario-tag farm">Scenario B — Acidic Farmland</span>
+
+      <div class="callout check" style="margin-bottom:16px">
+        <span class="callout-icon">🌱</span>
+        <div class="callout-body">
+          <strong>What farmers actually do</strong>
+          Farmers add <strong>agricultural lime</strong> (calcium carbonate, CaCO₃) to acidic soil. It reacts with the acid, raises the pH, and releases CO₂ gas — you can see the soil fizzing.
+        </div>
+      </div>
+
+      <div class="rxn-label">Word Equation — fill in the missing product</div>
+      <div class="rxn-line">
+        <span class="given">calcium carbonate</span>
+        <span class="plus">+</span>
+        <span class="given">sulfuric acid</span>
+        <span class="arrow">→</span>
+        <input class="rxn-input" id="rb-w1" placeholder="salt product">
+        <span class="plus">+</span>
+        <span class="given">water</span>
+        <span class="plus">+</span>
+        <input class="rxn-input" id="rb-w2" placeholder="gas">
+      </div>
+
+      <div class="rxn-label">Chemical Equation — fill in the products and balance</div>
+      <div class="rxn-line">
+        <span class="given">CaCO₃</span>
+        <span class="plus">+</span>
+        <span class="given">H₂SO₄</span>
+        <span class="arrow">→</span>
+        <input class="rxn-input" id="rb-c1" placeholder="salt">
+        <span class="plus">+</span>
+        <span class="given">H₂O</span>
+        <span class="plus">+</span>
+        <input class="rxn-input" id="rb-c2" placeholder="gas">
+      </div>
+
+      <div class="rxn-hint">💡 Products are CaSO₄ (gypsum), water, and a gas. Count Ca, S, C, O, H on both sides.</div>
+    </div>
+
+    <div class="questions">
+      <div class="q">
+        <div class="q-num">Question 6</div>
+        <div class="q-text">Write the complete, balanced chemical equation for the soil treatment reaction and name all four products.</div>
+        <textarea class="answer-box" id="q6" placeholder="Write your answer here…"></textarea>
+      </div>
+      <div class="q">
+        <div class="q-num">Question 7</div>
+        <div class="q-text">A farmer adds twice as much lime as needed. What do you predict happens to the soil pH — does it stop at neutral (pH 7), or could it overshoot? Explain your reasoning.</div>
+        <textarea class="answer-box" id="q7" placeholder="Write your answer here…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 3 — Advise the Farmer
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Section 3</span>
+      <span class="section-title">Advise the Farmer</span>
+      <span class="section-time">~15 min</span>
+    </div>
+
+    <div class="scenario-card farm" style="margin-bottom:20px">
+      <div class="scenario-icon">📩</div>
+      <div class="scenario-label">Closing Scenario</div>
+      <div class="scenario-name">The Fertilizer Problem</div>
+      <div class="scenario-body" style="color:var(--text)">
+        The same farmer emails you for advice. Her soil is still at pH 4.2. She wants to apply ammonium sulfate fertilizer (pH ≈ 5.5) because it's cheaper than other options. Her neighbour says this is a terrible idea. Her fertilizer supplier says it'll be fine.<br><br>
+        <em>Who is right? Write a short memo (3–5 sentences) to the farmer explaining the problem and recommending a clear course of action. Use the word <strong>neutralization</strong> somewhere in your memo.</em>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">🔍</span>
+      <div class="callout-body">
+        <strong>Things to think about before you write</strong>
+        What happens when you add an acidic substance to an already-acidic one? What pH range do most crops need? What should the farmer do first, before applying any fertilizer?
+      </div>
+    </div>
+
+    <div class="questions">
+      <div class="q">
+        <div class="q-num">Question 8 — Memo to the Farmer</div>
+        <div class="q-text">Write your 3–5 sentence memo below. Your memo must:</div>
+        <div class="q-sub">
+          ✓ Explain why adding acidic fertilizer to acidic soil is a problem<br>
+          ✓ Reference a specific pH value or range<br>
+          ✓ Use the word <em>neutralization</em><br>
+          ✓ Give a clear recommendation (what to do first, then what to do second)
+        </div>
+        <textarea class="answer-box" id="q8" placeholder="Write your memo here…" style="min-height:120px"></textarea>
+      </div>
+    </div>
+
+    <div class="callout check" style="margin-top:8px">
+      <span class="callout-icon">🌟</span>
+      <div class="callout-body">
+        <strong>Early finisher extension</strong>
+        Go back to the pH Indicator Lab and explore the <strong>[H⁺]/[OH⁻] concentration calculator</strong> (bottom right). For Drain Cleaner (pH 13.5), what is the OH⁻ concentration? Compare it to water (pH 7.0). What does this tell you about why strong bases are so dangerous?
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Print block ────────────────────────────────────── -->
+  <div class="print-block">
+    <div class="print-title">Done? Save your work as a PDF.</div>
+    <div class="print-sub">
+      Click the button below. When the print dialog opens, set the destination to <strong>Save as PDF</strong> (Chrome/Edge) or <strong>PDF</strong> (Safari/Firefox). Your answers will appear in the document.
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <div class="print-note">
+      Your answers are also saved automatically in this browser — so if you need to come back, they'll still be here.<br>
+      On a Chromebook: File menu → Print → Change destination → Save as PDF.
+    </div>
+  </div>
+
+</div><!-- .page -->
+
+<script>
+  // ── Theme ───────────────────────────────────────────────
+  const btn = document.getElementById('theme-toggle');
+  const apply = (light) => {
+    document.body.classList.toggle('light', light);
+    btn.textContent = light ? '🌙 Dark' : '☀️ Light';
+  };
+  apply(localStorage.getItem('theme') === 'light');
+  btn.addEventListener('click', () => {
+    const light = !document.body.classList.contains('light');
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+    apply(light);
+  });
+
+  // ── localStorage autosave ───────────────────────────────
+  const SAVE_PREFIX = 'c3-';
+
+  const FIELD_IDS = [
+    'student-name', 'student-date', 'student-period',
+    't-lemon-ph','t-lemon-col','t-lemon-type','t-lemon-str',
+    't-vin-ph',  't-vin-col',  't-vin-type',  't-vin-str',
+    't-cof-ph',  't-cof-col',  't-cof-type',  't-cof-str',
+    't-wat-ph',  't-wat-col',  't-wat-type',  't-wat-str',
+    't-bak-ph',  't-bak-col',  't-bak-type',  't-bak-str',
+    't-ble-ph',  't-ble-col',  't-ble-type',  't-ble-str',
+    't-dra-ph',  't-dra-col',  't-dra-type',  't-dra-str',
+    'ra-w1','ra-w2','ra-c1','ra-c2',
+    'rb-w1','rb-w2','rb-c1','rb-c2',
+    'q1','q2','q3','q4','q5','q6','q7','q8',
+  ];
+
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const saved = localStorage.getItem(SAVE_PREFIX + id);
+    if (saved !== null) el.value = saved;
+    el.addEventListener('input', () => localStorage.setItem(SAVE_PREFIX + id, el.value));
+  });
+
+  // Set today's date if blank
+  const dateField = document.getElementById('student-date');
+  if (!dateField.value) {
+    const today = new Date().toISOString().split('T')[0];
+    dateField.value = today;
+    localStorage.setItem(SAVE_PREFIX + 'student-date', today);
+  }
+</script>
+</body>
+</html>

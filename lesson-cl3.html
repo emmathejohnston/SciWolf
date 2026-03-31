@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CL3 — Does This Initiative Actually Work? · Sci Wolf</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --surface2:#253448;
+      --border:  #334155;
+      --muted:   #475569;
+      --text:    #f1f5f9;
+      --sub:     #94a3b8;
+      --accent:  #38bdf8;
+      --accent2: #818cf8;
+      --green:   #34d399;
+      --yellow:  #fbbf24;
+      --red:     #f87171;
+      --pink:    #f472b6;
+    }
+
+    body.light {
+      --bg:      #f1f5f9;
+      --surface: #ffffff;
+      --surface2:#f8fafc;
+      --border:  #cbd5e1;
+      --muted:   #94a3b8;
+      --text:    #0f172a;
+      --sub:     #475569;
+      --accent:  #0284c7;
+      --accent2: #6366f1;
+      --green:   #059669;
+      --yellow:  #d97706;
+      --red:     #dc2626;
+      --pink:    #db2777;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ───────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px;
+    }
+    .nav-back {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; font-size: 1rem; color: var(--sub);
+      transition: color 0.15s, border-color 0.15s; flex-shrink: 0;
+    }
+    .nav-back:hover { color: var(--accent); border-color: var(--accent); }
+    .nav-crumb {
+      font-size: 0.8rem; color: var(--muted);
+      display: flex; align-items: center; gap: 6px; flex: 1;
+    }
+    .nav-crumb a { color: var(--sub); text-decoration: none; }
+    .nav-crumb a:hover { color: var(--accent); }
+    .nav-crumb .sep { color: var(--border); }
+    .nav-crumb .current { color: var(--text); font-weight: 600; }
+    #theme-toggle {
+      margin-left: auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 5px 10px;
+      font-size: 0.75rem; color: var(--sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Layout ─────────────────────────────────── */
+    .page { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Name / date row ─────────────────────────── */
+    .name-row {
+      display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+    }
+    .name-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+    .name-field label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted);
+    }
+    .name-field input {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 13px; color: var(--text);
+      font-size: 0.88rem; font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .name-field input:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Lesson header ───────────────────────────── */
+    .lesson-header { margin-bottom: 28px; }
+    .lesson-meta {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .badge-code {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      padding: 3px 9px; border-radius: 6px;
+      background: rgba(56,189,248,0.12); color: var(--accent);
+      border: 1px solid rgba(56,189,248,0.25);
+    }
+    .badge-time, .badge-grade {
+      font-size: 0.7rem; color: var(--sub);
+      padding: 3px 9px; border-radius: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .lesson-title {
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 800; letter-spacing: -0.02em;
+      line-height: 1.25; margin-bottom: 10px;
+    }
+    .lesson-subtitle { font-size: 0.9rem; color: var(--sub); line-height: 1.6; }
+
+    /* ── Section headers ─────────────────────────── */
+    .section { margin: 44px 0 0; }
+    .section-header {
+      display: flex; align-items: baseline; gap: 12px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+      margin-bottom: 22px;
+    }
+    .section-num {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent);
+      background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 5px; padding: 2px 8px; flex-shrink: 0;
+    }
+    .section-title { font-size: 1.1rem; font-weight: 700; flex: 1; }
+    .section-time { font-size: 0.75rem; color: var(--muted); }
+
+    /* ── Initiative cards ────────────────────────── */
+    .initiative-card {
+      border-radius: 14px; padding: 20px 22px;
+      border: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 16px;
+      margin-bottom: 20px;
+    }
+    .initiative-card.carbon { background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.25); }
+    .initiative-card.forest { background: rgba(52,211,153,0.06); border-color: rgba(52,211,153,0.25); }
+    .initiative-card.ev     { background: rgba(56,189,248,0.06); border-color: rgba(56,189,248,0.20); }
+
+    .init-icon { font-size: 2.2rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+    .init-body { flex: 1; }
+    .init-tag {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .initiative-card.carbon .init-tag { color: var(--yellow); }
+    .initiative-card.forest .init-tag { color: var(--green); }
+    .initiative-card.ev     .init-tag { color: var(--accent); }
+    .init-name { font-size: 1rem; font-weight: 700; margin-bottom: 5px; }
+    .init-desc { font-size: 0.82rem; color: var(--sub); line-height: 1.6; }
+
+    /* ── Context / reference card ────────────────── */
+    .ref-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 22px; margin-bottom: 24px;
+    }
+    .ref-card summary {
+      font-size: 0.82rem; font-weight: 600; color: var(--sub);
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ref-card summary:hover { color: var(--text); }
+    .ref-card[open] summary { margin-bottom: 16px; }
+    .ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 520px) { .ref-grid { grid-template-columns: 1fr; } }
+    .ref-block h4 {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px;
+    }
+    .ref-block p, .ref-block li { font-size: 0.82rem; color: var(--sub); line-height: 1.7; }
+    .ref-block ul { padding-left: 16px; }
+    .ref-block li { margin-bottom: 3px; }
+    .ref-block .data-point {
+      font-size: 0.82rem; line-height: 1.7;
+      display: flex; gap: 8px; align-items: flex-start;
+      color: var(--sub); margin-bottom: 4px;
+    }
+    .ref-block .data-point::before {
+      content: "▸"; color: var(--accent); flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* ── Evaluation grid ─────────────────────────── */
+    .eval-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 540px) { .eval-grid { grid-template-columns: 1fr; } }
+    .eval-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 18px;
+    }
+    .eval-label {
+      font-size: 0.67rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.09em; color: var(--muted); margin-bottom: 6px;
+    }
+    .eval-prompt {
+      font-size: 0.82rem; color: var(--sub); line-height: 1.6; margin-bottom: 10px;
+    }
+
+    /* ── Fillable inputs ─────────────────────────── */
+    .fill-input {
+      width: 100%; background: transparent;
+      border: none; border-bottom: 1px solid var(--border);
+      padding: 5px 4px; color: var(--text);
+      font-size: 0.8rem; font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .fill-input:focus { outline: none; border-bottom-color: var(--accent); }
+    .fill-input::placeholder { color: var(--muted); font-style: italic; }
+
+    .answer-box {
+      width: 100%; min-height: 72px; resize: vertical;
+      background: var(--surface2); border: 1px dashed var(--border);
+      border-radius: 7px; padding: 10px 13px;
+      color: var(--text); font-size: 0.83rem; font-family: inherit; line-height: 1.6;
+      transition: border-color 0.15s, border-style 0.15s;
+    }
+    .answer-box:focus { outline: none; border-color: var(--accent); border-style: solid; }
+    .answer-box::placeholder { color: var(--muted); font-style: italic; }
+
+    /* ── Callout boxes ───────────────────────────── */
+    .callout {
+      border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+      font-size: 0.83rem; line-height: 1.6;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .callout-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 3px; font-size: 0.85rem; }
+    .callout.tip   { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.2); color: var(--sub); }
+    .callout.warn  { background: rgba(251,191,36,0.07);  border: 1px solid rgba(251,191,36,0.2);  color: var(--sub); }
+    .callout.check { background: rgba(52,211,153,0.07);  border: 1px solid rgba(52,211,153,0.2);  color: var(--sub); }
+    .callout.scenario { background: rgba(129,140,248,0.08); border: 1px solid rgba(129,140,248,0.25); color: var(--sub); }
+
+    /* ── Question blocks (Section 4) ─────────────── */
+    .questions { display: flex; flex-direction: column; gap: 22px; margin-top: 8px; }
+    .q { }
+    .q-num {
+      font-size: 0.67rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px;
+    }
+    .q-text { font-size: 0.88rem; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+    .q-sub { font-size: 0.8rem; color: var(--sub); line-height: 1.7; margin-bottom: 2px; }
+
+    /* ── Comparison table ────────────────────────── */
+    .compare-table-wrap { overflow-x: auto; margin: 16px 0; }
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 440px; }
+    .compare-table th {
+      text-align: left; padding: 9px 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted);
+    }
+    .compare-table td { padding: 8px 10px; border: 1px solid var(--border); vertical-align: top; }
+    .compare-table tr:nth-child(even) td { background: var(--surface2); }
+    .compare-table .row-label { color: var(--text); font-weight: 600; font-size: 0.8rem; }
+
+    /* ── Print block ─────────────────────────────── */
+    .print-block {
+      margin-top: 48px; padding: 28px 26px; text-align: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    }
+    .print-title { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .print-sub { font-size: 0.83rem; color: var(--sub); line-height: 1.6; margin-bottom: 20px; }
+    .print-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 24px; background: var(--accent); color: #0c1e30;
+      border: none; border-radius: 10px; font-size: 0.88rem; font-weight: 700;
+      cursor: pointer; transition: filter 0.15s;
+    }
+    .print-btn:hover { filter: brightness(1.1); }
+    .print-note { font-size: 0.75rem; color: var(--muted); margin-top: 14px; line-height: 1.6; }
+
+    /* ── Print styles ────────────────────────────── */
+    @media print {
+      nav, #theme-toggle, .print-block { display: none !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .page { padding: 20px; }
+      .ref-card[open] summary { display: none; }
+      details { display: block; }
+      details > *:not(summary) { display: block !important; }
+      .answer-box, .fill-input { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
+      .eval-item, .callout, .initiative-card, .ref-card { border: 1px solid #ccc !important; background: #fff !important; }
+    }
+
+    /* ── Intro text ──────────────────────────────── */
+    .intro-text { font-size: 0.88rem; color: var(--sub); line-height: 1.7; margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="standalone.html" class="nav-back" title="All Lessons">←</a>
+  <div class="nav-crumb">
+    <a href="standalone.html">Lessons</a>
+    <span class="sep">›</span>
+    <span class="current">CL3 — Climate Initiatives</span>
+  </div>
+  <button id="theme-toggle">☀️ Light</button>
+</nav>
+
+<div class="page">
+
+  <!-- ── Student info ───────────────────────────────────── -->
+  <div class="name-row">
+    <div class="name-field">
+      <label for="student-name">Name</label>
+      <input id="student-name" type="text" placeholder="First and last name" autocomplete="name">
+    </div>
+    <div class="name-field">
+      <label for="student-date">Date</label>
+      <input id="student-date" type="text" placeholder="e.g. March 31">
+    </div>
+    <div class="name-field" style="max-width:140px">
+      <label for="student-period">Period</label>
+      <input id="student-period" type="text" placeholder="e.g. 2">
+    </div>
+  </div>
+
+  <!-- ── Lesson header ──────────────────────────────────── -->
+  <div class="lesson-header">
+    <div class="lesson-meta">
+      <span class="badge-code">CL3</span>
+      <span class="badge-time">75–80 min</span>
+      <span class="badge-grade">Grade 10 Science</span>
+    </div>
+    <div class="lesson-title">Does This Initiative Actually Work?</div>
+    <div class="lesson-subtitle">Evaluate three real climate initiatives — carbon pricing, reforestation, and electric vehicles — then write a recommendation memo to a city council. All the information you need is on this page.</div>
+  </div>
+
+  <!-- ── Anchor scenario ────────────────────────────────── -->
+  <div class="callout scenario">
+    <span class="callout-icon">🏛️</span>
+    <div class="callout-body">
+      <strong>Your scenario</strong>
+      The City of Maplewood (population 85,000) has committed to reducing its greenhouse gas emissions by 40% before 2035. The city council has budget for one major climate initiative this year. Three proposals are on the table. By the end of this lesson, you'll evaluate all three — and write a short memo recommending one.
+    </div>
+  </div>
+
+  <p class="intro-text" style="margin-top:14px">
+    Work through each initiative in order. For each one: read the context brief, then complete the four evaluation questions. When you've finished all three, move to Section 4 to write your memo. Your answers are saved automatically as you type.
+  </p>
+
+  <!-- ════════════════════════════════════════════════════
+       INITIATIVE 1 — CARBON PRICING
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Initiative 1</span>
+      <span class="section-title">Carbon Pricing</span>
+      <span class="section-time">~15 min</span>
+    </div>
+
+    <div class="initiative-card carbon">
+      <div class="init-icon">💰</div>
+      <div class="init-body">
+        <div class="init-tag">Economic Policy</div>
+        <div class="init-name">Put a price on every tonne of carbon emitted</div>
+        <div class="init-desc">Charge companies and individuals for the greenhouse gases they emit. The higher the price, the stronger the incentive to use less fuel, switch to cleaner energy, or invest in new technology.</div>
+      </div>
+    </div>
+
+    <details class="ref-card" open>
+      <summary>📋 Context &amp; Evidence Brief — read this before answering</summary>
+      <div class="ref-grid">
+        <div class="ref-block">
+          <h4>How it works in Canada</h4>
+          <div class="data-point">Canada introduced a federal carbon price in 2019, starting at $20 per tonne of CO₂ equivalent (CO₂e).</div>
+          <div class="data-point">By 2024 the price had risen to $65/tonne and applied to most fossil fuel combustion — home heating, gasoline, industrial processes.</div>
+          <div class="data-point">Revenue is returned to households quarterly as the Canada Carbon Rebate. Lower-income households in most provinces receive more in rebates than they pay in carbon charges.</div>
+          <div class="data-point">In April 2025, the federal government paused the consumer carbon price at $65/tonne following political pressure; the industrial pricing system remains in place.</div>
+        </div>
+        <div class="ref-block">
+          <h4>What the evidence shows</h4>
+          <div class="data-point">A federal government analysis estimated carbon pricing would reduce Canada's emissions by 15–26 Mt CO₂e per year by 2030.</div>
+          <div class="data-point">For context: Canada's total annual GHG emissions are approximately 670 Mt CO₂e — so this represents a 2–4% reduction from carbon pricing alone.</div>
+          <div class="data-point">Studies show modest consumer behaviour change — slightly more fuel-efficient vehicle purchases, some switching from oil furnaces to heat pumps.</div>
+          <div class="data-point">Industry response has been slower; many large emitters find it cheaper to pay the carbon price than to change their operations in the short term.</div>
+        </div>
+      </div>
+    </details>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">Mechanism</div>
+        <div class="eval-prompt">In your own words, how does carbon pricing reduce greenhouse gas emissions? Describe the cause-and-effect logic.</div>
+        <textarea class="answer-box" id="cp-mechanism" placeholder="When the price of emitting goes up…"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Greenhouse Gases Addressed</div>
+        <div class="eval-prompt">Which greenhouse gas(es) does this initiative primarily target? (Think about what gets taxed — and what doesn't.)</div>
+        <textarea class="answer-box" id="cp-gases" placeholder="The main GHG targeted is… because…" style="min-height:72px"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Evidence Evaluation</div>
+        <div class="eval-prompt">Based on the numbers in the brief, how strong is the evidence that carbon pricing works? Rate it <em>Strong / Moderate / Weak</em> and explain in 1–2 sentences.</div>
+        <textarea class="answer-box" id="cp-evidence" placeholder="Rating: …   Because: …"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Key Limitation</div>
+        <div class="eval-prompt">What is one significant limitation of carbon pricing as a climate strategy? Why does this limitation matter?</div>
+        <textarea class="answer-box" id="cp-limit" placeholder="One limitation is… This matters because…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       INITIATIVE 2 — REFORESTATION
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Initiative 2</span>
+      <span class="section-title">Reforestation</span>
+      <span class="section-time">~15 min</span>
+    </div>
+
+    <div class="initiative-card forest">
+      <div class="init-icon">🌲</div>
+      <div class="init-body">
+        <div class="init-tag">Nature-Based Solution</div>
+        <div class="init-name">Plant trees to absorb carbon from the atmosphere</div>
+        <div class="init-desc">Trees absorb CO₂ through photosynthesis and store carbon in wood, roots, and soil. Planting forests at scale is one of the most discussed strategies for removing carbon that has already been emitted.</div>
+      </div>
+    </div>
+
+    <details class="ref-card" open>
+      <summary>📋 Context &amp; Evidence Brief — read this before answering</summary>
+      <div class="ref-grid">
+        <div class="ref-block">
+          <h4>Scale &amp; timelines</h4>
+          <div class="data-point">The global Trillion Trees initiative (backed by the World Economic Forum and others) aims to plant one trillion trees worldwide.</div>
+          <div class="data-point">Canada has committed to planting 2 billion trees by 2031 as part of its climate plan.</div>
+          <div class="data-point">Newly planted trees absorb very little CO₂ for their first 5–15 years. Carbon storage builds slowly as trees mature — a 5-year-old sapling is not the same as a 50-year-old tree.</div>
+          <div class="data-point">A mature Canadian forest absorbs approximately 1–3 tonnes of CO₂ per hectare per year. Canada has committed to protecting 30% of its land and ocean by 2030.</div>
+        </div>
+        <div class="ref-block">
+          <h4>Risks &amp; evidence</h4>
+          <div class="data-point">Canada's 2023 wildfire season burned approximately 18 million hectares — the worst on record — and released an estimated 647 Mt of CO₂. That is roughly equal to Canada's entire annual GHG emissions from all other sources combined.</div>
+          <div class="data-point">Climate change is making wildfires, droughts, and pest outbreaks (e.g., mountain pine beetle) more frequent and severe — threatening the permanence of any stored carbon.</div>
+          <div class="data-point">Tree plantations that use a single species (monocultures) sequester less carbon and are more vulnerable to disease than diverse, natural forests.</div>
+          <div class="data-point">Reforestation addresses atmospheric CO₂, but does not reduce emissions at their source — it removes carbon already emitted, rather than preventing new emissions.</div>
+        </div>
+      </div>
+    </details>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">Mechanism</div>
+        <div class="eval-prompt">In your own words, how does reforestation reduce the amount of CO₂ in the atmosphere? Name the biological process involved.</div>
+        <textarea class="answer-box" id="rf-mechanism" placeholder="Trees reduce atmospheric CO₂ by…"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Greenhouse Gases Addressed</div>
+        <div class="eval-prompt">Which greenhouse gas(es) does reforestation directly affect? Does it prevent emissions, remove them, or both?</div>
+        <textarea class="answer-box" id="rf-gases" placeholder="Reforestation targets… It works by…" style="min-height:72px"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Evidence Evaluation</div>
+        <div class="eval-prompt">Based on the wildfire data in the brief, how confident should we be that planted trees will permanently store carbon? Rate the evidence <em>Strong / Moderate / Weak</em> and explain.</div>
+        <textarea class="answer-box" id="rf-evidence" placeholder="Rating: …   Because: …"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Key Limitation</div>
+        <div class="eval-prompt">What is one significant limitation of reforestation as a climate strategy? Why does this limitation matter for Maplewood specifically?</div>
+        <textarea class="answer-box" id="rf-limit" placeholder="One limitation is… For Maplewood, this matters because…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       INITIATIVE 3 — ELECTRIC VEHICLES
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Initiative 3</span>
+      <span class="section-title">Electric Vehicles</span>
+      <span class="section-time">~15 min</span>
+    </div>
+
+    <div class="initiative-card ev">
+      <div class="init-icon">⚡</div>
+      <div class="init-body">
+        <div class="init-tag">Technology Transition</div>
+        <div class="init-name">Replace gasoline vehicles with electric ones</div>
+        <div class="init-desc">Electric vehicles (EVs) produce zero tailpipe emissions. As the electricity grid becomes cleaner, the total lifecycle greenhouse gas emissions of EVs fall further — making this strategy more effective over time.</div>
+      </div>
+    </div>
+
+    <details class="ref-card" open>
+      <summary>📋 Context &amp; Evidence Brief — read this before answering</summary>
+      <div class="ref-grid">
+        <div class="ref-block">
+          <h4>The emissions problem</h4>
+          <div class="data-point">Transportation accounts for approximately 25% of Canada's total greenhouse gas emissions — the second-largest sector after oil and gas.</div>
+          <div class="data-point">Passenger cars and light trucks are the largest share within transportation, producing mainly CO₂ from burning gasoline or diesel.</div>
+          <div class="data-point">Canada has set a target of 100% zero-emission new vehicle sales by 2035. As of 2023, EVs made up about 9% of new vehicle sales, up from under 1% in 2018.</div>
+        </div>
+        <div class="ref-block">
+          <h4>Evidence &amp; trade-offs</h4>
+          <div class="data-point">On Canada's current national electricity grid, an EV produces approximately 50% fewer lifecycle CO₂ emissions than a comparable gasoline vehicle — including manufacturing and charging.</div>
+          <div class="data-point">In provinces with cleaner grids (e.g., British Columbia, Quebec), lifecycle emissions are 75–90% lower than gasoline equivalents.</div>
+          <div class="data-point">Manufacturing EV batteries requires mining lithium, cobalt, and nickel — which has environmental and human-rights impacts in the regions where these minerals are extracted.</div>
+          <div class="data-point">EV upfront purchase prices remain higher than comparable gasoline vehicles, though the gap is narrowing. Charging infrastructure is limited in rural areas.</div>
+        </div>
+      </div>
+    </details>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">Mechanism</div>
+        <div class="eval-prompt">In your own words, how do electric vehicles reduce greenhouse gas emissions? Where in the vehicle's lifecycle do emissions still occur?</div>
+        <textarea class="answer-box" id="ev-mechanism" placeholder="EVs reduce GHGs by… but emissions still occur during…"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Greenhouse Gases Addressed</div>
+        <div class="eval-prompt">Which greenhouse gas(es) does switching to EVs primarily reduce? Does it eliminate all emissions from transportation?</div>
+        <textarea class="answer-box" id="ev-gases" placeholder="EVs mainly reduce… They do / do not eliminate all emissions because…" style="min-height:72px"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Evidence Evaluation</div>
+        <div class="eval-prompt">The evidence shows EVs reduce lifecycle emissions by ~50% on the national grid, but up to 90% on a cleaner grid. What does this tell you about how the effectiveness of EVs depends on other factors? Rate the evidence and explain.</div>
+        <textarea class="answer-box" id="ev-evidence" placeholder="Rating: …   The key condition is…"></textarea>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">Key Limitation</div>
+        <div class="eval-prompt">What is one significant limitation of an EV transition as a climate strategy? Consider both the environmental and practical dimensions.</div>
+        <textarea class="answer-box" id="ev-limit" placeholder="One limitation is… This matters because…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 4 — THE RECOMMENDATION MEMO
+  ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">Section 4</span>
+      <span class="section-title">The Recommendation Memo</span>
+      <span class="section-time">~20 min</span>
+    </div>
+
+    <div class="callout scenario">
+      <span class="callout-icon">🏛️</span>
+      <div class="callout-body">
+        <strong>Maplewood City Council — Final Briefing</strong>
+        You've been asked to advise the council. They've narrowed the decision to <em>two</em> of the three initiatives you just evaluated. Choose the two you find most interesting to compare, identify the stronger option, and write a short memo explaining your recommendation. The council will use it to decide where to invest.
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <strong>Before you write — pre-plan in the table below</strong>
+        Fill in the comparison table first. It'll make your memo faster to write and stronger in its reasoning.
+      </div>
+    </div>
+
+    <!-- Pre-planning table -->
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="width:28%">Criteria</th>
+            <th style="width:36%">Initiative A <span style="font-weight:400; color:var(--muted)">(your choice)</span></th>
+            <th style="width:36%">Initiative B <span style="font-weight:400; color:var(--muted)">(your choice)</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="row-label">Which initiative?</span></td>
+            <td><input class="fill-input" id="tbl-a-name" placeholder="Carbon Pricing / Reforestation / EVs"></td>
+            <td><input class="fill-input" id="tbl-b-name" placeholder="Carbon Pricing / Reforestation / EVs"></td>
+          </tr>
+          <tr>
+            <td><span class="row-label">Main strength for Maplewood</span></td>
+            <td><textarea class="answer-box" id="tbl-a-strength" placeholder="Its biggest advantage is…" style="min-height:60px"></textarea></td>
+            <td><textarea class="answer-box" id="tbl-b-strength" placeholder="Its biggest advantage is…" style="min-height:60px"></textarea></td>
+          </tr>
+          <tr>
+            <td><span class="row-label">Main limitation</span></td>
+            <td><textarea class="answer-box" id="tbl-a-limit" placeholder="Its biggest problem is…" style="min-height:60px"></textarea></td>
+            <td><textarea class="answer-box" id="tbl-b-limit" placeholder="Its biggest problem is…" style="min-height:60px"></textarea></td>
+          </tr>
+          <tr>
+            <td><span class="row-label">Better fit for Maplewood? (✓ one)</span></td>
+            <td><input class="fill-input" id="tbl-a-pick" placeholder="✓ or ✗"></td>
+            <td><input class="fill-input" id="tbl-b-pick" placeholder="✓ or ✗"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Memo -->
+    <div class="questions" style="margin-top:24px">
+      <div class="q">
+        <div class="q-num">Question — The Memo</div>
+        <div class="q-text">Write your 4–6 sentence recommendation memo to Maplewood City Council.</div>
+        <div class="q-sub">
+          Your memo must:<br>
+          ✓ State which initiative you recommend (be specific)<br>
+          ✓ Explain the mechanism — how does it actually reduce greenhouse gases?<br>
+          ✓ Acknowledge one limitation of your chosen initiative and explain why you're recommending it anyway<br>
+          ✓ Briefly explain why you did <em>not</em> choose the other initiative you compared
+        </div>
+        <textarea class="answer-box" id="memo-text" placeholder="To: Maplewood City Council&#10;Re: Climate Initiative Recommendation&#10;&#10;I recommend…" style="min-height:160px; margin-top:12px"></textarea>
+      </div>
+    </div>
+
+    <div class="callout check" style="margin-top:8px">
+      <span class="callout-icon">🌟</span>
+      <div class="callout-body">
+        <strong>Early finisher extension</strong>
+        A council member asks: "Why not do all three?" Write a 2–3 sentence response explaining what trade-offs the council would face if they tried to split their budget across all three initiatives at once. Think about what gets sacrificed when you pursue a little of everything instead of committing to one thing.
+      </div>
+    </div>
+
+    <textarea class="answer-box" id="extension" placeholder="If the council split the budget across all three…" style="min-height:80px; margin-top:4px"></textarea>
+  </div>
+
+  <!-- ── Print block ────────────────────────────────────── -->
+  <div class="print-block">
+    <div class="print-title">Done? Save your work as a PDF.</div>
+    <div class="print-sub">
+      Click the button below. When the print dialog opens, set the destination to <strong>Save as PDF</strong> (Chrome/Edge) or <strong>PDF</strong> (Safari/Firefox). Your answers will appear in the document.
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <div class="print-note">
+      Your answers are also saved automatically in this browser — if you need to come back, they'll still be here.<br>
+      On a Chromebook: File menu → Print → Change destination → Save as PDF.
+    </div>
+  </div>
+
+</div><!-- .page -->
+
+<script>
+  // ── Theme ───────────────────────────────────────────────
+  const btn = document.getElementById('theme-toggle');
+  const apply = (light) => {
+    document.body.classList.toggle('light', light);
+    btn.textContent = light ? '🌙 Dark' : '☀️ Light';
+  };
+  apply(localStorage.getItem('theme') === 'light');
+  btn.addEventListener('click', () => {
+    const light = !document.body.classList.contains('light');
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+    apply(light);
+  });
+
+  // ── localStorage autosave ───────────────────────────────
+  const SAVE_PREFIX = 'cl3-';
+
+  const FIELD_IDS = [
+    'student-name', 'student-date', 'student-period',
+    'cp-mechanism', 'cp-gases', 'cp-evidence', 'cp-limit',
+    'rf-mechanism', 'rf-gases', 'rf-evidence', 'rf-limit',
+    'ev-mechanism', 'ev-gases', 'ev-evidence', 'ev-limit',
+    'tbl-a-name', 'tbl-a-strength', 'tbl-a-limit', 'tbl-a-pick',
+    'tbl-b-name', 'tbl-b-strength', 'tbl-b-limit', 'tbl-b-pick',
+    'memo-text', 'extension',
+  ];
+
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const saved = localStorage.getItem(SAVE_PREFIX + id);
+    if (saved !== null) el.value = saved;
+    el.addEventListener('input', () => localStorage.setItem(SAVE_PREFIX + id, el.value));
+  });
+
+  // Set today's date if blank
+  const dateEl = document.getElementById('student-date');
+  if (dateEl && !dateEl.value) {
+    const d = new Date();
+    dateEl.value = d.toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' });
+    localStorage.setItem(SAVE_PREFIX + 'student-date', dateEl.value);
+  }
+</script>
+</body>
+</html>

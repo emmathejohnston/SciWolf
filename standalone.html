@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standalone Lesson Plans — Sci Wolf</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --border:  #334155;
+      --muted:   #475569;
+      --text:    #f1f5f9;
+      --sub:     #94a3b8;
+      --accent:  #38bdf8;
+      --accent2: #818cf8;
+    }
+
+    body.light {
+      --bg:      #f1f5f9;
+      --surface: #ffffff;
+      --border:  #cbd5e1;
+      --muted:   #94a3b8;
+      --text:    #0f172a;
+      --sub:     #475569;
+      --accent:  #0284c7;
+      --accent2: #6366f1;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Nav ───────────────────────────────────── */
+    #home-btn {
+      position: fixed; top: 12px; left: 12px; z-index: 100;
+      width: 36px; height: 36px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9px; display: flex; align-items: center; justify-content: center;
+      text-decoration: none; font-size: 1.1rem; color: var(--sub);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #home-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    #theme-toggle {
+      position: fixed; top: 12px; right: 16px; z-index: 100;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 12px;
+      font-size: 0.8rem; color: var(--sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Header ─────────────────────────────────── */
+    header {
+      width: 100%; max-width: 820px;
+      padding: 72px 24px 40px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .tagline {
+      font-size: 0.95rem;
+      color: var(--sub);
+      line-height: 1.6;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* ── Content ─────────────────────────────────── */
+    main {
+      width: 100%; max-width: 820px;
+      padding: 0 24px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    /* ── Unit section ────────────────────────────── */
+    .unit-heading {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .lesson-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ── Lesson row ──────────────────────────────── */
+    .lesson {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      position: relative;
+    }
+
+    .lesson.ready:hover {
+      border-color: var(--accent);
+      transform: translateX(3px);
+      box-shadow: 0 4px 20px rgba(56,189,248,0.08);
+    }
+
+    .lesson.soon {
+      opacity: 0.55;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .lesson-code {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      min-width: 28px;
+    }
+
+    .lesson-body { flex: 1; }
+
+    .lesson-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .lesson-sub {
+      font-size: 0.8rem;
+      color: var(--sub);
+    }
+
+    .lesson-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      border-radius: 6px;
+      padding: 3px 8px;
+      white-space: nowrap;
+    }
+
+    .badge-sim-strong  { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .badge-sim-partial { background: rgba(251,191,36,0.10);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+    .badge-sim-none    { background: rgba(71,85,105,0.25);   color: #94a3b8; border: 1px solid rgba(71,85,105,0.35); }
+    .badge-phet        { background: rgba(129,140,248,0.12); color: #a5b4fc; border: 1px solid rgba(129,140,248,0.25); }
+    .badge-form        { background: rgba(52,211,153,0.10);  color: #6ee7b7; border: 1px solid rgba(52,211,153,0.25); }
+    .badge-doc         { background: rgba(251,191,36,0.10);  color: #fde68a; border: 1px solid rgba(251,191,36,0.25); }
+    .badge-soon        { background: rgba(71,85,105,0.20);   color: #64748b; border: 1px solid rgba(71,85,105,0.30); }
+
+    .lesson-arrow {
+      font-size: 0.85rem;
+      color: var(--accent);
+      opacity: 0.6;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .lesson.ready:hover .lesson-arrow { opacity: 1; }
+
+    /* ── Footer ─────────────────────────────────── */
+    footer {
+      margin-top: auto;
+      padding: 20px 24px 28px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<a href="index.html" id="home-btn" title="Home">⌂</a>
+<button id="theme-toggle">☀️ Light</button>
+
+<header>
+  <h1>Standalone Lesson Plans</h1>
+  <p class="tagline">75-minute lessons for Grade 10 Science, designed to run without a science teacher present. Each lesson lives entirely on the website — no prep, no printing.</p>
+</header>
+
+<main>
+
+  <!-- OPTICS -->
+  <section>
+    <div class="unit-heading">Optics</div>
+    <div class="lesson-list">
+
+      <div class="lesson soon">
+        <span class="lesson-code">O1</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Why Do Things Have Colour, and How Does Light Travel?</div>
+          <div class="lesson-sub">EM spectrum · colour/absorption/reflection · emission types · wavelength calculation</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-none">No sim</span>
+          <span class="badge badge-form">Google Form</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="lesson soon">
+        <span class="lesson-code">O2</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Which Mirror Should We Use?</div>
+          <div class="lesson-sub">Plane mirrors · curved mirrors · LOST descriptions · real-world design scenarios</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-strong">⭐ Ray Diagram Sim</span>
+          <span class="badge badge-doc">Google Doc</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="lesson soon">
+        <span class="lesson-code">O3</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Why Does Light Bend, and What Can We Do With It?</div>
+          <div class="lesson-sub">Snell's Law · total internal reflection · lenses · eye correction</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-partial">🔶 Ray Diagram (lenses)</span>
+          <span class="badge badge-phet">PhET Bending Light</span>
+          <span class="badge badge-form">Google Form</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- BIOLOGY -->
+  <section>
+    <div class="unit-heading">Biology</div>
+    <div class="lesson-list">
+
+      <div class="lesson soon">
+        <span class="lesson-code">B1</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Why Are Cells the Way They Are?</div>
+          <div class="lesson-sub">Cell structure · organelle function · surface area:volume ratio</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-partial">🔶 Cell Sim (hook)</span>
+          <span class="badge badge-doc">Google Doc</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="lesson soon">
+        <span class="lesson-code">B2</span>
+        <div class="lesson-body">
+          <div class="lesson-title">What Is Mitosis Actually For, and What Happens When It Goes Wrong?</div>
+          <div class="lesson-sub">Cell cycle · mitosis phases · cancer · stem cells</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-none">No SciWolf sim yet</span>
+          <span class="badge badge-phet">PhET Cell Division</span>
+          <span class="badge badge-form">Google Form</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="lesson soon">
+        <span class="lesson-code">B3</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Trace the Cheese Sandwich / What's Wrong with Karen?</div>
+          <div class="lesson-sub">Digestive · circulatory · respiratory systems → cellular respiration · diagnosis</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-partial">🔶 Cell Sim (entry point)</span>
+          <span class="badge badge-doc">Google Doc</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CHEMISTRY -->
+  <section>
+    <div class="unit-heading">Chemistry</div>
+    <div class="lesson-list">
+
+      <div class="lesson soon">
+        <span class="lesson-code">C1</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Why Do Atoms Bond, and What Kind of Bond Is It?</div>
+          <div class="lesson-sub">Ionic bonding · molecular bonding · naming · formulas</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-strong">⭐ Bohr-Rutherford Sim</span>
+          <span class="badge badge-form">Google Form</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="lesson soon">
+        <span class="lesson-code">C2</span>
+        <div class="lesson-body">
+          <div class="lesson-title">What's Actually Happening in This Reaction?</div>
+          <div class="lesson-sub">Reaction types · balancing equations · conservation of mass</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-strong">⭐ Equation Balancer</span>
+          <span class="badge badge-doc">Google Doc</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <a href="lesson-c3.html" class="lesson ready">
+        <span class="lesson-code">C3</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Neutralize the Spill / Is the Soil Safe?</div>
+          <div class="lesson-sub">pH scale · acid/base properties · neutralization reactions</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-strong">⭐ pH Indicator Lab</span>
+          <span class="badge badge-form">Google Form</span>
+        </div>
+        <div class="lesson-arrow">›</div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- CLIMATE -->
+  <section>
+    <div class="unit-heading">Climate</div>
+    <div class="lesson-list">
+
+      <div class="lesson soon">
+        <span class="lesson-code">CL1</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Why Is Venus 465°C?</div>
+          <div class="lesson-sub">Natural greenhouse effect · enhanced greenhouse effect · greenhouse gases</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-none">No sim yet</span>
+          <span class="badge badge-doc">Google Doc</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="lesson soon">
+        <span class="lesson-code">CL2</span>
+        <div class="lesson-body">
+          <div class="lesson-title">How Do We Actually Know?</div>
+          <div class="lesson-sub">Climate evidence · Keeling Curve · sea ice · data literacy</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-none">No sim needed</span>
+          <span class="badge badge-form">Google Form</span>
+          <span class="badge badge-soon">Coming soon</span>
+        </div>
+      </div>
+
+      <a href="lesson-cl3.html" class="lesson ready">
+        <span class="lesson-code">CL3</span>
+        <div class="lesson-body">
+          <div class="lesson-title">Does This Initiative Actually Work?</div>
+          <div class="lesson-sub">Carbon pricing · reforestation · EVs · evidence evaluation · policy memo</div>
+        </div>
+        <div class="lesson-badges">
+          <span class="badge badge-sim-none">No sim needed</span>
+          <span class="badge badge-doc">Print to PDF</span>
+        </div>
+        <div class="lesson-arrow">›</div>
+      </a>
+
+    </div>
+  </section>
+
+</main>
+
+<footer>Sci Wolf — Standalone Lesson Plans · Grade 10 Science</footer>
+
+<script>
+  const btn = document.getElementById('theme-toggle');
+  const apply = (light) => {
+    document.body.classList.toggle('light', light);
+    btn.textContent = light ? '🌙 Dark' : '☀️ Light';
+  };
+  apply(localStorage.getItem('theme') === 'light');
+  btn.addEventListener('click', () => {
+    const light = !document.body.classList.contains('light');
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+    apply(light);
+  });
+</script>
+</body>
+</html>
