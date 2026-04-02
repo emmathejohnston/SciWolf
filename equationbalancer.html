@@ -607,10 +607,10 @@
         products:  ['Al2O3'],
       },
       {
-        name: "Carbon Combustion",
+        name: "Carbon Monoxide Formation",
         difficulty: "mild",
         reactants: ['C', 'O2'],
-        products:  ['CO2'],
+        products:  ['CO'],
       },
       {
         name: "Magnesium Combustion",
@@ -631,16 +631,40 @@
         products:  ['Hg', 'O2'],
       },
       {
-        name: "Limestone Decomposition",
+        name: "Sodium Oxide Formation",
         difficulty: "mild",
-        reactants: ['CaCO3'],
-        products:  ['CaO', 'CO2'],
+        reactants: ['Na', 'O2'],
+        products:  ['Na2O'],
       },
       {
         name: "Water Electrolysis",
         difficulty: "mild",
         reactants: ['H2O'],
         products:  ['H2', 'O2'],
+      },
+      {
+        name: "Phosphorus Oxidation",
+        difficulty: "mild",
+        reactants: ['P4', 'O2'],
+        products:  ['P2O5'],
+      },
+      {
+        name: "Potassium Bromide Formation",
+        difficulty: "mild",
+        reactants: ['K', 'Br2'],
+        products:  ['KBr'],
+      },
+      {
+        name: "Calcium Nitride Formation",
+        difficulty: "mild",
+        reactants: ['Ca', 'N2'],
+        products:  ['Ca3N2'],
+      },
+      {
+        name: "Sulfur Combustion",
+        difficulty: "mild",
+        reactants: ['S8', 'O2'],
+        products:  ['SO2'],
       },
       // ── Medium ──────────────────────────────────────
       {
@@ -715,6 +739,78 @@
         reactants: ['AgNO3', 'Cu'],
         products:  ['Cu(NO3)2', 'Ag'],
       },
+      {
+        name: "Magnesium & Hydrochloric Acid",
+        difficulty: "medium",
+        reactants: ['Mg', 'HCl'],
+        products:  ['MgCl2', 'H2'],
+      },
+      {
+        name: "Aluminum Bromide Formation",
+        difficulty: "medium",
+        reactants: ['Al', 'Br2'],
+        products:  ['AlBr3'],
+      },
+      {
+        name: "Magnesium Nitride Formation",
+        difficulty: "medium",
+        reactants: ['Mg', 'N2'],
+        products:  ['Mg3N2'],
+      },
+      {
+        name: "Sodium Carbonate & Hydrochloric Acid",
+        difficulty: "medium",
+        reactants: ['Na2CO3', 'HCl'],
+        products:  ['NaCl', 'H2O', 'CO2'],
+      },
+      {
+        name: "Lead Iodide Precipitation",
+        difficulty: "medium",
+        reactants: ['Pb(NO3)2', 'KI'],
+        products:  ['PbI2', 'KNO3'],
+      },
+      {
+        name: "Calcium Phosphate Precipitation",
+        difficulty: "medium",
+        reactants: ['CaCl2', 'Na3PO4'],
+        products:  ['Ca3(PO4)2', 'NaCl'],
+      },
+      {
+        name: "Ammonium Nitrate Decomposition",
+        difficulty: "medium",
+        reactants: ['NH4NO3'],
+        products:  ['N2O', 'H2O'],
+      },
+      {
+        name: "Iron(III) Oxide Reduction with Carbon",
+        difficulty: "medium",
+        reactants: ['Fe2O3', 'C'],
+        products:  ['Fe', 'CO2'],
+      },
+      {
+        name: "Aluminum & Copper(II) Chloride",
+        difficulty: "medium",
+        reactants: ['Al', 'CuCl2'],
+        products:  ['AlCl3', 'Cu'],
+      },
+      {
+        name: "Aluminum Hydroxide Neutralization",
+        difficulty: "medium",
+        reactants: ['Al(OH)3', 'H3PO4'],
+        products:  ['AlPO4', 'H2O'],
+      },
+      {
+        name: "Barium Phosphate Precipitation",
+        difficulty: "medium",
+        reactants: ['BaCl2', 'Na3PO4'],
+        products:  ['Ba3(PO4)2', 'NaCl'],
+      },
+      {
+        name: "Propene Combustion",
+        difficulty: "medium",
+        reactants: ['C3H6', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
       // ── Spicy ───────────────────────────────────────
       {
         name: "Propane Combustion",
@@ -763,6 +859,90 @@
         difficulty: "spicy",
         reactants: ['Al', 'H2SO4'],
         products:  ['Al2(SO4)3', 'H2'],
+      },
+      {
+        name: "Acetylene Combustion",
+        difficulty: "spicy",
+        reactants: ['C2H2', 'O2'],
+        products:  ['CO2', 'H2O'],
+      },
+      {
+        name: "Manganese Dioxide with Hydrochloric Acid",
+        difficulty: "spicy",
+        reactants: ['MnO2', 'HCl'],
+        products:  ['MnCl2', 'Cl2', 'H2O'],
+      },
+      {
+        name: "Potassium Dichromate with Hydrochloric Acid",
+        difficulty: "spicy",
+        reactants: ['K2Cr2O7', 'HCl'],
+        products:  ['KCl', 'CrCl3', 'Cl2', 'H2O'],
+      },
+      {
+        name: "Iron(III) Hydroxide Precipitation",
+        difficulty: "spicy",
+        reactants: ['FeCl3', 'NaOH'],
+        products:  ['Fe(OH)3', 'NaCl'],
+      },
+      {
+        name: "Sodium Thiosulfate with Hydrochloric Acid",
+        difficulty: "spicy",
+        reactants: ['Na2S2O3', 'HCl'],
+        products:  ['NaCl', 'SO2', 'S', 'H2O'],
+      },
+      {
+        name: "Ammonium Dichromate Decomposition",
+        difficulty: "spicy",
+        reactants: ['(NH4)2Cr2O7'],
+        products:  ['Cr2O3', 'N2', 'H2O'],
+      },
+      {
+        name: "Potassium Permanganate Decomposition",
+        difficulty: "spicy",
+        reactants: ['KMnO4'],
+        products:  ['K2MnO4', 'MnO2', 'O2'],
+      },
+      {
+        name: "Thermite Reaction",
+        difficulty: "spicy",
+        reactants: ['Fe2O3', 'Al'],
+        products:  ['Fe', 'Al2O3'],
+      },
+      {
+        name: "Phosphoric Acid Synthesis",
+        difficulty: "spicy",
+        reactants: ['P4O10', 'H2O'],
+        products:  ['H3PO4'],
+      },
+      {
+        name: "Aluminum Phosphate Precipitation",
+        difficulty: "spicy",
+        reactants: ['Na3PO4', 'Al2(SO4)3'],
+        products:  ['AlPO4', 'Na2SO4'],
+      },
+      {
+        name: "Iron(III) Oxide with Sulfuric Acid",
+        difficulty: "spicy",
+        reactants: ['Fe2O3', 'H2SO4'],
+        products:  ['Fe2(SO4)3', 'H2O'],
+      },
+      {
+        name: "Phosphate Rock with Sulfuric Acid",
+        difficulty: "spicy",
+        reactants: ['Ca3(PO4)2', 'H2SO4'],
+        products:  ['CaSO4', 'H3PO4'],
+      },
+      {
+        name: "Lead Sulfide Roasting",
+        difficulty: "spicy",
+        reactants: ['PbS', 'O2'],
+        products:  ['PbO', 'SO2'],
+      },
+      {
+        name: "Iron Pyrite Roasting",
+        difficulty: "spicy",
+        reactants: ['FeS2', 'O2'],
+        products:  ['Fe2O3', 'SO2'],
       },
     ];
 
@@ -853,6 +1033,19 @@
       return [...set].sort();
     }
 
+    function gcd(a, b) {
+      let x = Math.abs(a);
+      let y = Math.abs(b);
+      while (y !== 0) {
+        [x, y] = [y, x % y];
+      }
+      return x || 1;
+    }
+
+    function gcdArray(nums) {
+      return nums.reduce((acc, n) => gcd(acc, n), 0);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Shuffle + queue
     // ─────────────────────────────────────────────────────────────
@@ -865,12 +1058,13 @@
       return a;
     }
 
+    const QUESTIONS_PER_ROUND = 10;
     let queue = [];
 
     // Populate equation counts on each difficulty card
     ['mild', 'medium', 'spicy'].forEach(level => {
       const n = EQUATIONS.filter(e => e.difficulty === level).length;
-      document.getElementById(`count-${level}`).textContent = `${n} equations`;
+      document.getElementById(`count-${level}`).textContent = `${QUESTIONS_PER_ROUND} random from ${n}`;
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -1010,18 +1204,30 @@
     function update() {
       const eq      = queue[eqIndex];
       const balanced = renderAtomTable(eq);
+      const reducible = balanced && gcdArray(coeffs) > 1;
+      const banner = $('status-banner');
+      const nextBtn = $('next-btn');
 
-      if (balanced && !isSolved) {
+      if (balanced && !reducible && !isSolved) {
         isSolved = true;
         document.body.classList.add('solved');
-        $('status-banner').classList.add('visible');
-        $('next-btn').classList.add('visible');
-      } else if (!balanced && isSolved) {
-        // Allow un-solving (student keeps exploring)
+        banner.textContent = 'Balanced! Great work.';
+        banner.classList.add('visible');
+        nextBtn.classList.add('visible');
+      } else if (balanced && reducible) {
         isSolved = false;
         document.body.classList.remove('solved');
-        $('status-banner').classList.remove('visible');
-        $('next-btn').classList.remove('visible');
+        banner.textContent = 'Reduce!';
+        banner.classList.add('visible');
+        nextBtn.classList.remove('visible');
+      } else {
+        if (isSolved) {
+          // Allow un-solving (student keeps exploring)
+          isSolved = false;
+        }
+        document.body.classList.remove('solved');
+        banner.classList.remove('visible');
+        nextBtn.classList.remove('visible');
       }
     }
 
@@ -1039,6 +1245,7 @@
       // UI reset
       document.body.classList.remove('solved');
       $('status-banner').classList.remove('visible');
+      $('status-banner').textContent = 'Balanced! Great work.';
       $('next-btn').classList.remove('visible');
 
       // Content
@@ -1116,7 +1323,7 @@
     }
 
     function startLevel(level) {
-      queue   = shuffled(EQUATIONS.filter(e => e.difficulty === level));
+      queue   = shuffled(EQUATIONS.filter(e => e.difficulty === level)).slice(0, QUESTIONS_PER_ROUND);
       eqIndex = 0;
       document.getElementById('difficulty-screen').style.display = 'none';
       document.getElementById('main-content').style.display      = 'contents';
