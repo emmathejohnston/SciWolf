@@ -208,8 +208,30 @@
       font-size: 0.7rem;
       color: var(--muted);
       font-family: 'Courier New', monospace;
-      pointer-events: none;
       line-height: 1.5;
+      z-index: 2;
+    }
+    .orbital-token {
+      display: inline-block;
+      margin: 0 0.14rem;
+      padding: 0.08rem 0.26rem;
+      border-radius: 999px;
+      color: inherit;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: background-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    .orbital-token:hover,
+    .orbital-token:focus-visible {
+      background: rgba(148, 163, 184, 0.18);
+      color: var(--text);
+      outline: none;
+    }
+    .orbital-token.active {
+      background: rgba(96, 165, 250, 0.18);
+      color: var(--text);
     }
 
     /* ── View toggle ── */
@@ -653,6 +675,7 @@ function configToString(config) {
 // Uses Three.js — loaded via CDN script tag above <script>
 // ────────────────────────────────────────────────────────────────
 let o3d = null; // lazy-initialised Three.js context
+let activeOrbitalKey = null;
 
 function initOrbital3D() {
   if (o3d) return;
@@ -738,11 +761,72 @@ function addLobe(group, x, y, z, sx, sy, sz, mat) {
   mesh.position.set(x, y, z);
   mesh.scale.set(sx, sy, sz);
   group.add(mesh);
+  return mesh;
+}
+
+function registerOrbitalMesh(subKey, mesh) {
+  if (!o3d.orbitalMeshes.has(subKey)) o3d.orbitalMeshes.set(subKey, []);
+  mesh.userData.baseOpacity = mesh.material.opacity;
+  mesh.userData.baseEmissive = mesh.material.emissive?.getHex?.() ?? 0x000000;
+  o3d.orbitalMeshes.get(subKey).push(mesh);
+}
+
+function setActiveOrbitalHighlight(subKey) {
+  activeOrbitalKey = subKey;
+  if (!o3d?.orbitalMeshes) return;
+
+  const hasActive = !!subKey && o3d.orbitalMeshes.has(subKey);
+  for (const [key, meshes] of o3d.orbitalMeshes.entries()) {
+    const isActive = hasActive && key === subKey;
+    for (const mesh of meshes) {
+      const baseOpacity = mesh.userData.baseOpacity ?? 0.2;
+      mesh.material.opacity = hasActive
+        ? (isActive ? Math.min(baseOpacity + 0.34, 0.92) : Math.min(baseOpacity, 0.05))
+        : baseOpacity;
+      if (mesh.material.emissive) {
+        mesh.material.emissive.setHex(isActive ? 0x1d4ed8 : (mesh.userData.baseEmissive ?? 0x000000));
+      }
+    }
+  }
+
+  document.querySelectorAll('.orbital-token').forEach(token => {
+    token.classList.toggle('active', token.dataset.subKey === subKey);
+    token.setAttribute('aria-pressed', token.dataset.subKey === subKey ? 'true' : 'false');
+  });
+}
+
+function bindOrbitalTokenInteractions() {
+  const cfgEl = document.getElementById('orbital-cfg');
+  if (cfgEl.dataset.bound === 'true') return;
+
+  cfgEl.addEventListener('mouseover', evt => {
+    const token = evt.target.closest('.orbital-token');
+    if (token) setActiveOrbitalHighlight(token.dataset.subKey);
+  });
+  cfgEl.addEventListener('focusin', evt => {
+    const token = evt.target.closest('.orbital-token');
+    if (token) setActiveOrbitalHighlight(token.dataset.subKey);
+  });
+  cfgEl.addEventListener('click', evt => {
+    const token = evt.target.closest('.orbital-token');
+    if (!token) return;
+    const key = token.dataset.subKey;
+    setActiveOrbitalHighlight(activeOrbitalKey === key ? null : key);
+  });
+  cfgEl.addEventListener('mouseleave', evt => {
+    if (!cfgEl.contains(evt.relatedTarget)) setActiveOrbitalHighlight(null);
+  });
+  cfgEl.addEventListener('focusout', evt => {
+    if (!cfgEl.contains(evt.relatedTarget)) setActiveOrbitalHighlight(null);
+  });
+
+  cfgEl.dataset.bound = 'true';
 }
 
 function buildOrbital3D() {
   initOrbital3D();
   const { group } = o3d;
+  o3d.orbitalMeshes = new Map();
 
   // Dispose previous objects
   group.traverse(obj => {
@@ -801,6 +885,7 @@ function buildOrbital3D() {
 
   // ── Orbital clouds ──
   for (const sub of config) {
+    const subKey = `${sub.n}${sub.letter}`;
     const r  = nRadius[sub.n];
     const f  = sub.count / sub.cap;
     const mat = orbMat(sub.l, f);
@@ -811,7 +896,9 @@ function buildOrbital3D() {
     if (sub.l === 0) {
       // ── s: translucent sphere ──
       const geo = new THREE.SphereGeometry(r * 0.42, 20, 14);
-      group.add(new THREE.Mesh(geo, mat));
+      const mesh = new THREE.Mesh(geo, mat);
+      group.add(mesh);
+      registerOrbitalMesh(subKey, mesh);
 
     } else if (sub.l === 1) {
       // ── p: dumbbell lobes along x / y / z ──
@@ -819,8 +906,8 @@ function buildOrbital3D() {
       const AXES = [[1,0,0],[0,1,0],[0,0,1]];
       for (let i = 0; i < nP; i++) {
         const [ax,ay,az] = AXES[i];
-        addLobe(group,  ax*lo,  ay*lo,  az*lo, ax?ll:ls, ay?ll:ls, az?ll:ls, mat);
-        addLobe(group, -ax*lo, -ay*lo, -az*lo, ax?ll:ls, ay?ll:ls, az?ll:ls, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  ax*lo,  ay*lo,  az*lo, ax?ll:ls, ay?ll:ls, az?ll:ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -ax*lo, -ay*lo, -az*lo, ax?ll:ls, ay?ll:ls, az?ll:ls, mat));
       }
 
     } else if (sub.l === 2) {
@@ -830,38 +917,40 @@ function buildOrbital3D() {
 
       // dz²  — two lobes along z  +  toroidal ring in xy-plane
       if (nD >= 1) {
-        addLobe(group, 0, 0,  lo*1.15, ls*0.85, ls*0.85, ll*1.15, mat);
-        addLobe(group, 0, 0, -lo*1.15, ls*0.85, ls*0.85, ll*1.15, mat);
+        registerOrbitalMesh(subKey, addLobe(group, 0, 0,  lo*1.15, ls*0.85, ls*0.85, ll*1.15, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, 0, -lo*1.15, ls*0.85, ls*0.85, ll*1.15, mat));
         const tGeo = new THREE.TorusGeometry(lo*0.68, ls*0.33, 10, 30);
-        group.add(new THREE.Mesh(tGeo, mat.clone()));
+        const mesh = new THREE.Mesh(tGeo, mat.clone());
+        group.add(mesh);
+        registerOrbitalMesh(subKey, mesh);
       }
       // dx²−y²  — four lobes along ±x, ±y
       if (nD >= 2) {
-        addLobe(group,  lo, 0, 0, ll, ls*0.65, ls*0.65, mat);
-        addLobe(group, -lo, 0, 0, ll, ls*0.65, ls*0.65, mat);
-        addLobe(group, 0,  lo, 0, ls*0.65, ll, ls*0.65, mat);
-        addLobe(group, 0, -lo, 0, ls*0.65, ll, ls*0.65, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  lo, 0, 0, ll, ls*0.65, ls*0.65, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -lo, 0, 0, ll, ls*0.65, ls*0.65, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0,  lo, 0, ls*0.65, ll, ls*0.65, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, -lo, 0, ls*0.65, ll, ls*0.65, mat));
       }
       // dxy  — four lobes at 45° in xy-plane
       if (nD >= 3) {
-        addLobe(group,  d,  d, 0, ls, ls, ls*0.48, mat);
-        addLobe(group, -d, -d, 0, ls, ls, ls*0.48, mat);
-        addLobe(group,  d, -d, 0, ls, ls, ls*0.48, mat);
-        addLobe(group, -d,  d, 0, ls, ls, ls*0.48, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  d,  d, 0, ls, ls, ls*0.48, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -d, -d, 0, ls, ls, ls*0.48, mat));
+        registerOrbitalMesh(subKey, addLobe(group,  d, -d, 0, ls, ls, ls*0.48, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -d,  d, 0, ls, ls, ls*0.48, mat));
       }
       // dxz  — four lobes at 45° in xz-plane
       if (nD >= 4) {
-        addLobe(group,  d, 0,  d, ls, ls*0.48, ls, mat);
-        addLobe(group, -d, 0, -d, ls, ls*0.48, ls, mat);
-        addLobe(group,  d, 0, -d, ls, ls*0.48, ls, mat);
-        addLobe(group, -d, 0,  d, ls, ls*0.48, ls, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  d, 0,  d, ls, ls*0.48, ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -d, 0, -d, ls, ls*0.48, ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group,  d, 0, -d, ls, ls*0.48, ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -d, 0,  d, ls, ls*0.48, ls, mat));
       }
       // dyz  — four lobes at 45° in yz-plane
       if (nD >= 5) {
-        addLobe(group, 0,  d,  d, ls*0.48, ls, ls, mat);
-        addLobe(group, 0, -d, -d, ls*0.48, ls, ls, mat);
-        addLobe(group, 0,  d, -d, ls*0.48, ls, ls, mat);
-        addLobe(group, 0, -d,  d, ls*0.48, ls, ls, mat);
+        registerOrbitalMesh(subKey, addLobe(group, 0,  d,  d, ls*0.48, ls, ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, -d, -d, ls*0.48, ls, ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0,  d, -d, ls*0.48, ls, ls, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, -d,  d, ls*0.48, ls, ls, mat));
       }
 
     } else if (sub.l === 3) {
@@ -872,42 +961,42 @@ function buildOrbital3D() {
 
       // fz³: two main lobes along z
       if (nF >= 1) {
-        addLobe(group, 0, 0,  flo*1.2, fls*0.7, fls*0.7, fll*1.2, mat);
-        addLobe(group, 0, 0, -flo*1.2, fls*0.7, fls*0.7, fll*1.2, mat);
+        registerOrbitalMesh(subKey, addLobe(group, 0, 0,  flo*1.2, fls*0.7, fls*0.7, fll*1.2, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, 0, -flo*1.2, fls*0.7, fls*0.7, fll*1.2, mat));
       }
       // fxz² (±x, +z quadrant)
       if (nF >= 2) {
-        addLobe(group,  flo, 0, flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
-        addLobe(group, -flo, 0, flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  flo, 0, flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -flo, 0, flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat));
       }
       // fyz² (±y, +z quadrant)
       if (nF >= 3) {
-        addLobe(group, 0,  flo, flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
-        addLobe(group, 0, -flo, flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
+        registerOrbitalMesh(subKey, addLobe(group, 0,  flo, flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, -flo, flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat));
       }
       // fx(x²−3y²): rosette lobes at 45° in xy-plane
       if (nF >= 4) {
-        addLobe(group,  fd,  fd, 0, fls, fls, fls*0.38, mat);
-        addLobe(group, -fd, -fd, 0, fls, fls, fls*0.38, mat);
-        addLobe(group,  fd, -fd, 0, fls, fls, fls*0.38, mat);
-        addLobe(group, -fd,  fd, 0, fls, fls, fls*0.38, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  fd,  fd, 0, fls, fls, fls*0.38, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -fd, -fd, 0, fls, fls, fls*0.38, mat));
+        registerOrbitalMesh(subKey, addLobe(group,  fd, -fd, 0, fls, fls, fls*0.38, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -fd,  fd, 0, fls, fls, fls*0.38, mat));
       }
       // fxyz: off-axis lobes in +z octants
       if (nF >= 5) {
-        addLobe(group,  ft,  ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
-        addLobe(group, -ft,  ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
-        addLobe(group,  ft, -ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
-        addLobe(group, -ft, -ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  ft,  ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -ft,  ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat));
+        registerOrbitalMesh(subKey, addLobe(group,  ft, -ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -ft, -ft,  ft, fls*0.58, fls*0.58, fls*0.58, mat));
       }
       // fyz² mirrored below z=0
       if (nF >= 6) {
-        addLobe(group, 0,  flo, -flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
-        addLobe(group, 0, -flo, -flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat);
+        registerOrbitalMesh(subKey, addLobe(group, 0,  flo, -flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat));
+        registerOrbitalMesh(subKey, addLobe(group, 0, -flo, -flo*0.55, fls*0.5, fll*0.8, fls*0.9, mat));
       }
       // fxz² mirrored below z=0
       if (nF >= 7) {
-        addLobe(group,  flo, 0, -flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
-        addLobe(group, -flo, 0, -flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat);
+        registerOrbitalMesh(subKey, addLobe(group,  flo, 0, -flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat));
+        registerOrbitalMesh(subKey, addLobe(group, -flo, 0, -flo*0.55, fll*0.8, fls*0.5, fls*0.9, mat));
       }
     }
   }
@@ -916,13 +1005,16 @@ function buildOrbital3D() {
   const cfgLines = [];
   let ln = [];
   for (const sub of config) {
-    ln.push(`${sub.n}${sub.letter}${fmtSup(sub.count)}`);
+    const label = `${sub.n}${sub.letter}${fmtSup(sub.count)}`;
+    ln.push(`<span class="orbital-token" tabindex="0" role="button" aria-pressed="false" data-sub-key="${sub.n}${sub.letter}">${label}</span>`);
     if (ln.length >= 5) { cfgLines.push(ln.join(' ')); ln = []; }
   }
   if (ln.length) cfgLines.push(ln.join(' '));
   const cfgEl = document.getElementById('orbital-cfg');
   cfgEl.innerHTML = cfgLines.join('<br>');
   cfgEl.style.display = 'block';
+  bindOrbitalTokenInteractions();
+  setActiveOrbitalHighlight(o3d.orbitalMeshes.has(activeOrbitalKey) ? activeOrbitalKey : null);
 
   updateLabel();
   renderLewisDot();
