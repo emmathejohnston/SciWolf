@@ -285,6 +285,51 @@ Ideal sequence: finish KAN-38 Phase 5, then extract the phase images into the B2
 
 ---
 
+## ACCESSIBILITY: TEXT-TO-SPEECH & VOICE INPUT
+
+### Current lessons (grade-level literacy assumed)
+
+All current lesson pages include two opt-in accessibility tools, injected at page load via the Web Speech API (no backend, no API keys):
+
+**Read-aloud buttons (🔊)** — appear in the question number row of each question block and next to each evaluation prompt label. Tap to hear the full question read aloud; tap again to stop. Button pulses blue while speaking.
+
+**Dictation buttons (🎤)** — appear in the bottom-right corner of every long-form answer box. Tap to start recording; tap again to stop. Transcript appends to the box and triggers autosave. The mic button is hidden entirely on browsers that don't support `SpeechRecognition` (mainly Firefox) — no broken UI.
+
+Both buttons are hidden in the print/PDF output.
+
+**Browser support notes:**
+- TTS (`SpeechSynthesis`): Chrome, Edge, Safari, Firefox — voice quality varies by OS; Chromebook quality is acceptable
+- STT (`SpeechRecognition`): Chrome/Edge only — reliable on Chromebooks; unreliable on iOS Safari; not available in Firefox
+- Auto-play audio is blocked until the user has clicked something on the page — so TTS is always user-initiated
+
+---
+
+### Lower-literacy audience (future lessons)
+
+These are not add-ons to the current architecture — they require a different lesson design where the page does not rely on reading comprehension to carry content.
+
+**Core principle:** the page reads itself. Every instruction, every question, every context chunk is heard, not just read.
+
+**Structural approaches to explore:**
+
+*Chunked linear progression with audio gates.* Show one chunk at a time. The chunk auto-reads when it appears (after a user-initiated Start click to satisfy browser autoplay policy). A "Next" button unlocks only after audio finishes, or a skip option for students who don't need it. Mirrors a teacher walking through content aloud.
+
+*Voice-first answer boxes.* Flip the default: the answer box opens in mic mode — large mic button, student speaks, transcript appears, editable. Keyboard fallback but not keyboard-first. Bar for completion is speaking a thought, not spelling it.
+
+*Simplified context briefs.* Rewrite context at grade 5–6 reading level. Shorter. Read aloud by default. Pair text with icons or simple illustrations. Content can be the same; encoding changes.
+
+*Oral scaffold instead of written scaffold.* Current lessons scaffold with written sub-prompts (✓ checklist). For lower-literacy: play synthesized voice walking through scaffold step by step: "First, say which initiative you picked. Then explain what it does." Student hears the scaffold.
+
+*Sentence starters read aloud on focus.* When an answer box is focused, speak the placeholder text as a verbal prompt.
+
+**Honest limitations before building:**
+- STT accuracy on student speech is ~80–90% — accents, mumbling, ambient classroom noise all affect it. Transcript must be easily editable.
+- Firefox STT is not available. Know your school's browser before committing to voice-first.
+- Chromebook microphone permissions may require a one-time IT approval per site — matters for supply teacher viability.
+- Build one pilot lesson end to end before committing to the architecture. The interactions between no-autoplay-on-load, STT browser gaps, and transcript editing are easier to reason about once you've seen them live.
+
+---
+
 ## ARCHITECTURE NOTE
 
 Lesson pages are much lighter than sims — mostly HTML/CSS with embedded content. Single-file is fine for lesson pages (no game loop, no canvas physics). Multi-file architecture (as planned for KAN-38 and circuit.html) is only warranted when a lesson embeds a substantial new sim.
