@@ -964,28 +964,34 @@ function solveCircuit() {
     else { par[rb] = ra; rnk[ra]++; }
   }
 
-  const tk = (id, side) => `t:${id}:${side}`;
-  const bindKey = b => (b && b.compId != null) ? tk(b.compId, b.side) : null;
+  const tk  = (id, side) => `t:${id}:${side}`;
+  const wks = id => `w:${id}:s`;   // wire-start node key
+  const wke = id => `w:${id}:e`;   // wire-end node key
 
   // Init all terminal keys
   for (const c of comps) { ufInit(tk(c.id,'a')); ufInit(tk(c.id,'b')); }
 
-  // Wires: union their two bound terminals (zero-resistance conductor)
+  // Wires: each wire is a zero-resistance conductor — union start and end nodes,
+  // then union each end with its bound terminal (if any).
+  // Using explicit wire-node keys means free-endpoint wires still get nodes in
+  // the graph, so wire-wire-wire chains conduct correctly.
   for (const w of wires) {
-    const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
-    if (sk) ufInit(sk);
-    if (ek) ufInit(ek);
-    if (sk && ek) ufUnion(sk, ek);
+    ufInit(wks(w.id)); ufInit(wke(w.id));
+    ufUnion(wks(w.id), wke(w.id));           // wire is a conductor
+
+    const sk = w.startBind ? tk(w.startBind.compId, w.startBind.side) : null;
+    const ek = w.endBind   ? tk(w.endBind.compId,   w.endBind.side)   : null;
+    if (sk) { ufInit(sk); ufUnion(wks(w.id), sk); }
+    if (ek) { ufInit(ek); ufUnion(wke(w.id), ek); }
   }
 
-  // Wire crossings: every crossing = automatic electrical junction
+  // Wire crossings: every crossing = automatic electrical junction.
+  // Union the wire-node keys directly — no longer requires bound terminals.
   for (const x of computeJunctionsWithWires()) {
     const w1 = wires.find(w => w.id === x.w1id);
     const w2 = wires.find(w => w.id === x.w2id);
     if (!w1 || !w2) continue;
-    const k1 = bindKey(w1.startBind) || bindKey(w1.endBind);
-    const k2 = bindKey(w2.startBind) || bindKey(w2.endBind);
-    if (k1 && k2) ufUnion(k1, k2);
+    ufUnion(wks(w1.id), wks(w2.id));
   }
 
   const refRoot = ufFind(tk(bat.id,'a'));  // V = 0
@@ -1110,10 +1116,7 @@ function solveCircuit() {
     else if (Ie !== null)           wireI = Ie;
     else {
       // Both endpoints are batteries or unbound junctions — fall back to max-in-net heuristic
-      const sk = bindKey(w.startBind), ek = bindKey(w.endBind);
-      const anyKey = sk || ek;
-      if (!anyKey) continue; // floating wire with no component on either end
-      const root = ufFind(anyKey);
+      const root = ufFind(wks(w.id));
       wireI = 0;
       for (const c of comps) {
         if (c.type === 'battery') continue;
