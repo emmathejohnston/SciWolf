@@ -17,7 +17,7 @@
       --border: #334155;
     }
 
-    body.light {
+    html.light {
       --bg:       #f1f5f9;
       --surface:  #ffffff;
       --surface2: #e2e8f0;
@@ -496,6 +496,7 @@
       margin-top: 0.25rem;
     }
   </style>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
 <a href="index.html" class="home-btn" title="Home">⌂</a>
@@ -1350,12 +1351,12 @@
     (function() {
       const btn = document.getElementById('theme-toggle');
       const apply = (light) => {
-        document.body.classList.toggle('light', light);
+        document.documentElement.classList.toggle('light', light);
         btn.textContent = light ? '🌙 Dark' : '☀️ Light';
       };
       apply(localStorage.getItem('theme') === 'light');
       btn.addEventListener('click', () => {
-        const light = !document.body.classList.contains('light');
+        const light = !document.documentElement.classList.contains('light');
         localStorage.setItem('theme', light ? 'light' : 'dark');
         apply(light);
       });

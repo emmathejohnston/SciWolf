@@ -5,38 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Static Electricity</title>
   <style>
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --surface2: #334155;
+      --border:  #334155;
+      --muted:   #475569;
+      --text:    #f1f5f9;
+      --sub:     #94a3b8;
+      --accent:  #38bdf8;
+      --canvas-bg:   #0f172a;
+      --canvas-grid: rgba(51,65,85,0.3);
+    }
+    html.light {
+      --bg:      #f1f5f9;
+      --surface: #ffffff;
+      --surface2: #e2e8f0;
+      --border:  #cbd5e1;
+      --muted:   #94a3b8;
+      --text:    #0f172a;
+      --sub:     #475569;
+      --accent:  #0284c7;
+      --canvas-bg:   #f1f5f9;
+      --canvas-grid: rgba(148,163,184,0.3);
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0f172a;
+      background: var(--bg);
       overflow: hidden;
       font-family: 'Segoe UI', system-ui, sans-serif;
-      color: #f1f5f9;
+      color: var(--text);
       user-select: none;
     }
     .home-btn {
-    position: fixed;
-    top: 12px; left: 12px;
-    z-index: 999;
-    width: 36px; height: 36px;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    text-decoration: none;
-    font-size: 1.1rem;
-    color: #94a3b8;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-  }
-  .home-btn:hover { background: #334155; border-color: #38bdf8; color: #f1f5f9; }
-  #c { display: block; cursor: grab; }
+      position: fixed;
+      top: 12px; left: 12px;
+      z-index: 999;
+      width: 36px; height: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none;
+      font-size: 1.1rem;
+      color: var(--sub);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .home-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--text); }
+    #c { display: block; cursor: grab; }
     #c.dragging { cursor: grabbing; }
+
+    #theme-toggle {
+      position: fixed; top: 12px; right: 12px; z-index: 999;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 12px;
+      font-size: 0.8rem; color: var(--sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
 
     #toolbar {
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 86px;
-      background: #1e293b;
-      border-top: 1px solid #334155;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
       padding: 0 10px;
@@ -47,8 +81,8 @@
       flex-shrink: 0;
       width: 72px;
       height: 72px;
-      background: #334155;
-      border: 2px solid #475569;
+      background: var(--surface2);
+      border: 2px solid var(--muted);
       border-radius: 10px;
       display: flex;
       flex-direction: column;
@@ -57,11 +91,11 @@
       gap: 2px;
       cursor: pointer;
       font-size: 0.6rem;
-      color: #cbd5e1;
+      color: var(--sub);
       text-align: center;
       transition: background 0.12s, border-color 0.12s;
     }
-    .pitem:hover { background: #475569; border-color: #38bdf8; color: #f1f5f9; }
+    .pitem:hover { background: var(--muted); border-color: var(--accent); color: var(--text); }
     .pitem .icon { font-size: 1.55rem; line-height: 1.2; }
     .pitem img.blend-multiply { mix-blend-mode: multiply; }
     .hint {
@@ -69,19 +103,22 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15,23,42,0.88);
-      border: 1px solid #334155;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 5px 14px;
       font-size: 0.76rem;
-      color: #64748b;
+      color: var(--sub);
       pointer-events: none;
       white-space: nowrap;
+      opacity: 0.9;
     }
   </style>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
 <a href="index.html" class="home-btn" title="Home">⌂</a>
+<button id="theme-toggle">☀️ Light</button>
 <canvas id="c"></canvas>
 <div id="toolbar"></div>
 <div class="hint">Click palette to add · Drag to rub · Double-click to remove</div>
@@ -859,9 +896,10 @@ function drawElectroscope() {
 // Background
 // ═══════════════════════════════════════════════════════
 function drawBg() {
-  ctx.fillStyle = '#0f172a';
+  const style = getComputedStyle(document.documentElement);
+  ctx.fillStyle = style.getPropertyValue('--canvas-bg').trim();
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = 'rgba(51,65,85,0.3)';
+  ctx.strokeStyle = style.getPropertyValue('--canvas-grid').trim();
   ctx.lineWidth   = 1;
   for (let x = 0; x < canvas.width;  x += 60) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
@@ -1027,6 +1065,21 @@ resetBtn.addEventListener('click', () => {
   pith.charge        = 0;
 });
 toolbar.appendChild(resetBtn);
+
+// ═══════════════════════════════════════════════════════
+// Theme toggle
+// ═══════════════════════════════════════════════════════
+const themeBtn = document.getElementById('theme-toggle');
+const applyTheme = (light) => {
+  document.documentElement.classList.toggle('light', light);
+  themeBtn.textContent = light ? '🌙 Dark' : '☀️ Light';
+};
+applyTheme(document.documentElement.classList.contains('light'));
+themeBtn.addEventListener('click', () => {
+  const light = !document.documentElement.classList.contains('light');
+  localStorage.setItem('theme', light ? 'light' : 'dark');
+  applyTheme(light);
+});
 
 // ═══════════════════════════════════════════════════════
 // Boot

@@ -16,7 +16,7 @@
       --accent:  #38bdf8;
     }
 
-    body.light {
+    html.light {
       --bg:      #f1f5f9;
       --surface: #ffffff;
       --border:  #cbd5e1;
@@ -537,6 +537,7 @@
       color: var(--accent);
     }
   </style>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
 
@@ -1134,12 +1135,12 @@
 (function() {
   const btn = document.getElementById('theme-toggle');
   const apply = (light) => {
-    document.body.classList.toggle('light', light);
+    document.documentElement.classList.toggle('light', light);
     btn.textContent = light ? '🌙 Dark' : '☀️ Light';
   };
   apply(localStorage.getItem('theme') === 'light');
   btn.addEventListener('click', () => {
-    const light = !document.body.classList.contains('light');
+    const light = !document.documentElement.classList.contains('light');
     localStorage.setItem('theme', light ? 'light' : 'dark');
     apply(light);
   });

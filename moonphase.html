@@ -16,7 +16,7 @@
   --accent:  #38bdf8;
   --accent2: #818cf8;
 }
-body.light {
+html.light {
   --bg:      #c8d8e8;
   --surface: #d8e8f4;
   --border:  #8aabcc;
@@ -214,6 +214,7 @@ body {
   pointer-events: none;
 }
 </style>
+<script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
 
@@ -821,11 +822,11 @@ function render() {
   const cx = W/2, cy = H/2;
 
   // Background
-  ctx.fillStyle = document.body.classList.contains('light') ? '#c8d8e8' : '#060d1a';
+  ctx.fillStyle = document.documentElement.classList.contains('light') ? '#c8d8e8' : '#060d1a';
   ctx.fillRect(0, 0, W, H);
 
   // Stars
-  if (!document.body.classList.contains('light')) {
+  if (!document.documentElement.classList.contains('light')) {
     STARS.forEach(s => {
       const p = proj(s.x*2200, s.y*2200, s.z*2200, cx, cy);
       if (p.sx < -5 || p.sx > W+5 || p.sy < -5 || p.sy > H+5) return;
@@ -881,7 +882,7 @@ function render() {
   // Labels
   ctx.textAlign = 'center';
   ctx.font = '600 11px "Segoe UI", sans-serif';
-  ctx.fillStyle = document.body.classList.contains('light') ? 'rgba(10,22,40,0.7)' : 'rgba(180,210,240,0.75)';
+  ctx.fillStyle = document.documentElement.classList.contains('light') ? 'rgba(10,22,40,0.7)' : 'rgba(180,210,240,0.75)';
   ctx.fillText('Sun',   pSun.sx,   pSun.sy   - sunR(pSun)     - 10);
   ctx.fillText('Earth', pEarth.sx, pEarth.sy - earthR(pEarth) - 10);
   ctx.fillText('Moon',  pMoon.sx,  pMoon.sy  - moonRad(pMoon) - 10);
@@ -1034,12 +1035,12 @@ document.getElementById('btn-reset').addEventListener('click', () => { simTime =
 // ── Theme toggle ──────────────────────────────────────────────────────────────
 const themeBtn = document.getElementById('theme-toggle');
 const applyTheme = light => {
-  document.body.classList.toggle('light', light);
+  document.documentElement.classList.toggle('light', light);
   themeBtn.textContent = light ? '🌙 Dark' : '☀️ Light';
 };
 applyTheme(localStorage.getItem('theme') === 'light');
 themeBtn.addEventListener('click', () => {
-  const light = !document.body.classList.contains('light');
+  const light = !document.documentElement.classList.contains('light');
   localStorage.setItem('theme', light ? 'light' : 'dark');
   applyTheme(light);
 });

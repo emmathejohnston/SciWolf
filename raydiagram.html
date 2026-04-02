@@ -5,59 +5,104 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ray Diagram Simulator</title>
 <style>
+  :root {
+    --bg:         #1a1a2e;
+    --surface:    #12122a;
+    --surface2:   #0d1117;
+    --border:     #2a2a4a;
+    --border2:    #1e1e3a;
+    --text:       #e0e0e0;
+    --sub:        #a0b0c0;
+    --muted:      #8aa0b8;
+    --accent:     #7eb8f7;
+    --green:      #90ee90;
+    --btn-bg:     #1e2a3a;
+    --btn-border: #3a4a6a;
+    --btn-hover:  #2a3a5a;
+    --btn-active: #2a5a9a;
+    --btn-text:   #c0d0e0;
+  }
+  html.light {
+    --bg:         #f8fafc;
+    --surface:    #ffffff;
+    --surface2:   #f1f5f9;
+    --border:     #cbd5e1;
+    --border2:    #e2e8f0;
+    --text:       #0f172a;
+    --sub:        #475569;
+    --muted:      #64748b;
+    --accent:     #0284c7;
+    --green:      #16a34a;
+    --btn-bg:     #ffffff;
+    --btn-border: #cbd5e1;
+    --btn-hover:  #f1f5f9;
+    --btn-active: #0284c7;
+    --btn-text:   #374151;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
-  h1 { text-align: center; padding: 12px; font-size: 1.3rem; color: #7eb8f7; letter-spacing: 1px; background: #12122a; border-bottom: 1px solid #2a2a4a; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+  h1 { text-align: center; padding: 12px; font-size: 1.3rem; color: var(--accent); letter-spacing: 1px; background: var(--surface); border-bottom: 1px solid var(--border); }
   #main { display: flex; flex: 1; gap: 0; }
-  #controls { width: 280px; min-width: 220px; background: #12122a; padding: 14px; overflow-y: auto; border-right: 1px solid #2a2a4a; display: flex; flex-direction: column; gap: 12px; }
+  #controls { width: 280px; min-width: 220px; background: var(--surface); padding: 14px; overflow-y: auto; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
   #canvas-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
-  canvas { background: #0d1117; border-radius: 8px; border: 1px solid #2a2a4a; max-width: 100%; }
-  #equations { background: #0d1117; border-radius: 8px; border: 1px solid #2a2a4a; padding: 12px; margin-top: 8px; width: 100%; font-size: 0.9rem; display: none; }
+  canvas { background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); max-width: 100%; }
+  #equations { background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); padding: 12px; margin-top: 8px; width: 100%; font-size: 0.9rem; display: none; }
   #equations.visible { display: block; }
-  .eq-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #1e1e3a; }
+  .eq-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border2); }
   .eq-row:last-child { border-bottom: none; }
-  .eq-label { color: #7eb8f7; font-weight: bold; }
-  .eq-val { color: #90ee90; font-family: monospace; }
-  .section { background: #0d1117; border-radius: 6px; padding: 10px; border: 1px solid #1e1e3a; }
-  .section h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #7eb8f7; margin-bottom: 8px; }
+  .eq-label { color: var(--accent); font-weight: bold; }
+  .eq-val { color: var(--green); font-family: monospace; }
+  .section { background: var(--surface2); border-radius: 6px; padding: 10px; border: 1px solid var(--border2); }
+  .section h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 8px; }
   .btn-group { display: flex; flex-wrap: wrap; gap: 5px; }
-  button { background: #1e2a3a; border: 1px solid #3a4a6a; color: #c0d0e0; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.78rem; transition: all 0.15s; }
-  button:hover { background: #2a3a5a; }
-  button.active { background: #2a5a9a; border-color: #7eb8f7; color: #fff; }
+  button { background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--btn-text); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.78rem; transition: all 0.15s; }
+  button:hover { background: var(--btn-hover); }
+  button.active { background: var(--btn-active); border-color: var(--accent); color: #fff; }
   .slider-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
-  .slider-row label { font-size: 0.78rem; color: #a0b0c0; display: flex; justify-content: space-between; }
-  .slider-row label span { color: #90ee90; font-family: monospace; }
-  input[type=range] { width: 100%; accent-color: #7eb8f7; height: 4px; }
+  .slider-row label { font-size: 0.78rem; color: var(--sub); display: flex; justify-content: space-between; }
+  .slider-row label span { color: var(--green); font-family: monospace; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 4px; }
   .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-  .toggle-row label { font-size: 0.78rem; color: #a0b0c0; }
-  input[type=checkbox] { accent-color: #7eb8f7; width: 15px; height: 15px; cursor: pointer; }
-  .info-box { background: #0a1520; border-left: 3px solid #7eb8f7; padding: 8px; border-radius: 4px; font-size: 0.75rem; color: #8aa0b8; line-height: 1.5; }
+  .toggle-row label { font-size: 0.78rem; color: var(--sub); }
+  input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+  .info-box { background: var(--surface2); border-left: 3px solid var(--accent); padding: 8px; border-radius: 4px; font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
   .home-btn {
     position: fixed;
     top: 12px; left: 12px;
     z-index: 999;
     width: 36px; height: 36px;
-    background: #1a2535;
-    border: 1px solid #2a3a50;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 9px;
     display: flex; align-items: center; justify-content: center;
     text-decoration: none;
     font-size: 1.1rem;
-    color: #6a8aaa;
+    color: var(--sub);
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
-  .home-btn:hover { background: #2a3a50; border-color: #7eb8f7; color: #e0eaf5; }
+  .home-btn:hover { background: var(--btn-hover); border-color: var(--accent); color: var(--text); }
+  #theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 999;
+    background: var(--btn-bg); border: 1px solid var(--btn-border);
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 0.8rem; color: var(--sub); cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
 
   @media (max-width: 768px) {
     #main { flex-direction: column; }
     #canvas-area { order: -1; padding: 8px; }
-    #controls { width: 100%; min-width: unset; border-right: none; border-top: 1px solid #2a2a4a; }
+    #controls { width: 100%; min-width: unset; border-right: none; border-top: 1px solid var(--border); }
     canvas { width: 100% !important; height: auto !important; }
   }
 </style>
+<script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
 <a href="index.html" class="home-btn" title="Home">⌂</a>
+<button id="theme-toggle">☀️ Light</button>
 <h1>Ray Diagram Simulator</h1>
 <div id="main">
   <div id="controls">
@@ -1272,6 +1317,20 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 updateFInfo();
+
+// Theme toggle
+const themeBtn = document.getElementById('theme-toggle');
+const applyTheme = (light) => {
+  document.documentElement.classList.toggle('light', light);
+  themeBtn.textContent = light ? '🌙 Dark' : '☀️ Light';
+};
+applyTheme(document.documentElement.classList.contains('light'));
+themeBtn.addEventListener('click', () => {
+  const light = !document.documentElement.classList.contains('light');
+  localStorage.setItem('theme', light ? 'light' : 'dark');
+  applyTheme(light);
+  draw();
+});
 </script>
 </body>
 </html>
