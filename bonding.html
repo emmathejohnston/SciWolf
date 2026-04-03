@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonding Simulator</title>
+  <style>
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --surface2: #334155;
+      --accent:   #38bdf8;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --border:   #334155;
+      --electron: #60a5fa;
+    }
+    html.light {
+      --bg:       #f1f5f9;
+      --surface:  #ffffff;
+      --surface2: #e2e8f0;
+      --accent:   #0284c7;
+      --text:     #0f172a;
+      --muted:    #475569;
+      --border:   #cbd5e1;
+      --electron: #1d4ed8;
+    }
+
+    #theme-toggle {
+      position: fixed; top: 12px; right: 12px; z-index: 1000;
+      padding: 5px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 820px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    header { text-align: center; }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      padding: 5px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--text); }
+
+    .canvas-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #sim {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ── Info panel ── */
+    .info-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.25rem 1.5rem;
+      min-height: 72px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .info-hint {
+      color: var(--muted);
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+    }
+
+    .info-formula {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .info-name {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.3rem 1.5rem;
+      font-size: 0.83rem;
+    }
+
+    .info-row { display: flex; gap: 0.35rem; align-items: baseline; }
+    .info-key { color: var(--muted); white-space: nowrap; }
+    .info-val { color: var(--text); font-weight: 600; }
+
+    .info-badge {
+      display: inline-block;
+      padding: 0.08rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-ionic    { background: rgba(251,146,60,.18); color: #fb923c; }
+    .badge-polar    { background: rgba(167,139,250,.18); color: #a78bfa; }
+    .badge-nonpolar { background: rgba(52,211,153,.18);  color: #34d399; }
+    .badge-none     { background: rgba(148,163,184,.18); color: var(--muted); }
+
+    .info-warning {
+      background: rgba(251,191,36,.1);
+      border: 1px solid rgba(251,191,36,.3);
+      border-radius: 6px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      margin-top: 0.1rem;
+      line-height: 1.45;
+    }
+
+    /* ── ΔEN bar ── */
+    .en-bar-wrap {
+      margin-top: 0.5rem;
+    }
+    .en-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .en-bar {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(to right, #34d399, #60a5fa 30%, #a78bfa 65%, #fb923c);
+      overflow: visible;
+    }
+    .en-bar-needle {
+      position: absolute;
+      top: -4px;
+      width: 3px;
+      height: 18px;
+      border-radius: 2px;
+      background: var(--text);
+      transform: translateX(-50%);
+      transition: left 0.4s ease;
+      box-shadow: 0 0 4px rgba(0,0,0,0.4);
+    }
+    .en-bar-value {
+      position: absolute;
+      top: -18px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text);
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.65rem;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      max-width: 180px;
+      display: none;
+      z-index: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+    }
+    #tooltip .tt-sym  { font-size: 1.05rem; font-weight: 800; }
+    #tooltip .tt-name { color: var(--muted); font-size: 0.72rem; margin-bottom: 0.2rem; }
+    #tooltip .tt-row  { display: flex; justify-content: space-between; gap: 0.4rem; }
+    #tooltip .tt-key  { color: var(--muted); }
+
+    .home-btn {
+      position: fixed; top: 12px; left: 12px; z-index: 999;
+      width: 36px; height: 36px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none;
+      font-size: 1.1rem; color: var(--muted);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .home-btn:hover { background: var(--border); border-color: var(--accent); color: var(--text); }
+  </style>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
+</head>
+<body>
+<a href="index.html" class="home-btn" title="Home">⌂</a>
+<button id="theme-toggle">☀️ Light</button>
+
+<div class="container">
+  <header>
+    <h1>⚗ Bonding Simulator</h1>
+    <p class="subtitle">Select two elements to explore ionic and covalent bonding</p>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" id="clear-btn">✕ Clear</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="sim"></canvas>
+  </div>
+
+  <div class="info-panel" id="info-panel">
+    <p class="info-hint">Select two elements from the periodic table above to see their bond.</p>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════════
+
+const ELEMENTS = [
+  { Z:1,  sym:'H',  name:'Hydrogen',   period:1, group:1,  valence:1, EN:2.20, ox:[+1,-1],           cat:'nonmetal' },
+  { Z:2,  sym:'He', name:'Helium',     period:1, group:18, valence:2, EN:null, ox:[],                 cat:'noble' },
+  { Z:3,  sym:'Li', name:'Lithium',    period:2, group:1,  valence:1, EN:0.98, ox:[+1],               cat:'alkali' },
+  { Z:4,  sym:'Be', name:'Beryllium',  period:2, group:2,  valence:2, EN:1.57, ox:[+2],               cat:'alkali-earth' },
+  { Z:5,  sym:'B',  name:'Boron',      period:2, group:13, valence:3, EN:2.04, ox:[+3],               cat:'metalloid' },
+  { Z:6,  sym:'C',  name:'Carbon',     period:2, group:14, valence:4, EN:2.55, ox:[+4,-4],            cat:'nonmetal' },
+  { Z:7,  sym:'N',  name:'Nitrogen',   period:2, group:15, valence:5, EN:3.04, ox:[-3,+3,+5],         cat:'nonmetal' },
+  { Z:8,  sym:'O',  name:'Oxygen',     period:2, group:16, valence:6, EN:3.44, ox:[-2],               cat:'nonmetal' },
+  { Z:9,  sym:'F',  name:'Fluorine',   period:2, group:17, valence:7, EN:3.98, ox:[-1],               cat:'nonmetal' },
+  { Z:10, sym:'Ne', name:'Neon',       period:2, group:18, valence:8, EN:null, ox:[],                 cat:'noble' },
+  { Z:11, sym:'Na', name:'Sodium',     period:3, group:1,  valence:1, EN:0.93, ox:[+1],               cat:'alkali' },
+  { Z:12, sym:'Mg', name:'Magnesium',  period:3, group:2,  valence:2, EN:1.31, ox:[+2],               cat:'alkali-earth' },
+  { Z:13, sym:'Al', name:'Aluminium',  period:3, group:13, valence:3, EN:1.61, ox:[+3],               cat:'post-transition' },
+  { Z:14, sym:'Si', name:'Silicon',    period:3, group:14, valence:4, EN:1.90, ox:[+4,-4],            cat:'metalloid' },
+  { Z:15, sym:'P',  name:'Phosphorus', period:3, group:15, valence:5, EN:2.19, ox:[-3,+3,+5],         cat:'nonmetal' },
+  { Z:16, sym:'S',  name:'Sulfur',     period:3, group:16, valence:6, EN:2.58, ox:[-2,+4,+6],         cat:'nonmetal' },
+  { Z:17, sym:'Cl', name:'Chlorine',   period:3, group:17, valence:7, EN:3.16, ox:[-1,+1,+3,+5,+7],  cat:'nonmetal' },
+  { Z:18, sym:'Ar', name:'Argon',      period:3, group:18, valence:8, EN:null, ox:[],                 cat:'noble' },
+];
+
+const ANION_NAMES = {
+  H:'hydride', B:'boride', C:'carbide', N:'nitride',
+  O:'oxide', F:'fluoride', Si:'silicide', P:'phosphide',
+  S:'sulfide', Cl:'chloride', Al:'aluminide',
+};
+
+// Common-name overrides for well-known covalent compounds
+// Keys use subscript Unicode digits to match the Hill-order formula output of deriveFormula()
+const COMMON_NAMES = {
+  'CO':   'carbon monoxide',
+  'NO':   'nitric oxide',
+  'H₂O':  'water',
+  'H₂O₂': 'hydrogen peroxide',
+  'NH₃':  'ammonia',
+  'CH₄':  'methane',
+  'HCl':  'hydrogen chloride',
+  'HF':   'hydrogen fluoride',
+  'H₂S':  'hydrogen sulfide',
+  'H₂':   'dihydrogen',
+  'N₂':   'dinitrogen',
+  'O₂':   'dioxygen',
+  'F₂':   'difluorine',
+  'Cl₂':  'dichlorine',
+  'N₂O':  'nitrous oxide',
+};
+
+// Ionic override: pairs that are experimentally ionic but fall below the ΔEN > 1.7 threshold.
+// The Pauling threshold was calibrated on halides/oxides; sulfides and phosphides with
+// alkali/alkali-earth metals are consistently ionic solids despite lower ΔEN values.
+// Keys are canonical 'lowerEN_sym-higherEN_sym' (lower EN first = metal first).
+const IONIC_OVERRIDE = new Set([
+  'Li-S','Na-S','Mg-S','Ca-S','K-S',   // metal sulfides
+  'Li-P','Na-P','K-P','Mg-P','Ca-P',   // metal phosphides
+  'Al-S','Al-P',                         // aluminium sulfide/phosphide are debated but
+                                         // typically treated as ionic at secondary level
+]);
+
+// ═══════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════
+
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+const SUB_CHARS = '₀₁₂₃₄₅₆₇₈₉';
+const SUP_CHARS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+function sub(n)  { return n <= 1 ? '' : String(n).split('').map(d => SUB_CHARS[+d]).join(''); }
+function supN(n) { return String(n).split('').map(d => SUP_CHARS[+d]).join(''); }
+function supCharge(c) {
+  if (c === 0) return '';
+  const mag = Math.abs(c);
+  const sign = c > 0 ? '⁺' : '⁻';
+  return (mag === 1 ? '' : supN(mag)) + sign;
+}
+
+function octetOf(e) { return e.Z === 1 ? 2 : 8; }
+
+// ═══════════════════════════════════════════════════════════════════════
+// BOND CLASSIFICATION
+// ═══════════════════════════════════════════════════════════════════════
+
+function classifyBond(a, b) {
+  const exceptions = [];
+
+  // Noble gas
+  if (a.cat === 'noble' || b.cat === 'noble') {
+    const noble = a.cat === 'noble' ? a : b;
+    return { type: 'none', message: `${noble.name} has a full valence shell and does not form bonds under normal conditions.` };
+  }
+
+  const homo = (a.Z === b.Z);
+  const enA = a.EN, enB = b.EN;
+  // Round to 2 decimal places to avoid floating-point noise (e.g. N–O: 3.04−3.44 = 0.3999…)
+  const deltaEN = homo ? 0 : Math.round(Math.abs(enA - enB) * 100) / 100;
+
+  let type;
+  // Ionic requires ΔEN > 1.7 AND at least one metallic atom (alkali/alkali-earth/post-transition).
+  // Nonmetal–nonmetal pairs (including H+F) are always covalent regardless of ΔEN.
+  const hasMetal = ['alkali','alkali-earth','post-transition'].includes(a.cat)
+                || ['alkali','alkali-earth','post-transition'].includes(b.cat);
+  // Canonical key for override lookup: metal symbol first (lower EN)
+  const [loSym, hiSym] = a.EN <= b.EN ? [a.sym, b.sym] : [b.sym, a.sym];
+  const overrideKey = loSym + '-' + hiSym;
+  const ionicOverride = hasMetal && IONIC_OVERRIDE.has(overrideKey);
+
+  if      ((deltaEN > 1.7 && hasMetal) || ionicOverride) type = 'ionic';
+  else if (deltaEN >= 0.4)                               type = 'polar-covalent';
+  else                                                   type = 'nonpolar-covalent';
+
+  if (ionicOverride && deltaEN <= 1.7) {
+    exceptions.push({ msg: `ΔEN = ${deltaEN.toFixed(2)} is below the usual 1.7 ionic threshold, but ${a.sym}–${b.sym} compounds are experimentally ionic solids. The Pauling threshold under-predicts ionicity for sulfides and phosphides.` });
+  }
+
+  // ── IONIC ──────────────────────────────────────────────────────────
+  if (type === 'ionic') {
+    const [cat, ani] = enA < enB ? [a, b] : [b, a];
+
+    const catMag = Math.abs(cat.ox[0] || 1);
+    const aniMag = Math.abs(ani.ox[0] || 1);
+    const g = gcd(catMag, aniMag);
+    const stoichCat = aniMag / g;
+    const stoichAni = catMag / g;
+
+    const stoichA = cat.Z === a.Z ? stoichCat : stoichAni;
+    const stoichB = cat.Z === a.Z ? stoichAni : stoichCat;
+
+    const formula   = cat.sym + sub(stoichCat) + ani.sym + sub(stoichAni);
+    const aniIdeName = ANION_NAMES[ani.sym] || ani.name.toLowerCase() + 'ide';
+    const iupacName  = cat.name + ' ' + aniIdeName;
+
+    const catElectrons = cat.valence - catMag;   // electrons remaining on cation
+    const aniElectrons = Math.min(8, ani.valence + aniMag); // electrons on anion (capped at 8)
+
+    // Flag H as anion in metal hydrides
+    if (ani.sym === 'H') {
+      exceptions.push({ msg: 'In metal hydrides, hydrogen acts as H⁻ (hydride anion) — the negative ion. This surprises many students who expect H to always be H⁺.' });
+    }
+    // Flag borderline ionic/polar character
+    if (deltaEN >= 1.5 && deltaEN <= 1.85) {
+      exceptions.push({ msg: `ΔEN = ${deltaEN.toFixed(2)} is near the ionic/covalent boundary (1.7). This bond has significant polar covalent character.` });
+    }
+
+    return {
+      type: 'ionic', deltaEN, formula, iupacName,
+      homo: false, elemA: a, elemB: b,
+      cation: cat, anion: ani,
+      catChargeMag: catMag, aniChargeMag: aniMag,
+      catElectrons, aniElectrons,
+      stoichA, stoichB, exceptions,
+    };
+  }
+
+  // ── COVALENT ───────────────────────────────────────────────────────
+  // Octet bond-order formula is reliable only when both atoms are pure nonmetals.
+  // For metals (alkali, alkali-earth) and metalloids/post-transition in covalent bonds,
+  // force BO = 1 (single bond) since those elements rarely form multiple covalent bonds.
+  const isNonmetal = e => e.cat === 'nonmetal';  // H, C, N, O, F, P, S, Cl
+  const bothNonmetal = isNonmetal(a) && isNonmetal(b);
+
+  const bnA = octetOf(a) - a.valence;
+  const bnB = octetOf(b) - b.valence;
+  const totalSharedE = bnA + bnB;
+
+  let bondOrder;
+  let radical = false;
+
+  if (!bothNonmetal) {
+    // Metal or metalloid involved — always single bond
+    bondOrder = 1;
+    const metName = !isNonmetal(a) ? a.sym : b.sym;
+    exceptions.push({ msg: `${a.sym}−${b.sym}: bond order forced to 1 because ${metName} is a metal or metalloid. Multiple covalent bonds are not expected here.` });
+  } else if (totalSharedE % 2 !== 0) {
+    // Odd-electron (radical) — use floor to get the conservative bond order
+    radical = true;
+    bondOrder = Math.floor(totalSharedE / 2);
+    exceptions.push({ msg: `${a.sym}${homo ? '₂' : b.sym} is an odd-electron (radical) species — it has an unpaired electron and cannot fully satisfy the octet rule.` });
+  } else {
+    bondOrder = totalSharedE / 2;
+    if (bondOrder > 3) {
+      bondOrder = 3;
+      exceptions.push({ msg: `Octet rule predicts an unusually high bond order for ${a.sym}−${b.sym}; capped at 3. This element pair has non-standard bonding.` });
+    }
+  }
+
+  if (bondOrder <= 0) bondOrder = 1;
+
+  if (bondOrder <= 0) {
+    return { type: 'none', message: `${a.sym} and ${b.sym} both have full valence shells and do not bond.` };
+  }
+
+  // Lone pair electrons per atom in the bonded state.
+  // Nonmetals: octet-based formula  → octet(X) − 2·BO  (works for N₂, CO, HF, etc.)
+  // Metals/metalloids: valence-based → valence(X) − BO  (avoids phantom lone pairs on Na, Al, etc.)
+  const calcLone = (e, bo) => isNonmetal(e)
+    ? Math.max(0, octetOf(e) - bo * 2)
+    : Math.max(0, e.valence - bo);
+  const loneA = calcLone(a, bondOrder);
+  const loneB = calcLone(b, bondOrder);
+
+  // Incomplete octet warning (after bond order is finalised)
+  if (octetOf(a) - bondOrder * 2 < 0 || (a.valence + bondOrder > octetOf(a) && a.Z !== 1)) {
+    exceptions.push({ msg: `${a.name} (${a.sym}) has an incomplete ${a.Z === 1 ? 'duet' : 'octet'} — a known exception to the octet rule.` });
+  }
+  if (!homo && (octetOf(b) - bondOrder * 2 < 0)) {
+    exceptions.push({ msg: `${b.name} (${b.sym}) has an incomplete ${b.Z === 1 ? 'duet' : 'octet'} — a known exception.` });
+  }
+
+  // Formula
+  const [first, second] = (homo || enA <= enB) ? [a, b] : [b, a];
+  const formula = homo ? (first.sym + '₂') : (first.sym + second.sym);
+
+  // IUPAC name
+  let iupacName;
+  if (homo) {
+    iupacName = 'di' + a.name.toLowerCase();
+  } else {
+    const f = enA <= enB ? a : b;
+    const s = enA <= enB ? b : a;
+    const aniIdeName = ANION_NAMES[s.sym] || s.name.toLowerCase().replace(/ine$/, 'ide') + 'ide';
+    iupacName = f.name.toLowerCase() + ' ' + aniIdeName;
+  }
+  iupacName = COMMON_NAMES[formula] || iupacName;
+
+  // Metal hydride polarity note
+  const hasH   = a.sym === 'H' || b.sym === 'H';
+  const hasMet = ['alkali','alkali-earth'].includes(a.cat) || ['alkali','alkali-earth'].includes(b.cat);
+  if (type === 'polar-covalent' && hasH && hasMet) {
+    exceptions.push({ msg: `Metal hydrides like ${formula} typically behave as ionic compounds (H acts as H⁻) despite ΔEN < 1.7 by Pauling's scale.` });
+  }
+
+  return {
+    type, deltaEN, bondOrder,
+    loneA, loneB,
+    formula, iupacName,
+    homo, elemA: a, elemB: b,
+    stoichA: 1, stoichB: 1,
+    exceptions,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CANVAS + LAYOUT
+// ═══════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('sim');
+const ctx    = canvas.getContext('2d');
+const CW = 780, CH = 600;
+canvas.width  = CW;
+canvas.height = CH;
+
+// Periodic table layout
+const TX = 18;
+const TY = 46;
+const CS = Math.floor((CW - TX * 2) / 18);  // cell size (~41px)
+
+const TABLE_BOTTOM = TY + CS * 3 + 10;
+const STAGE_TOP    = TABLE_BOTTOM + 14;
+const STAGE_H      = CH - STAGE_TOP;
+
+// Atom geometry
+const R_ATOM = 22;
+
+// Category tile styles [darkFill, darkStroke, darkText, lightFill, lightStroke, lightText]
+const CAT_STYLE = {
+  'alkali':          ['#431407','#fb923c','#fed7aa', '#fff7ed','#ea580c','#7c2d12'],
+  'alkali-earth':    ['#3f2200','#fbbf24','#fef3c7', '#fffbeb','#d97706','#78350f'],
+  'metalloid':       ['#052e16','#4ade80','#bbf7d0', '#f0fdf4','#16a34a','#14532d'],
+  'nonmetal':        ['#082f49','#38bdf8','#bae6fd', '#f0f9ff','#0284c7','#0c4a6e'],
+  'noble':           ['#1e293b','#475569','#64748b', '#f8fafc','#94a3b8','#94a3b8'],
+  'post-transition': ['#3b0764','#c084fc','#f3e8ff', '#fdf4ff','#9333ea','#581c87'],
+};
+
+// Stage bounds for clamping atom positions
+const STAGE_PAD = R_ATOM + 10;
+const SX_MIN = TX + STAGE_PAD;
+const SX_MAX = CW - TX - STAGE_PAD;
+const SY_MIN = STAGE_TOP + STAGE_PAD;
+const SY_MAX = CH - STAGE_PAD;
+
+// ═══════════════════════════════════════════════════════════════════════
+// ATOM CLASS
+// ═══════════════════════════════════════════════════════════════════════
+
+class Atom {
+  constructor(elem, x, y) {
+    this.id   = ++Atom._nextId;
+    this.elem = elem;
+    this.x    = x;
+    this.y    = y;
+
+    // Electron orbit: one entry per valence electron
+    // orbitRadius grows slightly with period so shells look different
+    const orbitR = 36 + elem.period * 4;
+    const baseSpeed = 0.022 - elem.period * 0.003;  // rad/frame @ 60fps
+    this.electrons = [];
+    for (let i = 0; i < elem.valence; i++) {
+      this.electrons.push({
+        angle:  (2 * Math.PI * i) / elem.valence,
+        radius: orbitR,
+        speed:  baseSpeed * (1 + 0.12 * (i % 2 === 0 ? 1 : -1)),
+        // transfer state (ionic)
+        transferTarget: null,   // atom id to arc toward
+        transferDelay:  0,      // normalized 0-1 start offset
+        transferProgress: 0,    // 0-1 arc progress
+        transferred: false,     // true once arrived at acceptor
+        // shared state (covalent)
+        shared: false,
+        sharedWith: null,       // atom id
+        sharedBias: 0,          // -1..1: negative = bias toward this atom, positive = toward other
+      });
+    }
+
+    // Bond state
+    this.bonds = [];          // Bond ids this atom is part of
+
+    // Drag state
+    this.dragging  = false;
+    this.dragOffX  = 0;
+    this.dragOffY  = 0;
+
+    // Visual state
+    this.glowAlpha   = 0;     // proximity glow 0-1
+    this.chargeLabel = null;  // e.g. '+1', '-2' after ionic bond
+    this.stable      = false; // true when stoichiometry is satisfied
+  }
+}
+Atom._nextId = 0;
+
+// ═══════════════════════════════════════════════════════════════════════
+// BOND OBJECT
+// ═══════════════════════════════════════════════════════════════════════
+
+class Bond {
+  constructor(atomA, atomB, result) {
+    this.id      = ++Bond._nextId;
+    this.idA     = atomA.id;
+    this.idB     = atomB.id;
+    this.result  = result;
+    this.phase   = 'forming';   // 'forming' | 'formed'
+    this.progress = 0;          // 0-1 overall bond formation
+    this.transferParticles = [];
+    this.stoichComplete = false;
+  }
+}
+Bond._nextId = 0;
+
+// ═══════════════════════════════════════════════════════════════════════
+// STAGE STATE
+// ═══════════════════════════════════════════════════════════════════════
+
+const stageAtoms = [];
+const stageBonds = [];
+
+let hovered    = null;   // element tile under cursor
+let dragAtom   = null;   // Atom currently being dragged
+
+// Snap distance: drag atom within this many px of compatible partner → bond triggers
+const SNAP_DIST   = 90;
+const GLOW_DIST   = 160;
+
+// Bond formation durations (ms)
+const DUR_APPROACH    = 0;    // atoms are placed by drag; no approach phase
+const DUR_TRANSFER    = 900;
+const DUR_ION_FORM    = 400;
+const DUR_COVALENT    = 600;
+
+// ═══════════════════════════════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════════════════════════════
+
+let rafId   = null;
+let lastTs  = 0;
+
+function startLoop() {
+  if (rafId) return;
+  lastTs = performance.now();
+  rafId  = requestAnimationFrame(gameLoop);
+}
+
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTs) / 1000, 0.05);
+  lastTs = ts;
+  updateElectrons(dt);
+  updateBonds(dt);
+  updateGlow(dt);
+  drawAll();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+function getAtomById(id)   { return stageAtoms.find(a => a.id === id) || null; }
+function getBondById(id)   { return stageBonds.find(b => b.id === id) || null; }
+function dist2(a, b)       { return Math.hypot(a.x - b.x, a.y - b.y); }
+function easeInOut(t)      { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function electronColor(atom) {
+  // Consistent color per atom: use its id parity so A-type and B-type atoms look distinct
+  // In practice we use the index in stageAtoms
+  const idx = stageAtoms.indexOf(atom);
+  const COLORS = ['#60a5fa','#f87171','#34d399','#fbbf24','#a78bfa','#fb923c'];
+  return COLORS[idx % COLORS.length];
+}
+
+// Metal categories — two metals should not bond to each other in this sim
+const METAL_CATS = new Set(['alkali', 'alkali-earth', 'post-transition']);
+
+function canBond(a, b) {
+  if (a.elem.cat === 'noble' || b.elem.cat === 'noble') return false;
+  // Prevent two metals bonding to each other — not meaningful in a binary ionic sim
+  if (METAL_CATS.has(a.elem.cat) && METAL_CATS.has(b.elem.cat)) return false;
+  // Don't re-bond a pair already bonded to each other
+  for (const bId of a.bonds) {
+    const bond = getBondById(bId);
+    if (bond && (bond.idA === b.id || bond.idB === b.id)) return false;
+  }
+  const r = classifyBond(a.elem, b.elem);
+  return r.type !== 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// UPDATE — ELECTRONS
+// ═══════════════════════════════════════════════════════════════════════
+
+function updateElectrons(dt) {
+  for (const atom of stageAtoms) {
+    for (const e of atom.electrons) {
+      if (e.transferred) continue;
+
+      if (e.transferTarget !== null) {
+        // Arc toward acceptor atom
+        const acceptor = getAtomById(e.transferTarget);
+        if (!acceptor) { e.transferred = true; continue; }
+
+        // Wait for delay window
+        const bond = stageBonds.find(b =>
+          (b.idA === atom.id || b.idB === atom.id) &&
+          (b.idA === acceptor.id || b.idB === acceptor.id)
+        );
+        if (!bond) continue;
+
+        const transferDuration = DUR_TRANSFER / 1000;
+        const phaseProgress = bond._transferPhaseProgress || 0;
+        const span = 1 - e.transferDelay;
+        const adjustedP = span <= 0 ? 1 : Math.max(0, (phaseProgress - e.transferDelay) / span);
+        e.transferProgress = Math.min(1, adjustedP);
+
+        if (e.transferProgress >= 1) {
+          // Electron arrives — re-parent to acceptor
+          e.transferred = true;
+          const newE = {
+            angle:    Math.atan2(atom.y - acceptor.y, atom.x - acceptor.x),
+            radius:   acceptor.electrons[0]?.radius ?? 40,
+            speed:    0.020,
+            transferTarget: null, transferDelay: 0, transferProgress: 0,
+            transferred: false, received: true,
+            shared: false, sharedWith: null, sharedBias: 0,
+          };
+          acceptor.electrons.push(newE);
+          // Immediately refresh charge labels so the anion shows correct charge
+          refreshAllChargeLabels();
+        }
+      } else if (e.shared) {
+        // Covalent: oscillate between this atom and sharedWith
+        const partner = getAtomById(e.sharedWith);
+        if (!partner) { e.shared = false; continue; }
+        e.angle += e.speed * dt * 60;
+      } else {
+        // Free orbit
+        e.angle += e.speed * dt * 60;
+        if (e.angle > Math.PI * 2) e.angle -= Math.PI * 2;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// UPDATE — BONDS
+// ═══════════════════════════════════════════════════════════════════════
+
+function updateBonds(dt) {
+  for (const bond of stageBonds) {
+    if (bond.phase !== 'forming') continue;
+
+    const type = bond.result.type;
+
+    if (type === 'ionic') {
+      // Sub-phases: transfer (0-0.6) → ion-form (0.6-1.0)
+      bond.progress = Math.min(1, bond.progress + dt / (DUR_TRANSFER / 1000 + DUR_ION_FORM / 1000));
+
+      const tProgress = Math.min(1, bond.progress / 0.6);  // 0-1 within transfer window
+      bond._transferPhaseProgress = tProgress;
+
+      if (bond.progress >= 1) {
+        bond.phase = 'formed';
+        applyBondFinalState(bond);
+        refreshAllChargeLabels();
+        checkStoichiometry();
+      }
+    } else {
+      // Covalent: single phase
+      bond.progress = Math.min(1, bond.progress + dt / (DUR_COVALENT / 1000));
+      if (bond.progress >= 1) {
+        bond.phase = 'formed';
+        applyBondFinalState(bond);
+        checkStoichiometry();
+      }
+    }
+  }
+}
+
+// Count electrons received from other atoms (those pushed in beyond original valence).
+// We tag received electrons with `received: true` when re-parenting.
+function countReceivedElectrons(atom) {
+  return atom.electrons.filter(e => e.received === true).length;
+}
+
+// Count how many electrons an atom has donated (departed)
+function countDonatedElectrons(atom) {
+  return atom.electrons.filter(e => e.transferred === true).length;
+}
+
+function applyBondFinalState(bond) {
+  const atomA = getAtomById(bond.idA);
+  const atomB = getAtomById(bond.idB);
+  if (!atomA || !atomB) return;
+
+  if (bond.result.type === 'ionic') {
+    const cation = bond.result.cation.Z === atomA.elem.Z ? atomA : atomB;
+    const anion  = bond.result.cation.Z === atomA.elem.Z ? atomB : atomA;
+    // Use actual electrons transferred, not the theoretical max from classifyBond
+    updateIonChargeLabels(cation, anion);
+  } else {
+    // Covalent: mark electrons as shared (bond-order electrons from each atom)
+    const bo = bond.result.bondOrder || 1;
+    let countA = 0, countB = 0;
+    for (const e of atomA.electrons) {
+      if (!e.shared && !e.transferred && countA < bo) {
+        e.shared = true; e.sharedWith = atomB.id;
+        e.sharedBias = bond.result.type === 'polar-covalent'
+          ? (atomA.elem.EN > atomB.elem.EN ? -0.35 : 0.35)
+          : 0;
+        countA++;
+      }
+    }
+    for (const e of atomB.electrons) {
+      if (!e.shared && !e.transferred && countB < bo) {
+        e.shared = true; e.sharedWith = atomA.id;
+        e.sharedBias = bond.result.type === 'polar-covalent'
+          ? (atomB.elem.EN > atomA.elem.EN ? -0.35 : 0.35)
+          : 0;
+        countB++;
+      }
+    }
+    // Settle lone-pair electrons to the far side of each atom (away from the bond)
+    settleLonePairs(atomA, atomB);
+    settleLonePairs(atomB, atomA);
+  }
+}
+
+// Redistribute non-shared electrons to orbit the hemisphere facing away from the partner.
+// This gives a visually honest lone-pair placement after a covalent bond forms.
+function settleLonePairs(atom, partner) {
+  // Angle pointing FROM partner TO this atom (i.e. the "far" direction)
+  const awayAngle = Math.atan2(atom.y - partner.y, atom.x - partner.x);
+  // Lone electrons: not shared, not transferred, no transferTarget
+  const loneElectrons = atom.electrons.filter(
+    e => !e.shared && !e.transferred && e.transferTarget === null
+  );
+  const n = loneElectrons.length;
+  if (n === 0) return;
+  // Spread lone pairs evenly across a 220° arc centred on awayAngle
+  // (leaving ~140° on the bond-facing side clear)
+  const spread = (220 * Math.PI) / 180;
+  loneElectrons.forEach((e, i) => {
+    const offset = n === 1 ? 0 : (i / (n - 1) - 0.5) * spread;
+    e.angle = awayAngle + offset;
+    // Slow them right down so they look "settled" rather than buzzing
+    e.speed = 0.003 + Math.random() * 0.002;
+  });
+}
+
+function updateIonChargeLabels(cation, anion) {
+  const donated  = countDonatedElectrons(cation);
+  const received = countReceivedElectrons(anion);
+  cation.chargeLabel = donated  > 0 ? '+' + donated  : null;
+  anion.chargeLabel  = received > 0 ? '\u2212' + received : null;
+}
+
+// Refresh all ion charge labels on stage (called after any bond completes)
+function refreshAllChargeLabels() {
+  for (const bond of stageBonds) {
+    if (bond.result.type !== 'ionic') continue;
+    const atomA = getAtomById(bond.idA);
+    const atomB = getAtomById(bond.idB);
+    if (!atomA || !atomB) continue;
+    const cation = bond.result.cation.Z === atomA.elem.Z ? atomA : atomB;
+    const anion  = bond.result.cation.Z === atomA.elem.Z ? atomB : atomA;
+    updateIonChargeLabels(cation, anion);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// UPDATE — PROXIMITY GLOW
+// ═══════════════════════════════════════════════════════════════════════
+
+function updateGlow(dt) {
+  // Reset all
+  for (const atom of stageAtoms) {
+    if (atom !== dragAtom) atom.glowAlpha = Math.max(0, atom.glowAlpha - dt * 4);
+  }
+  if (!dragAtom) return;
+
+  for (const atom of stageAtoms) {
+    if (atom === dragAtom) continue;
+    const d = dist2(dragAtom, atom);
+    if (d < GLOW_DIST && canBond(dragAtom, atom)) {
+      atom.glowAlpha = Math.min(1, (1 - d / GLOW_DIST) * 1.4);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BONDING TRIGGER
+// ═══════════════════════════════════════════════════════════════════════
+
+function triggerBond(a, b) {
+  const result = classifyBond(a.elem, b.elem);
+  if (result.type === 'none') return;
+
+  const bond = new Bond(a, b, result);
+  stageBonds.push(bond);
+  a.bonds.push(bond.id);
+  b.bonds.push(bond.id);
+
+  // For ionic: transfer only as many electrons as the acceptor still needs to fill its shell.
+  // e.g. Al (3+) bonding to O (2-): O needs 2e, so only 2 leave Al — not 3.
+  // A second Al can later bond to the same O or remaining O atoms.
+  if (result.type === 'ionic') {
+    const donor    = result.cation.Z === a.elem.Z ? a : b;
+    const acceptor = result.cation.Z === a.elem.Z ? b : a;
+
+    // How many electrons does the acceptor still need?
+    const acceptorFull    = Math.min(8, acceptor.elem.valence + result.aniChargeMag);
+    const alreadyReceived = countReceivedElectrons(acceptor);
+    const acceptorNeeds   = Math.max(0, acceptorFull - acceptor.elem.valence - alreadyReceived);
+
+    // How many free electrons does the donor still have?
+    const donorFree = donor.electrons.filter(e => !e.transferred && !e.shared && e.transferTarget === null).length;
+
+    const transferCount = Math.min(donorFree, acceptorNeeds);
+    let scheduled = 0;
+    for (let i = donor.electrons.length - 1; i >= 0 && scheduled < transferCount; i--) {
+      const e = donor.electrons[i];
+      if (!e.transferred && !e.shared && e.transferTarget === null) {
+        e.transferTarget   = acceptor.id;
+        e.transferDelay    = transferCount <= 1 ? 0 : scheduled / (transferCount - 1) * 0.7;
+        e.transferProgress = 0;
+        scheduled++;
+      }
+    }
+  }
+
+  // Snap atoms so they sit side-by-side at a comfortable bond distance
+  const bondDist = R_ATOM * 2 + (b.electrons[0]?.radius ?? 40) + 10;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const d  = Math.hypot(dx, dy) || 1;
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  a.x = mx - (dx / d) * bondDist / 2;
+  a.y = my - (dy / d) * bondDist / 2;
+  b.x = mx + (dx / d) * bondDist / 2;
+  b.y = my + (dy / d) * bondDist / 2;
+
+  updateInfo();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// STOICHIOMETRY CHECK
+// ═══════════════════════════════════════════════════════════════════════
+
+function checkStoichiometry() {
+  // Gather formed bonds
+  const formed = stageBonds.filter(b => b.phase === 'formed');
+  if (formed.length === 0) return;
+
+  // For each unique element-pair combination on stage, check ratio
+  // Group stage atoms by symbol
+  const bySymbol = {};
+  for (const atom of stageAtoms) {
+    const s = atom.elem.sym;
+    bySymbol[s] = (bySymbol[s] || 0) + 1;
+  }
+
+  for (const bond of stageBonds) {
+    const atomA = getAtomById(bond.idA);
+    const atomB = getAtomById(bond.idB);
+    if (!atomA || !atomB) continue;
+
+    const r = bond.result;
+    if (r.type === 'none') continue;
+
+    const catSym = r.cation?.sym || atomA.elem.sym;
+    const aniSym = r.anion?.sym  || atomB.elem.sym;
+    const cCount = bySymbol[catSym] || 0;
+    const aCount = bySymbol[aniSym] || 0;
+
+    // Check if ratio matches stoichiometry
+    const g = gcd(cCount, aCount);
+    const complete = cCount > 0 && aCount > 0 &&
+                     (cCount / g) === r.stoichA &&
+                     (aCount / g) === r.stoichB;
+    bond.stoichComplete = complete;
+  }
+
+  // Mark atom.stable
+  for (const atom of stageAtoms) {
+    atom.stable = atom.bonds.some(bId => {
+      const b = getBondById(bId);
+      return b && b.stoichComplete;
+    });
+  }
+
+  updateInfo();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// THEME HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+function isLight() { return document.documentElement.classList.contains('light'); }
+function cv(name)  { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function tileStyle(cat) {
+  const s = CAT_STYLE[cat] || CAT_STYLE['nonmetal'];
+  return isLight()
+    ? { fill: s[3], stroke: s[4], text: s[5] }
+    : { fill: s[0], stroke: s[1], text: s[2] };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ELEMENT TILE GEOMETRY
+// ═══════════════════════════════════════════════════════════════════════
+
+function elemRect(elem) {
+  const row = elem.period - 1;
+  const col = elem.group  - 1;
+  return { x: TX + col * CS, y: TY + row * CS, w: CS - 2, h: CS - 2 };
+}
+
+function hitTestTable(px, py) {
+  if (py < TY || py > TY + CS * 3) return null;
+  for (const e of ELEMENTS) {
+    const r = elemRect(e);
+    if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return e;
+  }
+  return null;
+}
+
+function hitTestStage(px, py) {
+  // Returns topmost atom under px,py (last in array = drawn on top)
+  for (let i = stageAtoms.length - 1; i >= 0; i--) {
+    const a = stageAtoms[i];
+    if (Math.hypot(px - a.x, py - a.y) <= R_ATOM + 8) return a;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROUND-RECT HELPER
+// ═══════════════════════════════════════════════════════════════════════
+
+function rr(ctx, x, y, w, h, r) {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DRAWING — PERIODIC TABLE
+// ═══════════════════════════════════════════════════════════════════════
+
+function drawTable() {
+  const light   = isLight();
+  const mutedC  = cv('--muted');
+
+  ctx.fillStyle = mutedC;
+  ctx.font = '500 10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('PERIODIC TABLE — PERIODS 1–3', TX, 14);
+  ctx.textAlign = 'right';
+  ctx.fillText('Click to add atom to canvas', CW - TX, 14);
+
+  ctx.fillStyle = mutedC;
+  ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let p = 1; p <= 3; p++) {
+    ctx.fillText(p, TX - 4, TY + (p - 1) * CS + CS / 2);
+  }
+
+  for (const elem of ELEMENTS) {
+    const r   = elemRect(elem);
+    const st  = tileStyle(elem.cat);
+    const isHov = hovered?.Z === elem.Z;
+
+    ctx.beginPath();
+    rr(ctx, r.x, r.y, r.w, r.h, 4);
+    ctx.fillStyle = st.fill;
+    ctx.fill();
+    ctx.strokeStyle = isHov ? cv('--accent') : st.stroke + (light ? 'cc' : '66');
+    ctx.lineWidth   = isHov ? 2 : 1;
+    ctx.stroke();
+
+    const numFS = CS < 36 ? 7 : 8;
+    ctx.fillStyle = st.text + (light ? '' : 'aa');
+    ctx.font = `${numFS}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(elem.Z, r.x + 2, r.y + 2);
+
+    const symFS = CS < 36 ? 11 : 13;
+    ctx.fillStyle = st.text;
+    ctx.font = `bold ${symFS}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(elem.sym, r.x + r.w / 2, r.y + r.h / 2 + 1);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DRAWING — STAGE
+// ═══════════════════════════════════════════════════════════════════════
+
+function drawStage() {
+  const mutedC  = cv('--muted');
+  const borderC = cv('--border');
+
+  // Divider line
+  ctx.strokeStyle = borderC;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  ctx.moveTo(TX, STAGE_TOP); ctx.lineTo(CW - TX, STAGE_TOP);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = mutedC;
+  ctx.font = '500 10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('BONDING STAGE', TX, STAGE_TOP + 6);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('Drag atoms together to bond  ·  Right-click atom to remove', CW - TX, STAGE_TOP + 6);
+
+  if (stageAtoms.length === 0) {
+    ctx.fillStyle = mutedC;
+    ctx.font = '14px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Click elements above to place atoms here', CW / 2, STAGE_TOP + STAGE_H / 2);
+    return;
+  }
+
+  // Draw bonds first (behind atoms)
+  for (const bond of stageBonds) {
+    drawBond(bond);
+  }
+
+  // Draw transfer particles
+  for (const bond of stageBonds) {
+    if (bond.result.type === 'ionic' && bond.phase === 'forming') {
+      drawTransferParticles(bond);
+    }
+  }
+
+  // Draw atoms
+  for (const atom of stageAtoms) {
+    drawStageAtom(atom);
+  }
+}
+
+// ── Bond line ──
+
+function drawBond(bond) {
+  const atomA = getAtomById(bond.idA);
+  const atomB = getAtomById(bond.idB);
+  if (!atomA || !atomB) return;
+
+  const type = bond.result.type;
+  const alpha = bond.phase === 'forming' ? easeInOut(bond.progress) : 1;
+
+  ctx.globalAlpha = alpha;
+
+  if (type === 'ionic') {
+    // Dashed attraction line between ions
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = bond.stoichComplete ? '#fbbf24' : cv('--muted');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(atomA.x, atomA.y);
+    ctx.lineTo(atomB.x, atomB.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    // Solid covalent bond line(s)
+    const bo = bond.result.bondOrder || 1;
+    const dx = atomB.x - atomA.x, dy = atomB.y - atomA.y;
+    const d  = Math.hypot(dx, dy) || 1;
+    const nx = -dy / d, ny = dx / d;  // normal
+    const offsets = bo === 1 ? [0] : bo === 2 ? [-3, 3] : [-5, 0, 5];
+    ctx.strokeStyle = bond.stoichComplete ? '#34d399' : cv('--muted');
+    ctx.lineWidth = 2;
+    for (const off of offsets) {
+      ctx.beginPath();
+      ctx.moveTo(atomA.x + nx * off, atomA.y + ny * off);
+      ctx.lineTo(atomB.x + nx * off, atomB.y + ny * off);
+      ctx.stroke();
+    }
+    // Dipole arrow for polar covalent
+    if (type === 'polar-covalent' && bond.phase === 'formed') {
+      drawDipoleArrow(atomA, atomB, bond.result);
+    }
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+// ── Ionic arc transfer particles ──
+
+function drawTransferParticles(bond) {
+  const atomA   = getAtomById(bond.idA);
+  const atomB   = getAtomById(bond.idB);
+  if (!atomA || !atomB) return;
+  const donor    = bond.result.cation.Z === atomA.elem.Z ? atomA : atomB;
+  const acceptor = bond.result.cation.Z === atomA.elem.Z ? atomB : atomA;
+
+  for (const e of donor.electrons) {
+    if (e.transferTarget === null || e.transferred) continue;
+    if (e.transferProgress <= 0 || e.transferProgress >= 1) continue;
+
+    const t   = easeInOut(e.transferProgress);
+    const sx  = donor.x, sy = donor.y;
+    const ex  = acceptor.x, ey = acceptor.y;
+    const mx  = (sx + ex) / 2;
+    const my  = (sy + ey) / 2 - 55;  // arc peak above midpoint
+
+    const x = (1-t)*(1-t)*sx + 2*(1-t)*t*mx + t*t*ex;
+    const y = (1-t)*(1-t)*sy + 2*(1-t)*t*my + t*t*ey;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbbf2444';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fill();
+  }
+}
+
+// ── Single atom ──
+
+function drawStageAtom(atom) {
+  const cx = atom.x, cy = atom.y;
+  const color = electronColor(atom);
+  const light = isLight();
+
+  // Proximity / stable glow
+  if (atom.glowAlpha > 0 || atom.stable) {
+    const glowColor = atom.stable ? '#fbbf24' : color;
+    const glowA     = atom.stable ? 0.35 : atom.glowAlpha * 0.5;
+    const grad = ctx.createRadialGradient(cx, cy, R_ATOM, cx, cy, R_ATOM + 22);
+    grad.addColorStop(0,   glowColor + Math.round(glowA * 255).toString(16).padStart(2,'0'));
+    grad.addColorStop(1,   glowColor + '00');
+    ctx.beginPath();
+    ctx.arc(cx, cy, R_ATOM + 22, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // Orbit ring (faint dashed)
+  const orbitR = atom.electrons[0]?.radius ?? 40;
+  ctx.beginPath();
+  ctx.arc(cx, cy, orbitR, 0, Math.PI * 2);
+  ctx.strokeStyle = color + (light ? '30' : '28');
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([2, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Orbiting electrons
+  drawAtomElectrons(atom, color);
+
+  // Atom circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, R_ATOM, 0, Math.PI * 2);
+  ctx.fillStyle = light ? '#ffffff' : '#0f172a';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2.5;
+  ctx.stroke();
+
+  // Element symbol
+  ctx.fillStyle   = cv('--text');
+  ctx.font        = "bold 17px 'Segoe UI', system-ui, sans-serif";
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(atom.elem.sym, cx, cy);
+
+  // Element name label below
+  ctx.fillStyle    = color;
+  ctx.font         = '10px "Segoe UI", system-ui, sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText(atom.elem.name, cx, cy + R_ATOM + orbitR - R_ATOM + 4);
+
+  // Charge label (after ionic bond forms)
+  if (atom.chargeLabel) {
+    ctx.fillStyle    = atom.chargeLabel.startsWith('+') ? '#fb923c' : '#a78bfa';
+    ctx.font         = 'bold 13px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(atom.chargeLabel, cx + R_ATOM + 2, cy - R_ATOM);
+  }
+}
+
+function drawAtomElectrons(atom, color) {
+  const cx = atom.x, cy = atom.y;
+  for (const e of atom.electrons) {
+    if (e.transferred) continue;
+
+    let x, y;
+
+    if (e.transferTarget !== null && e.transferProgress > 0 && e.transferProgress < 1) {
+      // Electron is mid-arc — drawn in drawTransferParticles instead
+      continue;
+    }
+
+    if (e.shared) {
+      // Shared covalent electron: orbit around midpoint biased toward one atom
+      const partner = getAtomById(e.sharedWith);
+      if (!partner) { x = cx + Math.cos(e.angle) * e.radius; y = cy + Math.sin(e.angle) * e.radius; }
+      else {
+        // Midpoint biased by sharedBias (-1=this atom, +1=partner)
+        const bias = e.sharedBias;
+        const mx   = cx + (partner.x - cx) * (0.5 + bias * 0.3);
+        const my   = cy + (partner.y - cy) * (0.5 + bias * 0.3);
+        const r    = e.radius * 0.6;
+        x = mx + Math.cos(e.angle) * r;
+        y = my + Math.sin(e.angle) * r;
+      }
+    } else {
+      x = cx + Math.cos(e.angle) * e.radius;
+      y = cy + Math.sin(e.angle) * e.radius;
+    }
+
+    // Glow halo
+    ctx.beginPath();
+    ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = color + '44';
+    ctx.fill();
+    // Core dot
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+}
+
+// ── Dipole arrow for polar covalent ──
+
+function drawDipoleArrow(atomA, atomB, result) {
+  const less = atomA.elem.EN < atomB.elem.EN ? atomA : atomB;
+  const more = atomA.elem.EN > atomB.elem.EN ? atomA : atomB;
+  const dx = more.x - less.x, dy = more.y - less.y;
+  const d  = Math.hypot(dx, dy) || 1;
+  const sx = less.x + (dx / d) * (R_ATOM + 6);
+  const sy = less.y + (dy / d) * (R_ATOM + 6);
+  const ex = more.x - (dx / d) * (R_ATOM + 6);
+  const ey = more.y - (dy / d) * (R_ATOM + 6);
+
+  ctx.strokeStyle = '#a78bfa';
+  ctx.fillStyle   = '#a78bfa';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // Arrowhead at δ− end
+  const aw = 6, ah = 9;
+  const angle = Math.atan2(ey - sy, ex - sx);
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - ah * Math.cos(angle - 0.4), ey - ah * Math.sin(angle - 0.4));
+  ctx.lineTo(ex - ah * Math.cos(angle + 0.4), ey - ah * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  // δ+ and δ− labels
+  ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  const lx = less.x + (dx / d) * (R_ATOM + 14);
+  const ly = less.y + (dy / d) * (R_ATOM + 14);
+  ctx.fillText('δ+', lx, ly - 2);
+  const mx2 = more.x - (dx / d) * (R_ATOM + 14);
+  const my2 = more.y - (dy / d) * (R_ATOM + 14);
+  ctx.fillText('δ−', mx2, my2 - 2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DRAW ALL
+// ═══════════════════════════════════════════════════════════════════════
+
+function drawAll() {
+  ctx.clearRect(0, 0, CW, CH);
+  ctx.fillStyle = cv('--surface');
+  ctx.fillRect(0, 0, CW, CH);
+  drawTable();
+  drawStage();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INFO PANEL
+// ═══════════════════════════════════════════════════════════════════════
+
+// Build the ΔEN bond-character bar HTML.
+// The spectrum runs 0 → 3.5 (practical max for first-18 pairs is F-Cs ~3.3; here max is ~3.0).
+// Threshold markers: 0.4 (nonpolar|polar boundary) and 1.7 (polar|ionic boundary).
+function buildENBar(deltaEN) {
+  const MAX_EN = 3.3;
+  const pct    = Math.min(100, (deltaEN / MAX_EN) * 100);
+  const t04    = (0.4  / MAX_EN) * 100;  // ~12%
+  const t17    = (1.7  / MAX_EN) * 100;  // ~52%
+
+  return `
+  <div class="en-bar-wrap">
+    <div class="en-bar-labels">
+      <span>Nonpolar covalent</span>
+      <span>Polar covalent</span>
+      <span>Ionic</span>
+    </div>
+    <div class="en-bar">
+      <div style="position:absolute;top:0;left:${t04.toFixed(1)}%;width:1px;height:100%;background:rgba(255,255,255,0.35);"></div>
+      <div style="position:absolute;top:0;left:${t17.toFixed(1)}%;width:1px;height:100%;background:rgba(255,255,255,0.35);"></div>
+      <div class="en-bar-needle" style="left:${pct.toFixed(1)}%">
+        <span class="en-bar-value">ΔEN ${deltaEN.toFixed(2)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Walk the bond graph to find all atoms in the same connected component as `startAtom`.
+function connectedComponent(startAtom) {
+  const visited = new Set();
+  const queue   = [startAtom];
+  while (queue.length) {
+    const atom = queue.shift();
+    if (visited.has(atom.id)) continue;
+    visited.add(atom.id);
+    for (const bId of atom.bonds) {
+      const b = getBondById(bId);
+      if (!b) continue;
+      const partnerId = b.idA === atom.id ? b.idB : b.idA;
+      const partner   = getAtomById(partnerId);
+      if (partner && !visited.has(partner.id)) queue.push(partner);
+    }
+  }
+  return [...visited].map(id => getAtomById(id)).filter(Boolean);
+}
+
+// Derive formula string and IUPAC-style name from the connected component of atoms.
+// Uses Hill order: C first, then H, then alphabetical for the rest.
+function deriveFormula(atoms) {
+  const counts = {};
+  for (const a of atoms) counts[a.elem.sym] = (counts[a.elem.sym] || 0) + 1;
+  // Hill order
+  const syms = Object.keys(counts).sort((a, b) => {
+    if (a === 'C' && b !== 'C') return -1;
+    if (b === 'C' && a !== 'C') return  1;
+    if (a === 'H' && b !== 'H') return -1;
+    if (b === 'H' && a !== 'H') return  1;
+    return a.localeCompare(b);
+  });
+  const formula = syms.map(s => s + sub(counts[s])).join('');
+
+  // Simple name: look up common names, else build from element names
+  const name = COMMON_NAMES[formula] || syms.map(s => {
+    const elem = ELEMENTS.find(e => e.sym === s);
+    return (counts[s] > 1 ? sub(counts[s]) : '') + (elem ? elem.name.toLowerCase() : s);
+  }).join(' ');
+
+  return { formula, name, counts };
+}
+
+function updateInfo() {
+  const panel = document.getElementById('info-panel');
+
+  const formedBonds = stageBonds.filter(b => b.phase === 'formed');
+  if (formedBonds.length === 0) {
+    panel.innerHTML = '<p class="info-hint">Drag atoms together to see their bond.</p>';
+    return;
+  }
+
+  // Show info for the most recently formed bond
+  const bond = formedBonds[formedBonds.length - 1];
+  const r = bond.result;
+
+  // Derive the actual molecular formula from the connected component on stage
+  const lastAtom   = getAtomById(bond.idA);
+  const component  = lastAtom ? connectedComponent(lastAtom) : [];
+  const { formula: stageFormula, name: stageName } = component.length > 1
+    ? deriveFormula(component)
+    : { formula: r.formula, name: r.iupacName };
+
+  const badgeClass = r.type === 'ionic'          ? 'badge-ionic'
+                   : r.type === 'polar-covalent'  ? 'badge-polar'
+                   : 'badge-nonpolar';
+  const typeLabel  = r.type === 'ionic'          ? 'Ionic'
+                   : r.type === 'polar-covalent'  ? 'Polar Covalent'
+                   : 'Nonpolar Covalent';
+
+  const en = e => e.EN != null ? e.EN.toFixed(2) : '—';
+
+  let rows = `<div class="info-row">
+    <span class="info-key">Bond type:</span>
+    <span class="info-val"><span class="info-badge ${badgeClass}">${typeLabel}</span></span>
+  </div>`;
+
+  if (r.type === 'ionic') {
+    rows += `
+    <div class="info-row"><span class="info-key">ΔEN:</span>
+      <span class="info-val">${r.deltaEN.toFixed(2)}</span></div>
+    <div class="info-row"><span class="info-key">Transfer:</span>
+      <span class="info-val">${r.catChargeMag} e⁻ from ${r.cation.name} → ${r.anion.name}</span></div>
+    <div class="info-row"><span class="info-key">Ions:</span>
+      <span class="info-val">${r.cation.sym}<sup>${r.catChargeMag > 1 ? r.catChargeMag : ''}+</sup> · ${r.anion.sym}<sup>${r.aniChargeMag > 1 ? r.aniChargeMag : ''}−</sup></span></div>`;
+    if (r.stoichA !== 1 || r.stoichB !== 1) {
+      rows += `<div class="info-row"><span class="info-key">Stable ratio:</span>
+        <span class="info-val">${r.stoichA} ${r.elemA.sym} : ${r.stoichB} ${r.elemB.sym}</span></div>`;
+    }
+    if (bond.stoichComplete) {
+      rows += `<div class="info-row"><span class="info-key">Stoichiometry:</span>
+        <span class="info-val" style="color:#fbbf24">✓ Complete</span></div>`;
+    } else {
+      rows += `<div class="info-row"><span class="info-key">Stoichiometry:</span>
+        <span class="info-val" style="color:var(--muted)">Incomplete — add more atoms</span></div>`;
+    }
+  } else {
+    const orderWords = ['','Single','Double','Triple'];
+    const bondDesc = (orderWords[r.bondOrder] || `Order ${r.bondOrder}`) + ` (${r.bondOrder} shared pair${r.bondOrder > 1 ? 's' : ''})`;
+    rows += `
+    <div class="info-row"><span class="info-key">ΔEN:</span>
+      <span class="info-val">${r.deltaEN.toFixed(2)}</span></div>
+    <div class="info-row"><span class="info-key">Bond order:</span>
+      <span class="info-val">${bondDesc}</span></div>`;
+    if (r.type === 'polar-covalent' && r.elemA.EN && r.elemB.EN) {
+      const less = r.elemA.EN < r.elemB.EN ? r.elemA : r.elemB;
+      const more = r.elemA.EN > r.elemB.EN ? r.elemA : r.elemB;
+      rows += `<div class="info-row"><span class="info-key">Dipole:</span>
+        <span class="info-val">δ+ on ${less.sym} · δ− on ${more.sym}</span></div>`;
+    }
+  }
+
+  const warnings = (r.exceptions || []).map(ex =>
+    `<div class="info-warning">⚠ ${ex.msg}</div>`
+  ).join('');
+
+  // ΔEN bar: maps 0–3.5 range to 0–100%, thresholds at 0.4 (11%) and 1.7 (49%)
+  const enBar = buildENBar(r.deltaEN);
+
+  panel.innerHTML = `
+    <div class="info-formula">${stageFormula}</div>
+    <div class="info-name">${stageName}</div>
+    ${enBar}
+    <div class="info-grid">${rows}</div>
+    ${warnings}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════════════════
+
+function showTooltip(elem, clientX, clientY) {
+  const tt = document.getElementById('tooltip');
+  const ox = elem.ox.map(o => (o > 0 ? '+' : '') + o).join(', ') || '—';
+  tt.innerHTML = `
+    <div class="tt-sym">${elem.sym}</div>
+    <div class="tt-name">${elem.name}</div>
+    <div class="tt-row"><span class="tt-key">EN:</span><span>${elem.EN != null ? elem.EN.toFixed(2) : '—'}</span></div>
+    <div class="tt-row"><span class="tt-key">Valence e⁻:</span><span>${elem.valence}</span></div>
+    <div class="tt-row"><span class="tt-key">Ox. states:</span><span>${ox}</span></div>
+  `;
+  tt.style.display = 'block';
+  tt.style.left = (clientX + 14) + 'px';
+  tt.style.top  = (clientY - 10) + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COORDINATE MAPPING
+// ═══════════════════════════════════════════════════════════════════════
+
+function canvasXY(e) {
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = CW / rect.width;
+  const scaleY = CH / rect.height;
+  const cx = e.clientX ?? e.touches?.[0]?.clientX;
+  const cy = e.clientY ?? e.touches?.[0]?.clientY;
+  return { x: (cx - rect.left) * scaleX, y: (cy - rect.top) * scaleY };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// Spawn positions stagger so atoms don't all land on top of each other
+let _spawnIdx = 0;
+function nextSpawnPos() {
+  const cols = 4, rows = 2;
+  const xStep = (SX_MAX - SX_MIN) / (cols + 1);
+  const yStep = (SY_MAX - SY_MIN) / (rows + 1);
+  const col = (_spawnIdx % cols) + 1;
+  const row = (Math.floor(_spawnIdx / cols) % rows) + 1;
+  _spawnIdx++;
+  // Add small jitter
+  return {
+    x: SX_MIN + col * xStep + (Math.random() - 0.5) * 20,
+    y: SY_MIN + row * yStep + (Math.random() - 0.5) * 20,
+  };
+}
+
+canvas.addEventListener('mousemove', e => {
+  const { x, y } = canvasXY(e);
+
+  // Table hover
+  const elem = hitTestTable(x, y);
+  if (elem !== hovered) { hovered = elem; }
+  if (elem) { showTooltip(elem, e.clientX, e.clientY); canvas.style.cursor = 'pointer'; }
+  else      { hideTooltip(); }
+
+  // Drag
+  if (dragAtom) {
+    dragAtom.x = Math.max(SX_MIN, Math.min(SX_MAX, x - dragAtom.dragOffX));
+    dragAtom.y = Math.max(SY_MIN, Math.min(SY_MAX, y - dragAtom.dragOffY));
+    if (!elem) canvas.style.cursor = 'grabbing';
+  } else if (!elem) {
+    canvas.style.cursor = hitTestStage(x, y) ? 'grab' : 'default';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hovered = null;
+  hideTooltip();
+  canvas.style.cursor = 'default';
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const { x, y } = canvasXY(e);
+
+  // Hit test table first
+  const elem = hitTestTable(x, y);
+  if (elem) {
+    if (elem.cat === 'noble') {
+      // Noble gas — show message in info panel
+      document.getElementById('info-panel').innerHTML =
+        `<p class="info-hint">${elem.name} has a full valence shell and does not bond under normal conditions.</p>`;
+      return;
+    }
+    // Spawn new atom at a staggered position, then immediately begin dragging it
+    const pos = nextSpawnPos();
+    const atom = new Atom(elem, pos.x, pos.y);
+    stageAtoms.push(atom);
+    // Start dragging the new atom from the spawn point
+    dragAtom = atom;
+    atom.dragging   = true;
+    atom.dragOffX   = 0;
+    atom.dragOffY   = 0;
+    return;
+  }
+
+  // Hit test stage atoms
+  const atom = hitTestStage(x, y);
+  if (atom) {
+    dragAtom = atom;
+    atom.dragging  = true;
+    atom.dragOffX  = x - atom.x;
+    atom.dragOffY  = y - atom.y;
+    // Bring to front
+    stageAtoms.splice(stageAtoms.indexOf(atom), 1);
+    stageAtoms.push(atom);
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!dragAtom) return;
+
+  dragAtom.dragging = false;
+
+  // Check proximity to other atoms and trigger bond if close enough
+  for (const other of stageAtoms) {
+    if (other === dragAtom) continue;
+    if (dist2(dragAtom, other) < SNAP_DIST && canBond(dragAtom, other)) {
+      triggerBond(dragAtom, other);
+      break;
+    }
+  }
+
+  dragAtom = null;
+});
+
+// Right-click to remove an atom from the stage
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const { x, y } = canvasXY(e);
+  const atom = hitTestStage(x, y);
+  if (!atom) return;
+
+  // Remove any bonds involving this atom
+  for (let i = stageBonds.length - 1; i >= 0; i--) {
+    const b = stageBonds[i];
+    if (b.idA === atom.id || b.idB === atom.id) {
+      // Clear bond from partner
+      const partnerId = b.idA === atom.id ? b.idB : b.idA;
+      const partner   = getAtomById(partnerId);
+      if (partner) {
+        partner.bonds = partner.bonds.filter(bid => bid !== b.id);
+        partner.chargeLabel = null;
+        // Return transferred electrons to their original atom (simple reset)
+        partner.electrons = partner.electrons.filter(pe => {
+          // Remove electrons that were received from this atom
+          return !(pe.transferTarget === undefined && pe.transferred === false &&
+                   partner.bonds.length === 0);
+        });
+        // Simplest: rebuild partner's electrons from scratch
+        partner.electrons = buildElectrons(partner.elem);
+        partner.chargeLabel = null;
+        partner.stable = false;
+      }
+      stageBonds.splice(i, 1);
+    }
+  }
+
+  stageAtoms.splice(stageAtoms.indexOf(atom), 1);
+  checkStoichiometry();
+  updateInfo();
+});
+
+// Helper used in right-click removal: rebuild electrons for an element
+function buildElectrons(elem) {
+  const orbitR    = 36 + elem.period * 4;
+  const baseSpeed = 0.022 - elem.period * 0.003;
+  const result    = [];
+  for (let i = 0; i < elem.valence; i++) {
+    result.push({
+      angle: (2 * Math.PI * i) / elem.valence,
+      radius: orbitR,
+      speed:  baseSpeed * (1 + 0.12 * (i % 2 === 0 ? 1 : -1)),
+      transferTarget: null, transferDelay: 0, transferProgress: 0, transferred: false,
+      shared: false, sharedWith: null, sharedBias: 0,
+    });
+  }
+  return result;
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  stageAtoms.length = 0;
+  stageBonds.length = 0;
+  _spawnIdx = 0;
+  Atom._nextId = 0;
+  Bond._nextId = 0;
+  updateInfo();
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════════════════
+
+const themeBtn = document.getElementById('theme-toggle');
+
+function applyTheme() {
+  themeBtn.textContent = isLight() ? '🌙 Dark' : '☀️ Light';
+}
+
+themeBtn.addEventListener('click', () => {
+  document.documentElement.classList.toggle('light');
+  localStorage.setItem('theme', isLight() ? 'light' : 'dark');
+  applyTheme();
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+
+applyTheme();
+startLoop();
+</script>
+</body>
+</html>
