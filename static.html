@@ -173,6 +173,7 @@ let nextId    = 0;
 
 // Charge glyph particles for electroscope
 let scopeGlyphs = [];
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function mkInst(typeKey, x, y) {
   const t = TYPES[typeKey];
@@ -184,7 +185,6 @@ function mkInst(typeKey, x, y) {
     dragging: false,
     rubTimer: 0,
     rodAngle: -Math.PI / 5,  // rods start tilted
-    glyphs: [],              // charge indicator particles
   };
 }
 const ch  = i => i.protons - i.electrons;
@@ -195,28 +195,35 @@ const maxE = i => TYPES[i.type].baseE * 2;
 // Electroscope
 // ═══════════════════════════════════════════════════════
 const scope = {
-  get x()      { return canvas.width - 92; },
-  get rodTopY(){ return canvas.height - 130; },
-  get pivotY() { return canvas.height - 80; },
+  get x()      { return canvas.width - 124; },
+  get rodTopY(){ return canvas.height - 176; },
+  get pivotY() { return canvas.height - 86; },
   leafAngle: 0,
   leafTarget: 0,
-  contactQ: 0,       // charge deposited by direct contact
+  netCharge: 0,      // persistent charge from touching the knob
+  headCharge: 0,
+  leafCharge: 0,
   leafSign: 0,       // +1 / -1 for color
 };
 
 // ═══════════════════════════════════════════════════════
 // Pith Ball (KAN-11)
 // ═══════════════════════════════════════════════════════
-const PITH_R      = 10;       // ball radius px
-const PITH_L      = 60;       // thread length px
+const PITH_R      = 16;       // ball radius px
+const PITH_L      = 72;       // thread length px
 const PITH_MASS   = 1.0;
 const PITH_DAMP   = 0.94;
 const PITH_K_IND  = 2200;     // induction attraction constant
 const PITH_K_COUL = 2200;     // coulomb constant for pith
 
 const pith = {
-  get anchorX() { return canvas.width / 2; },
-  get anchorY() { return canvas.height - 10; }, // anchor at bottom center
+  get standX()  { return canvas.width * 0.48; },
+  get standTopY() { return 96; },
+  get standBaseY() { return canvas.height - 42; },
+  get armY()    { return 120; },
+  get armLength() { return 84; },
+  get anchorX() { return this.standX + this.armLength; },
+  get anchorY() { return this.armY; },
   angle:    0,       // angle from vertical (radians), positive = right
   angleV:   0,       // angular velocity
   charge:   0,       // charge acquired by conduction
@@ -226,7 +233,7 @@ const pith = {
 function pithBallPos() {
   return {
     x: pith.anchorX + Math.sin(pith.angle) * PITH_L,
-    y: pith.anchorY - Math.cos(pith.angle) * PITH_L,
+    y: pith.anchorY + Math.cos(pith.angle) * PITH_L,
   };
 }
 
@@ -248,28 +255,28 @@ function updatePith() {
     if (d <= PITH_R + rad(inst) + 4 && !pith.touched) {
       pith.touched = true;
       if (q !== 0 && !inst._pithContact) {
-        // Charge splits: pith acquires half
-        const transfer = q * 0.5;
-        inst.electrons = inst.protons - Math.round(q - transfer);
-        pith.charge    = Math.round(transfer * 10) / 10;
+        const delta = Math.sign(q);
+        const nextE = inst.electrons + delta;
+        if (nextE >= 2 && nextE <= maxE(inst)) {
+          inst.electrons = nextE;
+          pith.charge    = delta;
+        }
         inst._pithContact = true;
       }
     } else {
       inst._pithContact = false;
     }
 
-    // Force direction: lateral component
-    const lateralDir = Math.sign(dx); // +1 = right of anchor
     let F = 0;
 
     if (pith.charge !== 0 && q !== 0) {
-      // Coulomb: same sign repels, opposite attracts
-      F = -PITH_K_COUL * pith.charge * q / (d * d);
+      // Coulomb: attraction pulls toward the object, repulsion pushes away from it
+      const towardObject = Math.sign(dx);
+      const interactionSign = pith.charge * q > 0 ? -1 : 1;
+      F = interactionSign * towardObject * (PITH_K_COUL * Math.abs(pith.charge * q) / (d * d));
     } else if (pith.charge === 0 && q !== 0) {
       // Induction: always attractive
-      F = PITH_K_IND * Math.abs(q) / (d * d);
-      // Attract toward object
-      F = F * Math.sign(dx);
+      F = Math.sign(dx) * (PITH_K_IND * Math.abs(q) / (d * d));
     } else if (pith.charge !== 0 && q === 0) {
       // Induction from pith charge: attract neutrals (not relevant for torque)
     }
@@ -295,6 +302,10 @@ function updatePith() {
 }
 
 function drawPithBall() {
+  const standX = pith.standX;
+  const standTopY = pith.standTopY;
+  const standBaseY = pith.standBaseY;
+  const armY = pith.armY;
   const ax = pith.anchorX;
   const ay = pith.anchorY;
   const { x: bx, y: by } = pithBallPos();
@@ -304,9 +315,30 @@ function drawPithBall() {
   ctx.fillStyle    = '#475569';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText('Pith Ball', ax, ay - PITH_L - PITH_R - 6);
+  ctx.fillText('Pith Ball', ax, standTopY - 10);
 
-  // Anchor dot
+  // Retort stand base
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth   = 5;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(standX - 26, standBaseY);
+  ctx.lineTo(standX + 30, standBaseY);
+  ctx.stroke();
+
+  // Vertical stand
+  ctx.beginPath();
+  ctx.moveTo(standX, standBaseY);
+  ctx.lineTo(standX, standTopY);
+  ctx.stroke();
+
+  // Horizontal arm
+  ctx.beginPath();
+  ctx.moveTo(standX, armY);
+  ctx.lineTo(ax, armY);
+  ctx.stroke();
+
+  // Clamp point
   ctx.beginPath();
   ctx.arc(ax, ay, 5, 0, Math.PI * 2);
   ctx.fillStyle = '#64748b';
@@ -343,6 +375,13 @@ function drawPithBall() {
     ctx.textBaseline = 'middle';
     ctx.fillText(sign, bx, by);
   }
+
+  drawChargeMarkers({
+    x: bx, y: by, radius: PITH_R - 1,
+    protonCount: 4,
+    electronCount: clamp(4 - pith.charge, 0, 8),
+    rod: false,
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -454,6 +493,89 @@ function drawGlyphs(arr, cx, cy) {
   ctx.restore();
 }
 
+function chargePoints(x, y, radius, count, phase = 0) {
+  const pts = [];
+  for (let i = 0; i < count; i++) {
+    const a = phase + (i / Math.max(count, 1)) * Math.PI * 2;
+    pts.push({ x: x + Math.cos(a) * radius, y: y + Math.sin(a) * radius });
+  }
+  return pts;
+}
+
+function rodChargePoints(x, y, halfW, halfH, count, inset = 8) {
+  const pts = [];
+  const cols = 2;
+  const rows = Math.ceil(count / cols);
+  for (let i = 0; i < count; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const px = x + (col === 0 ? -1 : 1) * Math.max(halfW - inset, 4);
+    const py = y - halfH + inset + ((row + 0.5) / rows) * Math.max((halfH * 2) - inset * 2, 10);
+    pts.push({ x: px, y: py });
+  }
+  return pts;
+}
+
+function drawSignedDot(x, y, sign, alpha = 1) {
+  const isPositive = sign > 0;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (isPositive) {
+    ctx.strokeStyle = '#fb923c';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y);
+    ctx.lineTo(x + 3, y);
+    ctx.moveTo(x, y - 3);
+    ctx.lineTo(x, y + 3);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#818cf8';
+    ctx.beginPath();
+    ctx.arc(x, y, 2.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(224,231,255,0.85)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x - 2.4, y);
+    ctx.lineTo(x + 2.4, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawChargeMarkers({ x, y, radius, protonCount, electronCount, rod = false, rodAngle = 0, halfW = 0, halfH = 0 }) {
+  ctx.save();
+  if (rod) {
+    ctx.translate(x, y);
+    ctx.rotate(rodAngle);
+    const pPts = rodChargePoints(0, 0, halfW, halfH, protonCount, 10);
+    const ePts = rodChargePoints(0, 0, Math.max(halfW - 1, 6), Math.max(halfH - 1, 8), electronCount, 10)
+      .map((pt, i) => ({ x: pt.x + (i % 2 === 0 ? 4 : -4), y: pt.y }));
+    pPts.forEach(pt => drawSignedDot(pt.x, pt.y, 1, 0.9));
+    ePts.forEach(pt => drawSignedDot(pt.x, pt.y, -1, 0.95));
+  } else {
+    const markerR = Math.max(radius * 0.58, 8);
+    const pPts = chargePoints(x, y, markerR, protonCount, Math.PI / Math.max(protonCount, 1));
+    const ePts = chargePoints(x, y, markerR, electronCount, (Math.PI / Math.max(electronCount, 1)) + Math.PI / 2);
+    pPts.forEach(pt => drawSignedDot(pt.x, pt.y, 1, 0.9));
+    ePts.forEach(pt => drawSignedDot(pt.x, pt.y, -1, 0.95));
+  }
+  ctx.restore();
+}
+
+function setObjectCharge(inst, targetCharge) {
+  const boundedCharge = clamp(targetCharge, inst.protons - maxE(inst), inst.protons - 2);
+  inst.electrons = inst.protons - boundedCharge;
+}
+
+function splitContactCharge(objectCharge, scopeCharge) {
+  const total = objectCharge + scopeCharge;
+  const objectTarget = total >= 0 ? Math.ceil(total / 2) : Math.floor(total / 2);
+  const scopeTarget = total - objectTarget;
+  return { objectTarget, scopeTarget };
+}
+
 // ═══════════════════════════════════════════════════════
 // Rubbing
 // ═══════════════════════════════════════════════════════
@@ -515,39 +637,80 @@ function checkGround() {
 // ═══════════════════════════════════════════════════════
 function updateScope() {
   const sx = scope.x, ky = scope.rodTopY;
-
-  let nearestEffect = 0, nearestSign = 0;
+  let nearestQ = 0, nearestDist = Infinity;
   for (const inst of instances) {
     const q = ch(inst);
-    if (q === 0) continue;
     const d = Math.hypot(inst.x - sx, inst.y - ky);
-    const eff = q / Math.max(d, 35);
-    if (Math.abs(eff) > Math.abs(nearestEffect)) {
-      nearestEffect = eff;
-      nearestSign   = Math.sign(q);
+    if (q !== 0 && d < nearestDist) {
+      nearestQ = q;
+      nearestDist = d;
     }
-    // Direct contact with knob
-    if (d < rad(inst) + 13) {
-      const transfer = Math.sign(q) * 0.04;
-      scope.contactQ = Math.max(-10, Math.min(10, scope.contactQ + transfer));
-      scope.leafSign  = Math.sign(scope.contactQ || q);
+    if (q !== 0 && d < rad(inst) + 13) {
+      if (!inst._scopeTouch) {
+        const { objectTarget, scopeTarget } = splitContactCharge(q, scope.netCharge);
+        setObjectCharge(inst, objectTarget);
+        scope.netCharge = clamp(scopeTarget, -8, 8);
+        addLabel(sx, ky - 26, 'charge split', '129,140,248');
+        inst._scopeTouch = true;
+      }
+    } else {
+      inst._scopeTouch = false;
     }
   }
 
-  // Leaves spread from induction OR contact charge
-  const inductionAngle = Math.min(Math.abs(nearestEffect) * 0.07, 0.6);
-  const contactAngle   = Math.min(Math.abs(scope.contactQ) * 0.045, 0.65);
-  scope.leafTarget = Math.max(inductionAngle, contactAngle);
+  let induction = 0;
+  if (nearestQ !== 0 && nearestDist < 220) {
+    induction = clamp(Math.round((Math.abs(nearestQ) * 240) / Math.max(nearestDist, 42)), 0, 4);
+  }
 
-  // If induction dominates, sign is from the nearby object
-  if (inductionAngle > contactAngle) scope.leafSign = nearestSign;
+  const headInduction = nearestQ === 0 ? 0 : -Math.sign(nearestQ) * induction;
+  const leafInduction = nearestQ === 0 ? 0 :  Math.sign(nearestQ) * induction;
+
+  scope.headCharge = headInduction + Math.trunc(scope.netCharge * 0.35);
+  scope.leafCharge = leafInduction + scope.netCharge;
+  const spreadStrength = Math.max(Math.abs(scope.leafCharge), Math.abs(scope.netCharge));
+  scope.leafTarget = Math.min(spreadStrength * 0.09, 0.65);
+  scope.leafSign   = Math.sign(scope.leafCharge || scope.netCharge || nearestQ);
 
   // Smooth animation
   scope.leafAngle += (scope.leafTarget - scope.leafAngle) * 0.1;
+}
 
-  // Slow contact charge decay
-  if (scope.contactQ > 0)      scope.contactQ -= 0.003;
-  else if (scope.contactQ < 0) scope.contactQ += 0.003;
+function electroscopeElectronCount(base, charge) {
+  return clamp(base - charge, 0, base + 4);
+}
+
+function drawElectroscopeCharges(sx, ky, pivotY, leafL, ang) {
+  drawChargeMarkers({
+    x: sx,
+    y: ky - 13,
+    radius: 13,
+    protonCount: 5,
+    electronCount: electroscopeElectronCount(5, scope.headCharge),
+    rod: false,
+  });
+
+  const shaftStations = 5;
+  for (let i = 0; i < shaftStations; i++) {
+    const t = (i + 1) / (shaftStations + 1);
+    const y = (ky - 13) + (pivotY - (ky - 13)) * t;
+    const localCharge = Math.round(scope.headCharge * (1 - t) + scope.leafCharge * t);
+    drawChargeMarkers({
+      x: sx,
+      y,
+      radius: 8,
+      protonCount: 2,
+      electronCount: electroscopeElectronCount(2, localCharge),
+      rod: false,
+    });
+  }
+
+  const leftTip  = { x: sx - leafL * Math.sin(ang) * 0.72, y: pivotY + leafL * Math.cos(ang) * 0.72 };
+  const rightTip = { x: sx + leafL * Math.sin(ang) * 0.72, y: pivotY + leafL * Math.cos(ang) * 0.72 };
+  const leafElectronCount = electroscopeElectronCount(4, scope.leafCharge);
+
+  drawChargeMarkers({ x: leftTip.x, y: leftTip.y, radius: 13, protonCount: 4, electronCount: leafElectronCount, rod: false });
+  drawChargeMarkers({ x: rightTip.x, y: rightTip.y, radius: 13, protonCount: 4, electronCount: leafElectronCount, rod: false });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -748,6 +911,27 @@ function drawObject(inst) {
     ctx.fillText(`${sign}${Math.abs(q)}`, x, y - ir - 4);
   }
 
+  const markerBase = clamp(Math.round(t.baseE / 2), 4, 8);
+  if (t.rod) {
+    const sh = (t.spriteH ?? SPRITE_H);
+    drawChargeMarkers({
+      x, y,
+      protonCount: markerBase,
+      electronCount: clamp(markerBase - q, 0, markerBase + 4),
+      rod: true,
+      rodAngle: inst.rodAngle,
+      halfW: ir * 0.9,
+      halfH: sh * 0.42,
+    });
+  } else {
+    drawChargeMarkers({
+      x, y, radius: ir,
+      protonCount: markerBase,
+      electronCount: clamp(markerBase - q, 0, markerBase + 4),
+      rod: false,
+    });
+  }
+
   // Name
   ctx.font         = '10px Segoe UI, sans-serif';
   ctx.fillStyle    = 'rgba(148,163,184,0.75)';
@@ -804,13 +988,11 @@ function drawElectroscope() {
   const ky     = scope.rodTopY;
   const pivotY = scope.pivotY;
   const ang    = scope.leafAngle;
-  const leafL  = 44;
+  const leafL  = 62;
 
   // Determine visual properties
-  const hasContact = Math.abs(scope.contactQ) > 0.2;
-  const leafCol    = hasContact
-    ? (scope.leafSign > 0 ? '#fb923c' : '#818cf8')
-    : '#94a3b8';
+  const hasContact = scope.netCharge !== 0;
+  const leafCol    = scope.leafSign > 0 ? '#fb923c' : scope.leafSign < 0 ? '#818cf8' : '#94a3b8';
 
   // Label
   ctx.font         = '11px Segoe UI, sans-serif';
@@ -820,7 +1002,7 @@ function drawElectroscope() {
   ctx.fillText('Electroscope', sx, ky - 14);
 
   // Glass jar
-  const jTop = pivotY - 18, jH = leafL + 28, jW = 72;
+  const jTop = pivotY - 24, jH = leafL + 42, jW = 96;
   ctx.fillStyle   = 'rgba(30,41,59,0.55)';
   ctx.strokeStyle = '#334155';
   ctx.lineWidth   = 1.5;
@@ -840,16 +1022,16 @@ function drawElectroscope() {
 
   // Stem above jar
   ctx.strokeStyle = '#94a3b8';
-  ctx.lineWidth   = 4;
+  ctx.lineWidth   = 5;
   ctx.lineCap     = 'round';
   ctx.beginPath();
-  ctx.moveTo(sx, ky - 13);
+  ctx.moveTo(sx, ky - 17);
   ctx.lineTo(sx, pivotY);
   ctx.stroke();
 
   // Knob
   ctx.beginPath();
-  ctx.arc(sx, ky - 13, 11, 0, Math.PI * 2);
+  ctx.arc(sx, ky - 17, 15, 0, Math.PI * 2);
   ctx.fillStyle   = '#94a3b8';
   ctx.fill();
   if (hasContact) {
@@ -873,12 +1055,12 @@ function drawElectroscope() {
 
   // Sign label on knob
   if (hasContact) {
-    const sign = scope.contactQ > 0 ? '+' : '−';
-    ctx.font         = 'bold 12px sans-serif';
+    const sign = scope.netCharge > 0 ? '+' : '−';
+    ctx.font         = 'bold 15px sans-serif';
     ctx.fillStyle    = leafCol;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(sign, sx, ky - 13);
+    ctx.fillText(sign, sx, ky - 17);
   }
 
   // Spread angle label
@@ -890,6 +1072,7 @@ function drawElectroscope() {
     ctx.textBaseline = 'top';
     ctx.fillText(`${deg}°`, sx, jTop + jH + 3);
   }
+  drawElectroscopeCharges(sx, ky, pivotY, leafL, ang);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -926,35 +1109,11 @@ function loop() {
   else instances.forEach(i => { i.rubTimer = 0; });
 
   // Tick charge glyphs for instances (KAN-10)
-  for (const inst of instances) {
-    const q = ch(inst);
-    if (q !== 0) {
-      const ir = rad(inst);
-      const count = Math.min(Math.abs(q), 8);
-      tickGlyphs(inst.glyphs, inst.x, inst.y, ir + 10, Math.sign(q), count);
-    } else {
-      inst.glyphs.length = 0;
-    }
-  }
-  // Tick charge glyphs for electroscope (KAN-9)
-  if (Math.abs(scope.contactQ) > 0.2) {
-    const sign = Math.sign(scope.contactQ);
-    const count = Math.min(Math.ceil(Math.abs(scope.contactQ)), 8);
-    // Knob area + leaf tips
-    tickGlyphs(scopeGlyphs, scope.x, scope.rodTopY - 13, 28, sign, count);
-  } else {
-    scopeGlyphs.length = 0;
-  }
-
   drawGround();
   drawPithBall();
   drawElectroscope();
-  // Draw electroscope glyphs after electroscope (KAN-9)
-  drawGlyphs(scopeGlyphs, scope.x, scope.rodTopY - 13);
   for (const inst of instances) {
     drawObject(inst);
-    // Draw instance glyphs after each object (KAN-10)
-    drawGlyphs(inst.glyphs, inst.x, inst.y);
   }
   drawParticles();
 
@@ -1060,6 +1219,12 @@ resetBtn.addEventListener('click', () => {
   sparks.length      = 0;
   labels.length      = 0;
   scopeGlyphs.length = 0;
+  scope.netCharge    = 0;
+  scope.headCharge   = 0;
+  scope.leafCharge   = 0;
+  scope.leafAngle    = 0;
+  scope.leafTarget   = 0;
+  scope.leafSign     = 0;
   pith.angle         = 0;
   pith.angleV        = 0;
   pith.charge        = 0;
