@@ -308,21 +308,24 @@ const ANION_NAMES = {
 // Common-name overrides for well-known covalent compounds
 // Keys use subscript Unicode digits to match the Hill-order formula output of deriveFormula()
 const COMMON_NAMES = {
-  'CO':   'carbon monoxide',
-  'NO':   'nitric oxide',
-  'H₂O':  'water',
-  'H₂O₂': 'hydrogen peroxide',
-  'NH₃':  'ammonia',
-  'CH₄':  'methane',
-  'HCl':  'hydrogen chloride',
-  'HF':   'hydrogen fluoride',
-  'H₂S':  'hydrogen sulfide',
-  'H₂':   'dihydrogen',
-  'N₂':   'dinitrogen',
-  'O₂':   'dioxygen',
-  'F₂':   'difluorine',
-  'Cl₂':  'dichlorine',
-  'N₂O':  'nitrous oxide',
+  // Hill order: C first, H second, then alphabetical
+  'CO':    'carbon monoxide',
+  'CO₂':   'carbon dioxide',
+  'CH₄':   'methane',
+  'H₂':    'dihydrogen',
+  'HCl':   'hydrogen chloride',
+  'HF':    'hydrogen fluoride',
+  'H₃N':   'ammonia',          // Hill: H before N
+  'H₂O':   'water',
+  'H₂O₂':  'hydrogen peroxide',
+  'H₂S':   'hydrogen sulfide',
+  'ClN':   'nitrogen monochloride', // Hill: Cl before N
+  'NO':    'nitric oxide',
+  'N₂':    'dinitrogen',
+  'N₂O':   'nitrous oxide',
+  'O₂':    'dioxygen',
+  'F₂':    'difluorine',
+  'Cl₂':   'dichlorine',
 };
 
 // Ionic override: pairs that are experimentally ionic but fall below the ΔEN > 1.7 threshold.
@@ -953,7 +956,41 @@ function triggerBond(a, b) {
   b.x = mx + (dx / d) * bondDist / 2;
   b.y = my + (dy / d) * bondDist / 2;
 
+  // Recalculate bond orders for all covalent bonds in the connected component
+  recalcBondOrders(a);
+
   updateInfo();
+}
+
+// Recalculate bond orders for all covalent bonds in a connected component.
+// Each atom's bonding electrons are spread equally across all bonds it participates in.
+// Bond order = min of each atom's available bonding electrons / bond count.
+function recalcBondOrders(seedAtom) {
+  const component = connectedComponent(seedAtom);
+  const atomSet = new Set(component.map(a => a.id));
+  const bonds = stageBonds.filter(b =>
+    b.result.type !== 'ionic' && atomSet.has(b.idA) && atomSet.has(b.idB)
+  );
+
+  // Compute bond order for each bond based on both atoms' needs / degree
+  for (const bond of bonds) {
+    const atomA = getAtomById(bond.idA);
+    const atomB = getAtomById(bond.idB);
+    if (!atomA || !atomB) continue;
+
+    // Count how many covalent bonds each atom has in this component
+    const degA = bonds.filter(b => b.idA === atomA.id || b.idB === atomA.id).length;
+    const degB = bonds.filter(b => b.idA === atomB.id || b.idB === atomB.id).length;
+
+    const needA = octetOf(atomA.elem) - atomA.elem.valence;
+    const needB = octetOf(atomB.elem) - atomB.elem.valence;
+
+    const boA = degA > 0 ? Math.floor(needA / degA) : 1;
+    const boB = degB > 0 ? Math.floor(needB / degB) : 1;
+    const bo  = Math.max(1, Math.min(boA, boB, 3));
+
+    bond.result.bondOrder = bo;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1454,25 +1491,69 @@ function connectedComponent(startAtom) {
 }
 
 // Derive formula string and IUPAC-style name from the connected component of atoms.
-// Uses Hill order: C first, then H, then alphabetical for the rest.
-function deriveFormula(atoms) {
+// Formula uses Hill order (C first, H second, then alphabetical).
+// Name ordering: less electronegative (more cation-like) element first, then anion with -ide suffix.
+// bondType: 'ionic' | 'polar-covalent' | 'nonpolar-covalent'
+function deriveFormula(atoms, bondType) {
   const counts = {};
   for (const a of atoms) counts[a.elem.sym] = (counts[a.elem.sym] || 0) + 1;
-  // Hill order
-  const syms = Object.keys(counts).sort((a, b) => {
-    if (a === 'C' && b !== 'C') return -1;
-    if (b === 'C' && a !== 'C') return  1;
-    if (a === 'H' && b !== 'H') return -1;
-    if (b === 'H' && a !== 'H') return  1;
-    return a.localeCompare(b);
+
+  // EN-sorted order: less EN (cation) first, higher EN (anion) last
+  // Used for both ionic formula and name ordering.
+  const allSyms = Object.keys(counts);
+  const nameSyms = allSyms.slice().sort((a, b) => {
+    const enA = ELEMENTS.find(e => e.sym === a)?.EN ?? 0;
+    const enB = ELEMENTS.find(e => e.sym === b)?.EN ?? 0;
+    return enA - enB;
   });
+
+  // Formula: ionic uses cation-first order; covalent uses Hill order
+  let syms;
+  if (bondType === 'ionic') {
+    syms = nameSyms;
+  } else {
+    syms = allSyms.slice().sort((a, b) => {
+      if (a === 'C' && b !== 'C') return -1;
+      if (b === 'C' && a !== 'C') return  1;
+      if (a === 'H' && b !== 'H') return -1;
+      if (b === 'H' && a !== 'H') return  1;
+      return a.localeCompare(b);
+    });
+  }
   const formula = syms.map(s => s + sub(counts[s])).join('');
 
-  // Simple name: look up common names, else build from element names
-  const name = COMMON_NAMES[formula] || syms.map(s => {
-    const elem = ELEMENTS.find(e => e.sym === s);
-    return (counts[s] > 1 ? sub(counts[s]) : '') + (elem ? elem.name.toLowerCase() : s);
-  }).join(' ');
+  if (COMMON_NAMES[formula]) {
+    return { formula, name: COMMON_NAMES[formula], counts };
+  }
+
+  const GREEK = ['','mono','di','tri','tetra','penta','hexa','hepta','octa','nona','deca'];
+  const gkPrefix = (n, omitMono) => (n === 1 && omitMono) ? '' : (GREEK[n] || n + '-');
+
+  // Apply -ide suffix to the last element (anion)
+  const anionSym = nameSyms[nameSyms.length - 1];
+  const anionIdeName = ANION_NAMES[anionSym]
+    || (ELEMENTS.find(e => e.sym === anionSym)?.name.toLowerCase() ?? anionSym) + 'ide';
+
+  let name;
+  if (bondType === 'ionic') {
+    // Ionic: no prefixes, just "Cation Anionide"
+    name = nameSyms.map((s, i) => {
+      const elem = ELEMENTS.find(e => e.sym === s);
+      const eName = elem ? elem.name.toLowerCase() : s;
+      return i === nameSyms.length - 1 ? anionIdeName : eName;
+    }).join(' ');
+  } else {
+    // Covalent: Greek prefixes, first element omits mono, last element gets -ide suffix
+    name = nameSyms.map((s, i) => {
+      const elem = ELEMENTS.find(e => e.sym === s);
+      const isLast = i === nameSyms.length - 1;
+      const rawName = isLast ? anionIdeName : elem?.name.toLowerCase() ?? s;
+      const prefix = gkPrefix(counts[s], i === 0);
+      // Vowel elision: drop trailing a/o from prefix when root starts with a vowel
+      const needsElision = /^[aeiou]/i.test(rawName) && /[ao]$/.test(prefix);
+      return (needsElision ? prefix.slice(0, -1) : prefix) + rawName;
+    }).join(' ');
+  }
 
   return { formula, name, counts };
 }
@@ -1494,7 +1575,7 @@ function updateInfo() {
   const lastAtom   = getAtomById(bond.idA);
   const component  = lastAtom ? connectedComponent(lastAtom) : [];
   const { formula: stageFormula, name: stageName } = component.length > 1
-    ? deriveFormula(component)
+    ? deriveFormula(component, r.type)
     : { formula: r.formula, name: r.iupacName };
 
   const badgeClass = r.type === 'ionic'          ? 'badge-ionic'
