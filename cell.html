@@ -53,6 +53,54 @@
     color: #cbd5e1;
     white-space: nowrap;
   }
+  #build-panel {
+    position: fixed;
+    right: 14px;
+    top: 74px;
+    z-index: 100;
+    width: 220px;
+    padding: 12px 14px;
+    background: rgba(15,23,42,0.9);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+  }
+  #build-title {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7dd3fc;
+    margin-bottom: 8px;
+  }
+  .build-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 7px;
+    font-size: 0.78rem;
+    color: #cbd5e1;
+  }
+  .build-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: #1e293b;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+  .build-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #34d399, #22c55e);
+  }
+  .build-count {
+    min-width: 34px;
+    text-align: right;
+    color: #86efac;
+    font-size: 0.72rem;
+  }
   #atp-label { font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
   #atp-track { width: 110px; height: 7px; background: #1e293b; border-radius: 4px; overflow: hidden; border: 1px solid #334155; }
   #atp-fill { height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius: 4px; transition: width 0.08s; }
@@ -67,15 +115,61 @@
   }
   #interact-hint.show { opacity: 1; }
 
+  #celly-guide {
+    position: fixed;
+    left: 14px;
+    top: 78px;
+    z-index: 105;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    max-width: min(320px, calc(100vw - 28px));
+    pointer-events: none;
+  }
+  #celly-bubble {
+    position: relative;
+    background: rgba(248,250,252,0.96);
+    color: #0f172a;
+    border: 2px solid #cbd5e1;
+    border-radius: 18px;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    box-shadow: 0 16px 36px rgba(2,6,23,0.28);
+    min-height: 84px;
+    display: flex;
+    align-items: center;
+  }
+  #celly-bubble::after {
+    content: '';
+    position: absolute;
+    left: -11px;
+    bottom: 18px;
+    width: 18px;
+    height: 18px;
+    background: rgba(248,250,252,0.96);
+    border-left: 2px solid #cbd5e1;
+    border-bottom: 2px solid #cbd5e1;
+    transform: rotate(45deg);
+  }
+  #celly-text { font-weight: 600; }
+  #celly-avatar {
+    width: 118px;
+    height: 118px;
+    object-fit: contain;
+    filter: drop-shadow(0 14px 22px rgba(2,6,23,0.38));
+    flex: 0 0 auto;
+  }
+
   #tutorial {
     position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
     background: rgba(15,23,42,0.93); border: 1px solid #334155;
     border-radius: 10px; padding: 11px 20px; text-align: center;
     font-size: 0.8rem; color: #94a3b8; z-index: 100; line-height: 1.65;
-    transition: opacity 0.5s;
+    transition: opacity 0.5s; pointer-events: none;
   }
   #tutorial strong { color: #e2e8f0; }
-  #tutorial-close { margin-top: 6px; font-size: 0.7rem; color: #475569; cursor: pointer; }
+  #tutorial-close { margin-top: 6px; font-size: 0.7rem; color: #475569; cursor: pointer; pointer-events: auto; }
   #tutorial-close:hover { color: #94a3b8; }
   @media (max-width: 760px) {
     #hud {
@@ -90,6 +184,29 @@
     #tutorial {
       top: 56px;
       width: min(92vw, 420px);
+    }
+    #build-panel {
+      left: 50%;
+      right: auto;
+      top: auto;
+      bottom: 108px;
+      transform: translateX(-50%);
+      width: min(calc(100vw - 18px), 360px);
+    }
+    #celly-guide {
+      left: 10px;
+      top: 48px;
+      gap: 8px;
+      max-width: min(94vw, 360px);
+    }
+    #celly-avatar {
+      width: 90px;
+      height: 90px;
+    }
+    #celly-bubble {
+      min-height: 74px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
     }
   }
 </style>
@@ -117,9 +234,20 @@
 
 <div id="interact-hint"></div>
 
+<div id="celly-guide" aria-live="polite">
+  <img id="celly-avatar" src="assets/Cell Sim/Celly.png" alt="Celly helper character">
+  <div id="celly-bubble">
+    <div id="celly-text">Click the nucleus to make a transcript!</div>
+  </div>
+</div>
+
+<div id="build-panel">
+  <div id="build-title">Organelle Building</div>
+</div>
+
 <div id="tutorial">
   Click the <strong>nucleus</strong> to make mRNA, then click the <strong>rough ER</strong> to build a folded protein.<br>
-  Drag the folded protein to the <strong>Golgi apparatus</strong> to package it. Click <strong>mitochondria</strong> any time to gain ATP one unit at a time.
+  Drag the folded protein to the <strong>Golgi apparatus</strong> to package it, then drag packaged proteins onto organelles to build second copies.
   <div id="tutorial-close">got it ×</div>
 </div>
 
@@ -134,6 +262,7 @@ window.addEventListener('resize', resize);
 
 const CELL_ASSET_PATH = 'assets/Cell Sim/';
 const CELL_SPRITES = {
+  celly: 'Celly.png',
   nucleus: 'nucleus.png',
   mitochondria: 'mitochondria.png',
   smooth_er: 'smooth er.png',
@@ -155,6 +284,7 @@ for (const [key, file] of Object.entries(CELL_SPRITES)) {
 const tutEl = document.getElementById('tutorial');
 document.getElementById('tutorial-close').onclick = () => tutEl.style.opacity = '0';
 setTimeout(() => tutEl.style.opacity = '0', 12000);
+const cellyText = document.getElementById('celly-text');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CELL_R = 600;
@@ -321,9 +451,28 @@ const BG_MITO = [
 
 // ── ATP state ─────────────────────────────────────────────────────────────────
 const ATP_GAIN = 1;
+const GLUCOSE_FUEL_GAIN = 36;
 const ATP = { value: 100, max: 100 };
+const metabolism = { glucoseFuel: 0, glucoseMax: 100, nextGlucoseId: 1 };
 const phaseState = { stage: 'Interphase · G1', mrnaReady: 0, nextProteinId: 1 };
 const proteinTokens = [];
+const glucoseTokens = [];
+let cellyOverride = '';
+let cellyOverrideUntil = 0;
+const endocytosisFx = { t: 0, pulse: 0 };
+const BUILD_COST = 3;
+const DUPLICATE_TARGETS = {
+  golgi:       { label: 'Golgi', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('golgi')), copyOffset: { x: 120, y: 34 }, sprite: 'golgi', size: () => ({ w: 360, h: 255 }) },
+  mitochondria:{ label: 'Mitochondria', proteinsNeeded: 2, anchor: () => ({ x: -368, y: 300 }), copyOffset: { x: 118, y: 40 }, sprite: 'mitochondria', size: () => ({ w: 150, h: 106 }), angle: 0.35 },
+  ser:         { label: 'Smooth ER', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('ser')), copyOffset: { x: -112, y: -128 }, sprite: 'smooth_er', size: () => ({ w: 320, h: 226 }) },
+  lysosome:    { label: 'Lysosome', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('lyso_a')), copyOffset: { x: 118, y: 82 }, sprite: 'lysosome', size: () => ({ w: 108, h: 76 }) },
+  vacuole:     { label: 'Vacuole', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('vac_lg')), copyOffset: { x: 180, y: 56 }, sprite: 'vacuole', size: () => ({ w: 184, h: 132 }) },
+  centriole:   { label: 'Centriole', proteinsNeeded: 1, anchor: () => organelleAnchor(getOrg('centriole')), copyOffset: { x: 102, y: -24 }, sprite: 'centriole', size: () => ({ w: 160, h: 114 }) },
+};
+const duplicateState = {};
+for (const [id, cfg] of Object.entries(DUPLICATE_TARGETS)) {
+  duplicateState[id] = { delivered: 0, completed: false, needed: cfg.proteinsNeeded };
+}
 let dragToken = null;
 let dragPointer = null;
 let suppressCanvasClick = false;
@@ -425,12 +574,24 @@ function screenToWorld(clientX, clientY) {
   };
 }
 
+function organelleFloatOffset(o, t = performance.now() / 1000) {
+  if (o.shape === 'mem_spot') return { x: 0, y: 0 };
+  const phaseSeed = Array.from(o.id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const groupPhase = o.id.startsWith('nucle') || o.id === 'nucleus' || o.id === 'dna'
+    ? 0.45
+    : phaseSeed * 0.11;
+  const swayX = Math.sin(t * 0.42 + groupPhase) * 3.2;
+  const swayY = Math.cos(t * 0.55 + groupPhase * 1.3) * 4.6;
+  return { x: swayX, y: swayY };
+}
+
 function organelleAnchor(o) {
+  const float = organelleFloatOffset(o);
   if (o.shape === 'mem_spot') {
     const a = Math.atan2(o.y, o.x);
     return { x: Math.cos(a) * CELL_R, y: Math.sin(a) * CELL_R };
   }
-  return { x: o.x, y: o.y };
+  return { x: o.x + float.x, y: o.y + float.y };
 }
 
 function pointInOrg(x, y, o) {
@@ -514,10 +675,36 @@ function spawnProteinToken(kind = 'folded') {
   return token;
 }
 
+function spawnGlucoseToken() {
+  const membrane = getOrg('membrane');
+  const anchor = membrane ? organelleAnchor(membrane) : { x: 0, y: -CELL_R };
+  const offsetX = metabolism.nextGlucoseId % 2 === 0 ? 136 : -136;
+  endocytosisFx.t = 1;
+  endocytosisFx.pulse = 1;
+  const token = {
+    id: metabolism.nextGlucoseId++,
+    kind: 'glucose',
+    x: anchor.x + offsetX * 0.28,
+    y: anchor.y - 54,
+    tx: anchor.x + offsetX,
+    ty: anchor.y + 174,
+    r: 20,
+    state: 'entering',
+    isDragging: false,
+  };
+  glucoseTokens.push(token);
+  updatePhaseStatus();
+  return token;
+}
+
 function tokenAt(x, y) {
   for (let i = proteinTokens.length - 1; i >= 0; i--) {
     const token = proteinTokens[i];
     if (Math.hypot(x - token.x, y - token.y) <= token.r + 6) return token;
+  }
+  for (let i = glucoseTokens.length - 1; i >= 0; i--) {
+    const token = glucoseTokens[i];
+    if (Math.hypot(x - token.x, y - token.y) <= token.r + 16) return token;
   }
   return null;
 }
@@ -526,14 +713,86 @@ function packagedCount() {
   return proteinTokens.filter(token => token.kind === 'packaged').length;
 }
 
+function glucoseVesicleCount() {
+  return glucoseTokens.length;
+}
+
+function buildCompleteCount() {
+  return Object.values(duplicateState).filter(entry => entry.completed).length;
+}
+
+function buildTargetForDropTarget(target) {
+  if (!target) return null;
+  if (target.type === 'mito') return 'mitochondria';
+  const id = target.data.id;
+  if (id === 'golgi' || id === 'ser' || id === 'centriole') return id;
+  if (id.startsWith('lyso_')) return 'lysosome';
+  if (id.startsWith('vac_')) return 'vacuole';
+  return null;
+}
+
+function updateBuildPanel() {
+  const panel = document.getElementById('build-panel');
+  const title = '<div id="build-title">Organelle Building</div>';
+  const rows = Object.entries(DUPLICATE_TARGETS).map(([id, cfg]) => {
+    const state = duplicateState[id];
+    const pct = Math.round((state.delivered / state.needed) * 100);
+    return `<div class="build-row"><span>${cfg.label}</span><div class="build-track"><div class="build-fill" style="width:${pct}%"></div></div><span class="build-count">${state.delivered}/${state.needed}</span></div>`;
+  }).join('');
+  panel.innerHTML = `${title}${rows}`;
+}
+
 function updatePhaseStatus() {
   const folded = proteinTokens.filter(token => token.kind === 'folded').length;
   const packaged = packagedCount();
   document.getElementById('phase-status').textContent =
-    `${phaseState.stage} · mRNA ${phaseState.mrnaReady} · Folded ${folded} · Packaged ${packaged}`;
+    `${phaseState.stage} · Fuel ${metabolism.glucoseFuel}/${metabolism.glucoseMax} · Glucose ${glucoseVesicleCount()} · mRNA ${phaseState.mrnaReady} · Folded ${folded} · Packaged ${packaged} · Built ${buildCompleteCount()}/${Object.keys(DUPLICATE_TARGETS).length}`;
+  updateBuildPanel();
+  updateCellyText();
 }
 
 // ── Give ATP ──────────────────────────────────────────────────────────────────
+function setCellyOverride(text, duration = 1400) {
+  cellyOverride = text;
+  cellyOverrideUntil = performance.now() + duration;
+  updateCellyText();
+}
+
+function computeCellyText() {
+  const folded = proteinTokens.filter(token => token.kind === 'folded').length;
+  const packaged = packagedCount();
+  const remainingBuilds = Object.values(duplicateState).filter(entry => !entry.completed).length;
+  const nucleus = getOrg('nucleus');
+  const rer = getOrg('rer');
+  let nextCost = 0;
+
+  if (phaseState.mrnaReady <= 0) nextCost = nucleus ? nucleus.cost : 0;
+  else if (folded <= 0) nextCost = rer ? rer.cost : 0;
+  else if (packaged <= 0 || remainingBuilds > 0) nextCost = BUILD_COST;
+
+  if (ATP.value < nextCost && metabolism.glucoseFuel <= 0) {
+    if (glucoseVesicleCount() > 0) return 'Drag the glucose vesicle from the top membrane to a mitochondrion so it can make ATP!';
+    return "I'm hungry! Click the glowing pocket at the top membrane to bring glucose inside the cell!";
+  }
+  if (ATP.value < ATP.max && metabolism.glucoseFuel > 0) return 'Tap the mitochondria to harvest the ATP!';
+  if (phaseState.mrnaReady <= 0) return 'Click the nucleus to make a transcript!';
+  if (folded <= 0) return 'Click the rough ER to make a protein!';
+  if (packaged <= 0) return 'Drag the folded protein to the Golgi to package it!';
+  if (remainingBuilds > 0) return 'Drop the packaged protein onto an organelle to build it up!';
+  return 'Nice work! Keep exploring the organelles with me.';
+}
+
+function updateCellyText() {
+  if (!cellyText) return;
+  const now = performance.now();
+  if (cellyOverride && now < cellyOverrideUntil) {
+    cellyText.textContent = cellyOverride;
+    return;
+  }
+  cellyOverride = '';
+  cellyText.textContent = computeCellyText();
+}
+
 function activateOrganelle(org, openDetails = true) {
   state[org.id].pulse = 0.5;
   state[org.id].activeT = Math.max(state[org.id].activeT, 0.8);
@@ -543,11 +802,27 @@ function activateOrganelle(org, openDetails = true) {
 }
 
 function harvestATP(mito, openDetails = true) {
-  ATP.value = Math.min(ATP.max, ATP.value + ATP_GAIN);
+  if (metabolism.glucoseFuel <= 0) {
+    mito.pulse = 0.45;
+    spawnBurst(mito.x, mito.y, '#f87171', 8);
+    setCellyOverride("I'm hungry! Click the glowing pocket at the top membrane to bring glucose inside the cell!");
+    updatePhaseStatus();
+    return false;
+  }
+  if (ATP.value < ATP.max) {
+    ATP.value = Math.min(ATP.max, ATP.value + ATP_GAIN);
+    metabolism.glucoseFuel = Math.max(0, metabolism.glucoseFuel - 1);
+    if (ATP.value >= ATP.max) {
+      setCellyOverride("Delicious! Let's continue making transcripts from the nucleus again!", 1900);
+    } else {
+      setCellyOverride('omnomnomnomnom', 900);
+    }
+  }
   mito.pulse = 0.8;
   spawnBurst(mito.x, mito.y, '#fbbf24', 14);
-  if (openDetails) openCard(mitoInfo);
+  if (openDetails && ATP.value >= ATP.max) openCard(mitoInfo);
   updatePhaseStatus();
+  return true;
 }
 
 function transcribeAtNucleus(org) {
@@ -570,6 +845,7 @@ function transcribeAtNucleus(org) {
       });
     }
   }
+  setCellyOverride('Click the rough ER to make a protein!', 1600);
   updatePhaseStatus();
   return true;
 }
@@ -582,6 +858,7 @@ function translateAtRER(org) {
   state[org.id].activeT = 1.1;
   spawnBurst(org.x, org.y, org.pc, 12);
   spawnProteinToken('folded');
+  setCellyOverride('Drag the folded protein to the Golgi to package it!', 1600);
   updatePhaseStatus();
   return true;
 }
@@ -601,6 +878,47 @@ function tryPackageAtGolgi(token) {
   state[golgi.id].pulse = 0.8;
   state[golgi.id].activeT = 1.2;
   spawnBurst(anchor.x, anchor.y, golgi.pc, 14);
+  setCellyOverride('Now drop that packaged protein onto an organelle to build it up!', 1700);
+  updatePhaseStatus();
+  return true;
+}
+
+function deliverPackagedProtein(token) {
+  if (token.kind !== 'packaged') return false;
+  const hit = locateTarget(token.x, token.y);
+  const buildId = buildTargetForDropTarget(hit);
+  if (!buildId) return false;
+  const build = duplicateState[buildId];
+  if (!build || build.completed || ATP.value < BUILD_COST) return false;
+  ATP.value -= BUILD_COST;
+  build.delivered = Math.min(build.needed, build.delivered + 1);
+  build.completed = build.delivered >= build.needed;
+  const target = hit.type === 'mito' ? hit.data : hit.data;
+  const targetId = hit.type === 'mito' ? null : hit.data.id;
+  if (targetId && state[targetId]) {
+    state[targetId].pulse = 0.9;
+    state[targetId].activeT = 1.1;
+  }
+  if (hit.type === 'mito') {
+    hit.data.pulse = 0.95;
+  }
+  spawnBurst(token.x, token.y, '#34d399', 14);
+  const idx = proteinTokens.findIndex(item => item.id === token.id);
+  if (idx >= 0) proteinTokens.splice(idx, 1);
+  updatePhaseStatus();
+  return true;
+}
+
+function deliverGlucoseToMito(token) {
+  if (token.kind !== 'glucose' || token.state === 'entering') return false;
+  const hit = locateTarget(token.x, token.y);
+  if (!hit || hit.type !== 'mito') return false;
+  metabolism.glucoseFuel = Math.min(metabolism.glucoseMax, metabolism.glucoseFuel + GLUCOSE_FUEL_GAIN);
+  hit.data.pulse = 1;
+  spawnBurst(hit.data.x, hit.data.y, '#fbbf24', 16);
+  setCellyOverride('Yum. Tap the mitochondria to harvest the ATP!', 1600);
+  const idx = glucoseTokens.findIndex(item => item.id === token.id);
+  if (idx >= 0) glucoseTokens.splice(idx, 1);
   updatePhaseStatus();
   return true;
 }
@@ -608,6 +926,14 @@ function tryPackageAtGolgi(token) {
 function handleOrganelleAction(org) {
   if (org.id === 'nucleus') return transcribeAtNucleus(org);
   if (org.id === 'rer') return translateAtRER(org);
+  if (org.id === 'membrane') {
+    spawnGlucoseToken();
+    state[org.id].pulse = 0.9;
+    spawnBurst(organelleAnchor(org).x, organelleAnchor(org).y, '#86efac', 14);
+    setCellyOverride('Great! Now drag that glucose vesicle from the top membrane to a mitochondrion!', 1600);
+    updatePhaseStatus();
+    return true;
+  }
   return false;
 }
 
@@ -646,11 +972,20 @@ function endTokenDrag() {
   dragToken.isDragging = false;
   dragToken = null;
   dragPointer = null;
-  const packaged = tryPackageAtGolgi(token);
-  if (!packaged) {
-    const home = tokenHome(token);
-    token.x = home.x;
-    token.y = home.y;
+  const handled = token.kind === 'folded'
+    ? tryPackageAtGolgi(token)
+    : token.kind === 'packaged'
+      ? deliverPackagedProtein(token)
+      : deliverGlucoseToMito(token);
+  if (!handled) {
+    if (token.kind === 'glucose') {
+      token.x = token.tx;
+      token.y = token.ty;
+    } else {
+      const home = tokenHome(token);
+      token.x = home.x;
+      token.y = home.y;
+    }
   }
   return true;
 }
@@ -668,19 +1003,30 @@ canvas.addEventListener('click', e => {
   const world = screenToWorld(e.clientX, e.clientY);
   handleWorldPress(world.x, world.y);
 });
-canvas.addEventListener('mousemove', e => {
-  const world = screenToWorld(e.clientX, e.clientY);
+function handlePointerMove(clientX, clientY) {
+  const world = screenToWorld(clientX, clientY);
   if (dragToken) {
     moveTokenDrag(world.x, world.y);
     hoverTarget = locateTarget(world.x, world.y);
     return;
   }
   hoverTarget = tokenAt(world.x, world.y) ? null : locateTarget(world.x, world.y);
+}
+
+canvas.addEventListener('mousemove', e => {
+  handlePointerMove(e.clientX, e.clientY);
 });
-canvas.addEventListener('mouseup', () => { endTokenDrag(); });
-canvas.addEventListener('mouseleave', () => {
-  hoverTarget = null;
+window.addEventListener('mousemove', e => {
+  if (!dragToken || dragPointer !== 'mouse') return;
+  handlePointerMove(e.clientX, e.clientY);
+});
+window.addEventListener('mouseup', () => {
+  if (dragPointer !== 'mouse') return;
   endTokenDrag();
+});
+canvas.addEventListener('mouseleave', () => {
+  if (dragToken) return;
+  hoverTarget = null;
 });
 canvas.addEventListener('touchstart', e => {
   if (!e.touches.length) return;
@@ -698,11 +1044,14 @@ canvas.addEventListener('touchstart', e => {
 canvas.addEventListener('touchmove', e => {
   if (!dragToken || dragPointer !== 'touch' || !e.touches.length) return;
   e.preventDefault();
-  const world = screenToWorld(e.touches[0].clientX, e.touches[0].clientY);
-  moveTokenDrag(world.x, world.y);
-  hoverTarget = locateTarget(world.x, world.y);
+  handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
-canvas.addEventListener('touchend', e => {
+window.addEventListener('touchmove', e => {
+  if (!dragToken || dragPointer !== 'touch' || !e.touches.length) return;
+  e.preventDefault();
+  handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+window.addEventListener('touchend', e => {
   if (dragPointer !== 'touch') return;
   e.preventDefault();
   endTokenDrag();
@@ -725,6 +1074,9 @@ updatePhaseStatus();
 
 // ── Update ────────────────────────────────────────────────────────────────────
 function update(dt) {
+  if (endocytosisFx.t > 0) endocytosisFx.t = Math.max(0, endocytosisFx.t - dt * 1.65);
+  if (endocytosisFx.pulse > 0) endocytosisFx.pulse = Math.max(0, endocytosisFx.pulse - dt * 0.9);
+
   // Organelle timers + continuous emission
   for (const o of ORGS) {
     const s = state[o.id];
@@ -781,11 +1133,25 @@ function update(dt) {
     token.x += (home.x - token.x) * Math.min(8 * dt, 1);
     token.y += (home.y - token.y) * Math.min(8 * dt, 1);
   }
+  for (const token of glucoseTokens) {
+    if (token.isDragging) continue;
+    if (token.state === 'entering') {
+      token.x += (token.tx - token.x) * Math.min(6 * dt, 1);
+      token.y += (token.ty - token.y) * Math.min(6 * dt, 1);
+      if (Math.hypot(token.x - token.tx, token.y - token.ty) < 6) {
+        token.x = token.tx;
+        token.y = token.ty;
+        token.state = 'vesicle';
+      }
+    }
+  }
 
   // Hint
   if (hoverTarget && !cardOpen) {
     if (hoverTarget.type === 'mito') {
-      hint.textContent = 'Click mitochondrion to generate ATP +1';
+      hint.textContent = metabolism.glucoseFuel > 0
+        ? 'Click mitochondrion to generate ATP +1'
+        : 'Bring a glucose vesicle here to refuel mitochondria';
     } else if (hoverTarget.data.id === 'nucleus') {
       hint.textContent = `Click nucleus to transcribe mRNA (-${hoverTarget.data.cost} ATP)`;
     } else if (hoverTarget.data.id === 'rer') {
@@ -793,13 +1159,28 @@ function update(dt) {
         ? `Click rough ER to translate protein (-${hoverTarget.data.cost} ATP)`
         : 'Click nucleus first to make mRNA';
     } else if (hoverTarget.data.id === 'golgi') {
-      hint.textContent = 'Drag folded protein here to package it';
+      hint.textContent = dragToken && dragToken.kind === 'packaged'
+        ? `Drop packaged protein to build Golgi (-${BUILD_COST} ATP)`
+        : 'Drag folded protein here to package it';
+    } else if (hoverTarget.data.id === 'membrane') {
+      hint.textContent = 'Click membrane to bring glucose into the cell';
+    } else if (dragToken && dragToken.kind === 'packaged') {
+      const buildId = buildTargetForDropTarget(hoverTarget);
+      if (buildId && duplicateState[buildId] && !duplicateState[buildId].completed) {
+        hint.textContent = `Drop packaged protein to build ${DUPLICATE_TARGETS[buildId].label} (-${BUILD_COST} ATP)`;
+      } else {
+        hint.textContent = `Click to learn · ${hoverTarget.data.name}`;
+      }
     } else {
       hint.textContent = `Click to learn · ${hoverTarget.data.name}`;
     }
     hint.classList.add('show');
-  } else if (dragToken && dragToken.kind === 'folded' && !cardOpen) {
-    hint.textContent = 'Drag folded protein to the Golgi apparatus';
+  } else if (dragToken && !cardOpen) {
+    hint.textContent = dragToken.kind === 'folded'
+      ? 'Drag folded protein to the Golgi apparatus'
+      : dragToken.kind === 'packaged'
+        ? 'Drag packaged protein onto an organelle to build a duplicate'
+        : 'Drag glucose vesicle to a mitochondrion to refill fuel';
     hint.classList.add('show');
   } else {
     hint.classList.remove('show');
@@ -871,12 +1252,63 @@ function drawCell() {
     const a = (i / 30) * Math.PI * 2;
     arc(Math.cos(a) * r, Math.sin(a) * r, 4, 'rgba(134,239,172,0.38)');
   }
+
+  const membrane = getOrg('membrane');
+  if (membrane) {
+    const anchor = organelleAnchor(membrane);
+    const pocketDepth = 34 + endocytosisFx.t * 72;
+    const pocketWidth = 54 + endocytosisFx.t * 18;
+    const pulseAlpha = 0.18 + endocytosisFx.pulse * 0.42;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, 0.55 + endocytosisFx.pulse * 0.55);
+    ctx.beginPath();
+    ctx.moveTo(anchor.x - pocketWidth, anchor.y - 2);
+    ctx.bezierCurveTo(
+      anchor.x - pocketWidth * 0.78, anchor.y + 10,
+      anchor.x - pocketWidth * 0.36, anchor.y + pocketDepth,
+      anchor.x, anchor.y + pocketDepth
+    );
+    ctx.bezierCurveTo(
+      anchor.x + pocketWidth * 0.36, anchor.y + pocketDepth,
+      anchor.x + pocketWidth * 0.78, anchor.y + 10,
+      anchor.x + pocketWidth, anchor.y - 2
+    );
+    ctx.strokeStyle = `rgba(134,239,172,${0.34 + endocytosisFx.pulse * 0.5})`;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(anchor.x - pocketWidth * 0.82, anchor.y + 2);
+    ctx.bezierCurveTo(
+      anchor.x - pocketWidth * 0.55, anchor.y + 14,
+      anchor.x - pocketWidth * 0.2, anchor.y + pocketDepth - 10,
+      anchor.x, anchor.y + pocketDepth - 10
+    );
+    ctx.bezierCurveTo(
+      anchor.x + pocketWidth * 0.2, anchor.y + pocketDepth - 10,
+      anchor.x + pocketWidth * 0.55, anchor.y + 14,
+      anchor.x + pocketWidth * 0.82, anchor.y + 2
+    );
+    ctx.strokeStyle = `rgba(134,239,172,${0.12 + endocytosisFx.pulse * 0.28})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(anchor.x, anchor.y + pocketDepth * 0.62, 20 + endocytosisFx.t * 10, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(251,191,36,${pulseAlpha})`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(anchor.x, anchor.y + pocketDepth * 0.62, 13 + endocytosisFx.t * 6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(245,158,11,${0.18 + endocytosisFx.pulse * 0.34})`;
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 // ── Draw each organelle ───────────────────────────────────────────────────────
 function drawOrgs() {
   const t = performance.now() / 1000;
   for (const o of ORGS) {
+    const float = organelleFloatOffset(o, t);
+    const drawOrg = o.shape === 'mem_spot' ? o : { ...o, x: o.x + float.x, y: o.y + float.y };
     const s = state[o.id];
     const active = s.activeT > 0;
     const hovered = hoverTarget && hoverTarget.type === 'org' && hoverTarget.data.id === o.id;
@@ -884,8 +1316,8 @@ function drawOrgs() {
     if (hovered && !active) {
       ctx.save(); ctx.globalAlpha = 0.28;
       ctx.beginPath();
-      if (o.rx) ctx.ellipse(o.x, o.y, o.rx + 14, o.ry + 11, 0, 0, Math.PI * 2);
-      else ctx.arc(o.x, o.y, (o.r || 50) + 14, 0, Math.PI * 2);
+      if (drawOrg.rx) ctx.ellipse(drawOrg.x, drawOrg.y, drawOrg.rx + 14, drawOrg.ry + 11, 0, 0, Math.PI * 2);
+      else ctx.arc(drawOrg.x, drawOrg.y, (drawOrg.r || 50) + 14, 0, Math.PI * 2);
       ctx.strokeStyle = o.pc; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.restore();
     }
@@ -896,35 +1328,35 @@ function drawOrgs() {
       ctx.globalAlpha = s.pulse * 0.7;
       glow(o.pc, 20);
       ctx.beginPath();
-      if (o.rx) ctx.ellipse(o.x, o.y, o.rx + 8, o.ry + 7, 0, 0, Math.PI * 2);
-      else ctx.arc(o.x, o.y, (o.r || 50) + 8, 0, Math.PI * 2);
+      if (drawOrg.rx) ctx.ellipse(drawOrg.x, drawOrg.y, drawOrg.rx + 8, drawOrg.ry + 7, 0, 0, Math.PI * 2);
+      else ctx.arc(drawOrg.x, drawOrg.y, (drawOrg.r || 50) + 8, 0, Math.PI * 2);
       ctx.strokeStyle = o.pc; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     }
 
     switch (o.shape) {
-      case 'nucleus':   dNucleus(o, active, t); break;
-      case 'nucleolus': dNucleolus(o, active, t); break;
-      case 'dna':       dDNA(o, active, t); break;
-      case 'nenv':      dNEnv(o, active, t); break;
-      case 'rer':       dRER(o, active, t); break;
-      case 'ser':       dSER(o, active, t); break;
-      case 'ribosome':  dRibosomes(o, active, t); break;
-      case 'golgi':     dGolgi(o, active, t); break;
-      case 'vacuole':   dVacuole(o, active, t); break;
-      case 'lysosome':  dLysosome(o, active, t); break;
-      case 'centriole': dCentriole(o, active, t); break;
-      case 'vesicle':   dVesicle(o, active, t); break;
-      case 'mem_spot':  dMemSpot(o, active, t); break;
+      case 'nucleus':   dNucleus(drawOrg, active, t); break;
+      case 'nucleolus': dNucleolus(drawOrg, active, t); break;
+      case 'dna':       dDNA(drawOrg, active, t); break;
+      case 'nenv':      dNEnv(drawOrg, active, t); break;
+      case 'rer':       dRER(drawOrg, active, t); break;
+      case 'ser':       dSER(drawOrg, active, t); break;
+      case 'ribosome':  dRibosomes(drawOrg, active, t); break;
+      case 'golgi':     dGolgi(drawOrg, active, t); break;
+      case 'vacuole':   dVacuole(drawOrg, active, t); break;
+      case 'lysosome':  dLysosome(drawOrg, active, t); break;
+      case 'centriole': dCentriole(drawOrg, active, t); break;
+      case 'vesicle':   dVesicle(drawOrg, active, t); break;
+      case 'mem_spot':  dMemSpot(drawOrg, active, t); break;
     }
 
     // Label (always visible, dim)
     ctx.font = '9.5px Segoe UI, sans-serif';
     ctx.fillStyle = active ? 'rgba(226,232,240,0.75)' : 'rgba(148,163,184,0.32)';
     ctx.textAlign = 'center';
-    const ly = o.shape === 'rer' || o.shape === 'ser' || o.shape === 'golgi'
-      ? o.y + 72 : o.y + (o.ry || o.r || 30) + 18;
-    ctx.fillText(o.name, o.x, ly);
+    const ly = drawOrg.shape === 'rer' || drawOrg.shape === 'ser' || drawOrg.shape === 'golgi'
+      ? drawOrg.y + 72 : drawOrg.y + (drawOrg.ry || drawOrg.r || 30) + 18;
+    ctx.fillText(drawOrg.name, drawOrg.x, ly);
     ctx.textAlign = 'left';
   }
 }
@@ -1105,6 +1537,39 @@ function drawParticles() {
   }
 }
 
+function drawBuildProgress() {
+  for (const [id, cfg] of Object.entries(DUPLICATE_TARGETS)) {
+    const entry = duplicateState[id];
+    const anchor = cfg.anchor();
+    if (!anchor) continue;
+    if (entry.delivered > 0 && !entry.completed) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(anchor.x, anchor.y, 68, -Math.PI / 2, -Math.PI / 2 + (entry.delivered / entry.needed) * Math.PI * 2);
+      ctx.strokeStyle = 'rgba(74,222,128,0.9)';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (entry.completed) {
+      const size = cfg.size();
+      drawSprite(cfg.sprite, anchor.x + cfg.copyOffset.x, anchor.y + cfg.copyOffset.y, size.w, size.h, {
+        alpha: 0.66,
+        angle: cfg.angle || 0,
+        glow: '#4ade80',
+        blur: 14,
+      });
+      ctx.save();
+      ctx.font = 'bold 11px Segoe UI, sans-serif';
+      ctx.fillStyle = 'rgba(134,239,172,0.95)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Duplicated', anchor.x + cfg.copyOffset.x, anchor.y + cfg.copyOffset.y + size.h * 0.6);
+      ctx.restore();
+    }
+  }
+}
+
 function drawProteinTokens() {
   for (const token of proteinTokens) {
     ctx.save();
@@ -1123,6 +1588,33 @@ function drawProteinTokens() {
       ctx.beginPath();
       ctx.arc(token.x, token.y, token.r + 8, 0, Math.PI * 2);
       ctx.strokeStyle = isPackaged ? 'rgba(167,243,208,0.45)' : 'rgba(253,230,138,0.45)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawGlucoseTokens() {
+  for (const token of glucoseTokens) {
+    ctx.save();
+    const isEntering = token.state === 'entering';
+    glow('#fbbf24', token.isDragging ? 18 : 10);
+    arc(token.x, token.y, token.r + 3, 'rgba(134,239,172,0.16)', 'rgba(134,239,172,0.6)', 2);
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      arc(token.x + Math.cos(a) * 8, token.y + Math.sin(a) * 8, 3.2, 'rgba(251,191,36,0.95)');
+    }
+    ctx.font = 'bold 8px monospace';
+    ctx.fillStyle = 'rgba(226,232,240,0.9)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isEntering ? 'ENDO' : 'GLU', token.x, token.y + token.r + 12);
+    if (token.isDragging) {
+      ctx.beginPath();
+      ctx.arc(token.x, token.y, token.r + 10, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(251,191,36,0.4)';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
@@ -1164,7 +1656,9 @@ function draw() {
     }
   }
   drawOrgs();
+  drawBuildProgress();
   drawParticles();
+  drawGlucoseTokens();
   drawProteinTokens();
 
   ctx.restore();
