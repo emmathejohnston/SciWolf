@@ -26,12 +26,17 @@ html.light {
   --accent2: #6366f1;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, sans-serif;
   overflow: hidden;
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -39,8 +44,10 @@ body {
 #main-canvas {
   flex: 1;
   display: block;
+  width: 100%;
   cursor: grab;
   min-height: 0;
+  touch-action: none;
 }
 #main-canvas:active { cursor: grabbing; }
 
@@ -482,6 +489,7 @@ const canvas = document.getElementById('main-canvas');
 const ctx    = canvas.getContext('2d');
 const skyC   = document.getElementById('sky-canvas');
 const skyCtx = skyC.getContext('2d');
+const controlsEl = document.getElementById('controls');
 const SKY_W  = 210, SKY_H_TOTAL = 150, SKY_H = 108; // sky area vs ground area
 
 // ZS scales the orbital scene so Earth's orbit diameter ≈ 80% of canvas width.
@@ -490,8 +498,12 @@ let ZS = 1;
 function updateZS() { ZS = canvas.width * 0.3 / (175 * (680 / 960)); }
 
 function resize() {
-  canvas.width  = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const controlsH = controlsEl.offsetHeight || 52;
+  const targetH = Math.max(220, viewportH - controlsH);
+  canvas.style.height = `${targetH}px`;
+  canvas.width  = Math.max(1, canvas.clientWidth || window.innerWidth || 1);
+  canvas.height = Math.max(1, canvas.clientHeight || targetH);
   updateZS();
 }
 window.addEventListener('resize', resize);
