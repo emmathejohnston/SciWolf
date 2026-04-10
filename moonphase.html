@@ -549,6 +549,7 @@ let realLast = performance.now();
 let speedIdx = 1;
 let playing  = true;
 let hasDragged = false;
+let correctScale = false;
 
 // ── Checkbox state ────────────────────────────────────────────────────────────
 let showSun  = true, showMoon = true, showTree = false;
@@ -1163,8 +1164,6 @@ function render() {
 // Physical radius ratios relative to the Sun
 const EARTH_SUN_R = 6371   / 696000;   // ≈ 1/109
 const MOON_SUN_R  = 1737   / 696000;   // ≈ 1/401
-let correctScale = false;
-
 function sunR(p)    { return 36 * p.scale * ZS; }
 function earthR(p)  {
   if (correctScale) return Math.max(1.5, 36 * EARTH_SUN_R * p.scale * ZS);
