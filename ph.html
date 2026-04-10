@@ -16,7 +16,7 @@
       --accent:  #38bdf8;
     }
 
-    html.light {
+    body.light {
       --bg:      #f1f5f9;
       --surface: #ffffff;
       --border:  #cbd5e1;
@@ -37,11 +37,12 @@
 
     html, body {
       width: 100%; height: 100%;
-      overflow: hidden;
+      overflow-x: hidden;
       background: var(--bg);
       color: var(--text);
       font-family: 'Segoe UI', system-ui, sans-serif;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* ── Home button ───────────────────────────── */
@@ -133,6 +134,7 @@
       cursor: grab;
       transition: border-color 0.15s, background 0.15s;
       font-size: 0.78rem;
+      touch-action: none;
     }
     .substance-item:hover { border-color: var(--accent); background: #1a2840; }
     .substance-item:active { cursor: grabbing; }
@@ -153,6 +155,7 @@
       cursor: grab;
       transition: border-color 0.15s, background 0.15s;
       font-size: 0.78rem;
+      touch-action: none;
     }
     .indicator-item:hover { border-color: var(--accent); background: #1a2840; }
     .indicator-item:active { cursor: grabbing; }
@@ -192,6 +195,7 @@
       align-items: center;
       gap: 6px;
       transition: border-color 0.15s;
+      touch-action: none;
     }
     .ph-meter-widget:hover { border-color: #4ade80; }
     .ph-meter-widget:active { cursor: grabbing; }
@@ -261,6 +265,7 @@
       flex-direction: column;
       align-items: center;
       gap: 10px;
+      width: 100%;
     }
     .spot-plate {
       background: #d1d5db;
@@ -536,8 +541,148 @@
       border-color: var(--accent);
       color: var(--accent);
     }
+
+    .conc-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 420px;
+      justify-content: flex-end;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        height: auto;
+        min-height: 100vh;
+      }
+      .header {
+        padding: 12px 52px 10px;
+      }
+      .header p {
+        text-align: center;
+        line-height: 1.35;
+      }
+      .main-row {
+        flex-direction: column;
+        overflow: visible;
+      }
+      .panel {
+        width: 100%;
+        border-right: none;
+        border-left: none;
+        border-bottom: 1px solid var(--border);
+        padding: 12px;
+        overflow: visible;
+      }
+      .panel.right {
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+      #substances-panel,
+      #indicators-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
+      }
+      #substances-panel .panel-title,
+      #indicators-panel .panel-title,
+      #indicators-panel .ph-meter-section {
+        grid-column: 1 / -1;
+      }
+      .center {
+        padding: 14px 10px 18px;
+      }
+      .spot-plate {
+        grid-template-columns: repeat(4, minmax(54px, 1fr));
+        grid-template-rows: repeat(3, minmax(54px, 1fr));
+        gap: 8px;
+        padding: 12px;
+        width: min(100%, 344px);
+      }
+      .well {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+      }
+      .well-name {
+        font-size: 0.52rem;
+        bottom: 6px;
+      }
+      .well-strips {
+        top: 7px;
+      }
+      .well-strip {
+        width: 8px;
+        height: 24px;
+      }
+      .ph-scale,
+      #conc-panel,
+      .conc-toggle-row {
+        max-width: 344px;
+      }
+      .ph-meter-section {
+        margin-top: 2px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .home-btn,
+      #theme-toggle {
+        top: 10px;
+      }
+      .header {
+        padding: 56px 14px 10px;
+      }
+      .header h1 {
+        font-size: 1.08rem;
+      }
+      .header p {
+        font-size: 0.72rem;
+      }
+      #substances-panel,
+      #indicators-panel {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        gap: 8px;
+        scroll-snap-type: x proximity;
+      }
+      #substances-panel .panel-title,
+      #indicators-panel .panel-title,
+      #indicators-panel .ph-meter-section {
+        flex: 0 0 100%;
+      }
+      .substance-item,
+      .indicator-item {
+        flex: 0 0 160px;
+        scroll-snap-align: start;
+      }
+      .ph-meter-section {
+        width: 100%;
+      }
+      .ph-meter-widget {
+        max-width: 220px;
+      }
+      .spot-plate {
+        width: min(100%, 308px);
+        grid-template-columns: repeat(4, minmax(46px, 1fr));
+        grid-template-rows: repeat(3, minmax(46px, 1fr));
+        gap: 7px;
+        padding: 10px;
+      }
+      .ph-scale,
+      #conc-panel,
+      .conc-toggle-row {
+        max-width: 308px;
+      }
+      .clear-btn,
+      .conc-toggle-btn {
+        width: 100%;
+      }
+    }
   </style>
-  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
 
@@ -581,7 +726,7 @@
       </div>
 
       <!-- Concentration calculator (KAN-25) -->
-      <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:420px;justify-content:flex-end;">
+      <div class="conc-toggle-row">
         <button class="conc-toggle-btn" id="conc-toggle-btn">[H⁺]/[OH⁻] Calculator</button>
       </div>
       <div id="conc-panel" class="hidden">
@@ -736,7 +881,7 @@
       <span class="s-info">
         <span class="s-name">${s.name}</span>
       </span>`;
-    el.addEventListener('mousedown', e => startDrag(e, 'substance', s));
+    el.addEventListener('pointerdown', e => startDrag(e, 'substance', s));
     substancesPanel.appendChild(el);
   });
 
@@ -758,7 +903,7 @@
         <span class="indicator-name">${ind.name}</span>
         <span class="indicator-desc">${ind.desc}</span>
       </span>`;
-    el.addEventListener('mousedown', e => startDrag(e, 'indicator', ind));
+    el.addEventListener('pointerdown', e => startDrag(e, 'indicator', ind));
 
     // Insert before the ph-meter-section
     const meterSection = indicatorsPanel.querySelector('.ph-meter-section');
@@ -774,6 +919,7 @@
       <div class="well-strips" data-strips="${i}"></div>
       <div class="well-name" data-wname="${i}"></div>`;
     well.addEventListener('dblclick', () => clearWell(i));
+    well.addEventListener('pointerdown', e => handleWellPointerDown(e, i));
     spotPlate.appendChild(well);
   }
 
@@ -860,12 +1006,42 @@
   }
 
   // ── Drag machinery ─────────────────────────────────────────────────────────
-  let dragging = null; // { type, data, startX, startY }
+  let dragging = null; // { type, data, pointerId }
   let lastHoveredWell = null;
+  let wellHoldTimer = null;
+
+  function getPointFromEvent(e) {
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function updateHoveredWell(clientX, clientY) {
+    dragGhost.style.display = 'none';
+    const el = document.elementFromPoint(clientX, clientY);
+    dragGhost.style.display = 'block';
+
+    const wellEl = el ? el.closest('.well') : null;
+
+    if (lastHoveredWell && lastHoveredWell !== wellEl) {
+      lastHoveredWell.classList.remove('drag-over');
+    }
+    if (wellEl) {
+      wellEl.classList.add('drag-over');
+      lastHoveredWell = wellEl;
+    } else {
+      lastHoveredWell = null;
+    }
+
+    return wellEl;
+  }
 
   function startDrag(e, type, data) {
     e.preventDefault();
-    dragging = { type, data };
+    dragging = { type, data, pointerId: e.pointerId ?? null };
+    clearWellHold();
+
+    if (e.currentTarget && typeof e.currentTarget.setPointerCapture === 'function' && e.pointerId !== undefined) {
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    }
 
     // Build ghost
     dragGhost.innerHTML = '';
@@ -895,35 +1071,26 @@
       dragGhost.innerHTML = `<div class="ghost-meter">⚡ pH Meter</div>`;
     }
 
-    dragGhost.style.left    = e.clientX + 'px';
-    dragGhost.style.top     = e.clientY + 'px';
+    const point = getPointFromEvent(e);
+    dragGhost.style.left    = point.x + 'px';
+    dragGhost.style.top     = point.y + 'px';
     dragGhost.style.display = 'block';
   }
 
-  phMeterWidget.addEventListener('mousedown', e => {
+  phMeterWidget.addEventListener('pointerdown', e => {
     startDrag(e, 'meter', {});
   });
 
-  document.addEventListener('mousemove', e => {
+  document.addEventListener('pointermove', e => {
     if (!dragging) return;
+    if (dragging.pointerId !== null && e.pointerId !== dragging.pointerId) return;
 
-    dragGhost.style.left = e.clientX + 'px';
-    dragGhost.style.top  = e.clientY + 'px';
+    const point = getPointFromEvent(e);
+    dragGhost.style.left = point.x + 'px';
+    dragGhost.style.top  = point.y + 'px';
 
-    // Highlight well under cursor
-    dragGhost.style.display = 'none';
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    dragGhost.style.display = 'block';
-
-    const wellEl = el ? el.closest('.well') : null;
-
-    if (lastHoveredWell && lastHoveredWell !== wellEl) {
-      lastHoveredWell.classList.remove('drag-over');
-    }
+    const wellEl = updateHoveredWell(point.x, point.y);
     if (wellEl) {
-      wellEl.classList.add('drag-over');
-      lastHoveredWell = wellEl;
-
       // pH meter tooltip
       if (dragging.type === 'meter') {
         const wi = parseInt(wellEl.dataset.wellIndex);
@@ -932,8 +1099,8 @@
           const sub = SUBSTANCES.find(s => s.id === ws.substanceId);
           phTooltip.textContent = `pH ${sub.pH.toFixed(1)}  ${sub.name}`;
           phTooltip.style.display = 'block';
-          phTooltip.style.left = (e.clientX + 16) + 'px';
-          phTooltip.style.top  = (e.clientY - 10) + 'px';
+          phTooltip.style.left = (point.x + 16) + 'px';
+          phTooltip.style.top  = (point.y - 10) + 'px';
         } else {
           phTooltip.style.display = 'none';
         }
@@ -944,8 +1111,9 @@
     }
   });
 
-  document.addEventListener('mouseup', e => {
+  document.addEventListener('pointerup', e => {
     if (!dragging) return;
+    if (dragging.pointerId !== null && e.pointerId !== dragging.pointerId) return;
 
     phTooltip.style.display = 'none';
     dragGhost.style.display = 'none';
@@ -953,7 +1121,8 @@
 
     // Find well under cursor
     dragGhost.style.display = 'none';
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const point = getPointFromEvent(e);
+    const el = document.elementFromPoint(point.x, point.y);
 
     const wellEl = el ? el.closest('.well') : null;
 
@@ -964,6 +1133,39 @@
 
     dragging     = null;
     lastHoveredWell = null;
+  });
+
+  document.addEventListener('pointercancel', () => {
+    if (!dragging) return;
+    phTooltip.style.display = 'none';
+    dragGhost.style.display = 'none';
+    if (lastHoveredWell) lastHoveredWell.classList.remove('drag-over');
+    dragging = null;
+    lastHoveredWell = null;
+  });
+
+  function clearWellHold() {
+    if (!wellHoldTimer) return;
+    clearTimeout(wellHoldTimer);
+    wellHoldTimer = null;
+  }
+
+  function handleWellPointerDown(e, index) {
+    if (dragging) return;
+    if (e.pointerType === 'mouse') return;
+    clearWellHold();
+    wellHoldTimer = setTimeout(() => {
+      clearWell(index);
+      clearWellHold();
+    }, 650);
+  }
+
+  document.addEventListener('pointerup', clearWellHold);
+  document.addEventListener('pointercancel', clearWellHold);
+  document.addEventListener('pointermove', e => {
+    if (!wellHoldTimer) return;
+    if (e.pointerType === 'mouse') return;
+    clearWellHold();
   });
 
   function applyToWell(wi, type, data) {
@@ -1083,7 +1285,7 @@
 
   // Update when well is hovered during drag
   const origMouseMove = document.onmousemove;
-  document.addEventListener('mousemove', e => {
+  document.addEventListener('pointermove', e => {
     if (!concVisible) return;
     // Only update if dragging meter or hovering wells
     const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -1104,7 +1306,7 @@
   // Patch applyToWell to also update conc panel
   // We do this by listening for custom events on well interaction
   // Since applyToWell is a closure, we watch mouseup and check what changed
-  document.addEventListener('mouseup', () => {
+  document.addEventListener('pointerup', () => {
     if (!concVisible) return;
     // After mouseup, check if any well now has a substance and update
     // The last hovered well will have been updated already
@@ -1135,12 +1337,12 @@
 (function() {
   const btn = document.getElementById('theme-toggle');
   const apply = (light) => {
-    document.documentElement.classList.toggle('light', light);
+    document.body.classList.toggle('light', light);
     btn.textContent = light ? '🌙 Dark' : '☀️ Light';
   };
   apply(localStorage.getItem('theme') === 'light');
   btn.addEventListener('click', () => {
-    const light = !document.documentElement.classList.contains('light');
+    const light = !document.body.classList.contains('light');
     localStorage.setItem('theme', light ? 'light' : 'dark');
     apply(light);
   });
