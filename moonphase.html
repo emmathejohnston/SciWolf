@@ -65,6 +65,10 @@ body {
   overflow-x: auto;
 }
 
+#mobile-toggle-bar {
+  display: none;
+}
+
 #mobile-settings-btn,
 #mobile-settings-panel,
 #mobile-settings-scrim {
@@ -252,6 +256,32 @@ body {
     display: none;
   }
 
+  #mobile-toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  #mobile-toggle-bar .ctrl-check {
+    flex-shrink: 0;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text);
+    gap: 6px;
+  }
+
+  #mobile-toggle-bar .ctrl-check input {
+    width: 15px;
+    height: 15px;
+  }
+
   #mobile-settings-btn {
     display: inline-flex;
     margin-left: auto;
@@ -389,6 +419,11 @@ body {
     gap: 6px;
   }
 
+  #mobile-toggle-bar {
+    padding: 8px 8px 10px;
+    gap: 6px;
+  }
+
   .ctrl-btn {
     padding: 4px 8px;
   }
@@ -462,6 +497,13 @@ body {
 
   <button class="ctrl-btn" id="mobile-settings-btn" title="Settings">⚙️</button>
   <span id="date-display"></span>
+</div>
+
+<div id="mobile-toggle-bar">
+  <label class="ctrl-check"><input type="checkbox" id="chk-sun-bar" checked> ☀️ Sun</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-moon-bar" checked> 🌙 Moon</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-tree-bar"> 🌳 Tree</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-scale-bar"> 🔭 Scale</label>
 </div>
 
 <div id="mobile-settings-scrim" hidden></div>
@@ -573,6 +615,10 @@ const chkSunMobile = document.getElementById('chk-sun-mobile');
 const chkMoonMobile = document.getElementById('chk-moon-mobile');
 const chkTreeMobile = document.getElementById('chk-tree-mobile');
 const chkScaleMobile = document.getElementById('chk-scale-mobile');
+const chkSunBar = document.getElementById('chk-sun-bar');
+const chkMoonBar = document.getElementById('chk-moon-bar');
+const chkTreeBar = document.getElementById('chk-tree-bar');
+const chkScaleBar = document.getElementById('chk-scale-bar');
 const mobileSettingsBtn = document.getElementById('mobile-settings-btn');
 const mobileSettingsClose = document.getElementById('mobile-settings-close');
 const mobileSettingsScrim = document.getElementById('mobile-settings-scrim');
@@ -585,21 +631,21 @@ function setMobileSettingsOpen(open) {
   mobileSettingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function bindMirroredToggle(desktopEl, mobileEl, apply) {
+function bindMirroredToggle(elements, apply) {
   const sync = checked => {
-    desktopEl.checked = checked;
-    mobileEl.checked = checked;
+    elements.forEach(el => { el.checked = checked; });
     apply(checked);
   };
-  desktopEl.addEventListener('change', e => sync(e.target.checked));
-  mobileEl.addEventListener('change', e => sync(e.target.checked));
-  sync(desktopEl.checked);
+  elements.forEach(el => {
+    el.addEventListener('change', e => sync(e.target.checked));
+  });
+  sync(elements[0].checked);
 }
 
-bindMirroredToggle(chkSunDesktop, chkSunMobile, checked => { showSun = checked; });
-bindMirroredToggle(chkMoonDesktop, chkMoonMobile, checked => { showMoon = checked; });
-bindMirroredToggle(chkTreeDesktop, chkTreeMobile, checked => { showTree = checked; });
-bindMirroredToggle(chkScaleDesktop, chkScaleMobile, checked => { correctScale = checked; });
+bindMirroredToggle([chkSunDesktop, chkSunMobile, chkSunBar], checked => { showSun = checked; });
+bindMirroredToggle([chkMoonDesktop, chkMoonMobile, chkMoonBar], checked => { showMoon = checked; });
+bindMirroredToggle([chkTreeDesktop, chkTreeMobile, chkTreeBar], checked => { showTree = checked; });
+bindMirroredToggle([chkScaleDesktop, chkScaleMobile, chkScaleBar], checked => { correctScale = checked; });
 
 mobileSettingsBtn.addEventListener('click', () => {
   const opening = !document.body.classList.contains('mobile-settings-open');
