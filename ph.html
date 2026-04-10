@@ -536,6 +536,103 @@
       border-color: var(--accent);
       color: var(--accent);
     }
+
+    /* ── Mobile responsive ────────────────────────── */
+    @media (max-width: 900px) {
+      .main-row {
+        flex-direction: column;
+      }
+      .panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        max-height: 35vh;
+        overflow-y: auto;
+      }
+      .panel.right {
+        border-left: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .center {
+        flex: 1;
+        padding: 12px;
+        gap: 12px;
+      }
+      .header {
+        padding: 8px 16px;
+      }
+      .header h1 {
+        font-size: 1.1rem;
+      }
+      .header p {
+        font-size: 0.72rem;
+        display: none;
+      }
+      .spot-plate {
+        grid-template-columns: repeat(3, 56px);
+        grid-template-rows: auto;
+        gap: 8px;
+        padding: 12px;
+      }
+      .well {
+        width: 56px;
+        height: 56px;
+      }
+      .ph-scale {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .spot-plate {
+        grid-template-columns: repeat(2, 48px);
+        gap: 6px;
+        padding: 8px;
+      }
+      .well {
+        width: 48px;
+        height: 48px;
+      }
+      .well-name {
+        font-size: 0.5rem;
+        bottom: 4px;
+      }
+      .panel {
+        max-height: 30vh;
+      }
+      .substance-item,
+      .indicator-item {
+        font-size: 0.7rem;
+        padding: 4px 6px;
+      }
+      .substance-item .s-emoji,
+      .indicator-item .indicator-swatch {
+        font-size: 0.9rem;
+        width: 24px;
+        height: 24px;
+      }
+      #theme-toggle,
+      .home-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.7rem;
+        padding: 2px;
+      }
+      .header {
+        padding: 6px 12px;
+      }
+      .header h1 {
+        font-size: 0.95rem;
+      }
+    }
+
+    /* Touch-enabled drag feedback */
+    .substance-item,
+    .indicator-item,
+    .ph-meter-widget {
+      touch-action: none;
+    }
   </style>
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -736,7 +833,9 @@
       <span class="s-info">
         <span class="s-name">${s.name}</span>
       </span>`;
-    el.addEventListener('mousedown', e => startDrag(e, 'substance', s));
+    const dragHandler = (e) => startDrag(e, 'substance', s);
+    el.addEventListener('mousedown', dragHandler);
+    el.addEventListener('touchstart', dragHandler);
     substancesPanel.appendChild(el);
   });
 
@@ -758,7 +857,9 @@
         <span class="indicator-name">${ind.name}</span>
         <span class="indicator-desc">${ind.desc}</span>
       </span>`;
-    el.addEventListener('mousedown', e => startDrag(e, 'indicator', ind));
+    const dragHandler = (e) => startDrag(e, 'indicator', ind);
+    el.addEventListener('mousedown', dragHandler);
+    el.addEventListener('touchstart', dragHandler);
 
     // Insert before the ph-meter-section
     const meterSection = indicatorsPanel.querySelector('.ph-meter-section');
@@ -860,8 +961,16 @@
   }
 
   // ── Drag machinery ─────────────────────────────────────────────────────────
-  let dragging = null; // { type, data, startX, startY }
+  let dragging = null; // { type, data }
   let lastHoveredWell = null;
+
+  // Helper to get coordinates from mouse or touch events
+  function getCoords(e) {
+    if (e.touches && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  }
 
   function startDrag(e, type, data) {
     e.preventDefault();
@@ -895,24 +1004,26 @@
       dragGhost.innerHTML = `<div class="ghost-meter">⚡ pH Meter</div>`;
     }
 
-    dragGhost.style.left    = e.clientX + 'px';
-    dragGhost.style.top     = e.clientY + 'px';
+    const coords = getCoords(e);
+    dragGhost.style.left    = coords.x + 'px';
+    dragGhost.style.top     = coords.y + 'px';
     dragGhost.style.display = 'block';
   }
 
-  phMeterWidget.addEventListener('mousedown', e => {
-    startDrag(e, 'meter', {});
-  });
+  const meterDragHandler = (e) => startDrag(e, 'meter', {});
+  phMeterWidget.addEventListener('mousedown', meterDragHandler);
+  phMeterWidget.addEventListener('touchstart', meterDragHandler);
 
-  document.addEventListener('mousemove', e => {
+  function handleDragMove(e) {
     if (!dragging) return;
 
-    dragGhost.style.left = e.clientX + 'px';
-    dragGhost.style.top  = e.clientY + 'px';
+    const coords = getCoords(e);
+    dragGhost.style.left = coords.x + 'px';
+    dragGhost.style.top  = coords.y + 'px';
 
     // Highlight well under cursor
     dragGhost.style.display = 'none';
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const el = document.elementFromPoint(coords.x, coords.y);
     dragGhost.style.display = 'block';
 
     const wellEl = el ? el.closest('.well') : null;
@@ -932,8 +1043,8 @@
           const sub = SUBSTANCES.find(s => s.id === ws.substanceId);
           phTooltip.textContent = `pH ${sub.pH.toFixed(1)}  ${sub.name}`;
           phTooltip.style.display = 'block';
-          phTooltip.style.left = (e.clientX + 16) + 'px';
-          phTooltip.style.top  = (e.clientY - 10) + 'px';
+          phTooltip.style.left = (coords.x + 16) + 'px';
+          phTooltip.style.top  = (coords.y - 10) + 'px';
         } else {
           phTooltip.style.display = 'none';
         }
@@ -942,19 +1053,18 @@
       lastHoveredWell = null;
       phTooltip.style.display = 'none';
     }
-  });
+  }
 
-  document.addEventListener('mouseup', e => {
+  function handleDragEnd(e) {
     if (!dragging) return;
 
+    const coords = getCoords(e);
     phTooltip.style.display = 'none';
     dragGhost.style.display = 'none';
     if (lastHoveredWell) lastHoveredWell.classList.remove('drag-over');
 
     // Find well under cursor
-    dragGhost.style.display = 'none';
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-
+    const el = document.elementFromPoint(coords.x, coords.y);
     const wellEl = el ? el.closest('.well') : null;
 
     if (wellEl) {
@@ -964,7 +1074,15 @@
 
     dragging     = null;
     lastHoveredWell = null;
-  });
+  }
+
+  // Mouse events
+  document.addEventListener('mousemove', handleDragMove);
+  document.addEventListener('mouseup', handleDragEnd);
+
+  // Touch events
+  document.addEventListener('touchmove', handleDragMove, { passive: false });
+  document.addEventListener('touchend', handleDragEnd);
 
   function applyToWell(wi, type, data) {
     const ws = wellState[wi];
