@@ -2530,6 +2530,154 @@ canvas.addEventListener('mouseup', e => {
   refreshGroupBtn();
 });
 
+// Touch events (mobile support) — mirror mouse event handlers
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) return;  // Only support single-touch
+  e.preventDefault();  // Prevent default touch behaviors
+  const { x, y } = canvasXY(e);
+
+  // Hit test table first
+  const elem = hitTestTable(x, y);
+  if (elem) {
+    if (elem.cat === 'noble') {
+      // Noble gas — show message in info panel
+      document.getElementById('info-panel').innerHTML =
+        `<p class="info-hint">${elem.name} has a full valence shell and does not bond under normal conditions.</p>`;
+      return;
+    }
+    if (elem.simplified) {
+      // Simplified elements are spawned via the picker, not direct touch
+      return;
+    }
+    // Spawn new atom at a staggered position, then immediately begin dragging it
+    const pos = nextSpawnPos();
+    const atom = new Atom(elem, pos.x, pos.y);
+    stageAtoms.push(atom);
+    // Start dragging the new atom from the spawn point
+    dragAtom = atom;
+    atom.dragging   = true;
+    atom.dragOffX   = 0;
+    atom.dragOffY   = 0;
+    return;
+  }
+
+  // Hit test stage atoms
+  const atom = hitTestStage(x, y);
+  if (atom) {
+    // If atom is part of a group, drag the whole group
+    const group = atom.groupId != null
+      ? stageGroups.find(g => g.id === atom.groupId) : null;
+
+    if (group) {
+      dragGroup = group;
+      // Store per-atom offsets so relative positions are preserved
+      for (const a of group.atoms) {
+        a.dragging = true;
+        a.dragOffX = x - a.x;
+        a.dragOffY = y - a.y;
+      }
+      // Bring group atoms to front
+      for (const a of group.atoms) {
+        stageAtoms.splice(stageAtoms.indexOf(a), 1);
+        stageAtoms.push(a);
+      }
+    } else {
+      dragAtom = atom;
+      atom.dragging  = true;
+      atom.dragOffX  = x - atom.x;
+      atom.dragOffY  = y - atom.y;
+      // Bring to front
+      stageAtoms.splice(stageAtoms.indexOf(atom), 1);
+      stageAtoms.push(atom);
+    }
+  }
+});
+
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length !== 1) return;  // Only support single-touch
+  e.preventDefault();
+  const { x, y } = canvasXY(e);
+
+  // Drag
+  if (dragGroup) {
+    for (const a of dragGroup.atoms) {
+      a.x = Math.max(SX_MIN, Math.min(SX_MAX, x - a.dragOffX));
+      a.y = Math.max(SY_MIN, Math.min(SY_MAX, y - a.dragOffY));
+    }
+  } else if (dragAtom) {
+    dragAtom.x = Math.max(SX_MIN, Math.min(SX_MAX, x - dragAtom.dragOffX));
+    dragAtom.y = Math.max(SY_MIN, Math.min(SY_MAX, y - dragAtom.dragOffY));
+  }
+});
+
+canvas.addEventListener('touchend', e => {
+  if (dragGroup) {
+    for (const a of dragGroup.atoms) a.dragging = false;
+
+    // Check if the group centre is close to a free cation atom
+    const centre = dragGroup.centre();
+    for (const other of stageAtoms) {
+      if (dragGroup.containsAtom(other)) continue;
+      if (other.groupId != null) continue;   // don't bond group-to-group (not supported yet)
+      const d = Math.hypot(centre.x - other.x, centre.y - other.y);
+      if (d < SNAP_DIST + R_ATOM && canBondGroupToCation(dragGroup, other)) {
+        triggerGroupIonicBond(dragGroup, other);
+        break;
+      }
+    }
+
+    dragGroup = null;
+    return;
+  }
+
+  if (!dragAtom) return;
+
+  dragAtom.dragging = false;
+
+  // Check if the dragged atom is a cation near a polyatomic group.
+  // Use nearest-group-atom distance so the bond fires when the cation
+  // lands close to any part of the group, not just its geometric centre.
+  let bondedToGroup = false;
+  if (METAL_CATS.has(dragAtom.elem.cat) && dragAtom.groupId == null) {
+    for (const group of stageGroups) {
+      const nearestD = Math.min(...group.atoms.map(a => dist2(dragAtom, a)));
+      if (nearestD < SNAP_DIST && canBondGroupToCation(group, dragAtom)) {
+        triggerGroupIonicBond(group, dragAtom);
+        bondedToGroup = true;
+        break;
+      }
+    }
+  }
+
+  // Check proximity to other atoms and trigger bond if close enough.
+  // Skip group-member atoms — they must only bond via the group mechanism.
+  if (!bondedToGroup) {
+    for (const other of stageAtoms) {
+      if (other === dragAtom) continue;
+      if (other.groupId != null) continue;   // never direct-bond to a grouped atom
+      if (dist2(dragAtom, other) < SNAP_DIST && canBond(dragAtom, other)) {
+        triggerBond(dragAtom, other);
+        break;
+      }
+    }
+  }
+
+  dragAtom = null;
+  refreshGroupBtn();
+});
+
+canvas.addEventListener('touchcancel', e => {
+  // Reset drag state on touch cancel
+  if (dragGroup) {
+    for (const a of dragGroup.atoms) a.dragging = false;
+    dragGroup = null;
+  }
+  if (dragAtom) {
+    dragAtom.dragging = false;
+    dragAtom = null;
+  }
+});
+
 // Right-click to remove an atom from the stage
 canvas.addEventListener('contextmenu', e => {
   e.preventDefault();
