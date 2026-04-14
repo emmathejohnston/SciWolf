@@ -632,54 +632,139 @@
         top: 10px;
       }
       .header {
-        padding: 56px 14px 10px;
+        padding: 54px 10px 8px;
       }
       .header h1 {
-        font-size: 1.08rem;
+        font-size: 0.98rem;
       }
       .header p {
-        font-size: 0.72rem;
+        font-size: 0.64rem;
+        line-height: 1.28;
       }
-      #substances-panel,
+      .panel {
+        padding: 8px 8px 10px;
+      }
+      .panel-title {
+        font-size: 0.62rem;
+        margin-bottom: 2px;
+        padding-bottom: 3px;
+      }
+      #substances-panel {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 5px;
+        align-items: stretch;
+      }
+      #substances-panel .panel-title {
+        grid-column: 1 / -1;
+      }
+      .substance-item {
+        min-width: 0;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+        padding: 5px 2px 4px;
+        min-height: 54px;
+        border-radius: 7px;
+      }
+      .substance-item .s-emoji {
+        font-size: 0.92rem;
+      }
+      .substance-item .s-info {
+        width: 100%;
+      }
+      .substance-item .s-name {
+        font-size: 0.54rem;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.15;
+        overflow: visible;
+        text-overflow: clip;
+      }
       #indicators-panel {
-        display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        gap: 8px;
-        scroll-snap-type: x proximity;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px;
+        align-items: start;
       }
-      #substances-panel .panel-title,
       #indicators-panel .panel-title,
       #indicators-panel .ph-meter-section {
-        flex: 0 0 100%;
+        grid-column: 1 / -1;
       }
-      .substance-item,
       .indicator-item {
-        flex: 0 0 160px;
-        scroll-snap-align: start;
+        min-width: 0;
+        gap: 5px;
+        padding: 5px 6px;
+        min-height: 44px;
+        border-radius: 7px;
+      }
+      .indicator-swatch {
+        width: 20px;
+        height: 20px;
+      }
+      .indicator-name {
+        font-size: 0.66rem;
+      }
+      .indicator-desc {
+        font-size: 0.54rem;
+        line-height: 1.18;
       }
       .ph-meter-section {
         width: 100%;
+        margin-top: 0;
       }
       .ph-meter-widget {
-        max-width: 220px;
+        max-width: 100%;
+        padding: 6px 6px 5px;
+        gap: 4px;
+      }
+      .ph-meter-label {
+        font-size: 0.54rem;
+      }
+      .ph-readout {
+        min-width: 62px;
+        font-size: 1.05rem;
+        padding: 3px 8px;
+      }
+      .ph-probe-body {
+        width: 10px;
+        height: 20px;
+      }
+      .ph-probe-tip {
+        width: 5px;
+        height: 8px;
+      }
+      .ph-meter-hint {
+        font-size: 0.54rem;
+      }
+      .center {
+        padding: 10px 8px 16px;
+        gap: 10px;
       }
       .spot-plate {
-        width: min(100%, 308px);
+        width: min(100%, 286px);
         grid-template-columns: repeat(4, minmax(46px, 1fr));
         grid-template-rows: repeat(3, minmax(46px, 1fr));
-        gap: 7px;
-        padding: 10px;
+        gap: 6px;
+        padding: 8px;
       }
       .ph-scale,
       #conc-panel,
       .conc-toggle-row {
-        max-width: 308px;
+        max-width: 286px;
+      }
+      .ph-scale-title,
+      .ph-scale-label {
+        font-size: 0.6rem;
+      }
+      .ph-scale-bar {
+        height: 14px;
       }
       .clear-btn,
       .conc-toggle-btn {
         width: 100%;
+        padding: 5px 10px;
+        font-size: 0.68rem;
       }
     }
   </style>
