@@ -1076,30 +1076,10 @@ function applyBondFinalState(bond) {
     // Use actual electrons transferred, not the theoretical max from classifyBond
     updateIonChargeLabels(cation, anion);
   } else {
-    // Covalent: mark electrons as shared (bond-order electrons from each atom)
-    const bo = bond.result.bondOrder || 1;
-    let countA = 0, countB = 0;
-    for (const e of atomA.electrons) {
-      if (!e.shared && !e.transferred && countA < bo) {
-        e.shared = true; e.sharedWith = atomB.id;
-        e.sharedBias = bond.result.type === 'polar-covalent'
-          ? (atomA.elem.EN > atomB.elem.EN ? -0.35 : 0.35)
-          : 0;
-        countA++;
-      }
-    }
-    for (const e of atomB.electrons) {
-      if (!e.shared && !e.transferred && countB < bo) {
-        e.shared = true; e.sharedWith = atomA.id;
-        e.sharedBias = bond.result.type === 'polar-covalent'
-          ? (atomB.elem.EN > atomA.elem.EN ? -0.35 : 0.35)
-          : 0;
-        countB++;
-      }
-    }
-    // Settle lone-pair electrons to the far side of each atom (away from the bond)
-    settleLonePairs(atomA, atomB);
-    settleLonePairs(atomB, atomA);
+    // Covalent: re-run the bond order solver now that this bond is fully formed.
+    // recalcBondOrders → resyncSharedElectrons handles all electron sharing and
+    // lone-pair placement for the whole component at the correct bond order.
+    recalcBondOrders(atomA);
   }
 }
 
@@ -1434,13 +1414,25 @@ function recalcBondOrders(seedAtom) {
     }
   }
 
-  // Step D: clamp and sync valenceUsed for every atom in the component
-  for (const bond of bonds) {
-    bond.result.bondOrder = Math.max(1, Math.min(3, bond.result.bondOrder));
-  }
-  for (const atom of component) {
-    const myBonds = bonds.filter(b => b.idA === atom.id || b.idB === atom.id);
-    atom.valenceUsed = myBonds.reduce((sum, b) => sum + (b.result.bondOrder || 1), 0);
+  // Step D: only commit upgrades if the component is fully "closed" —
+  // i.e. every atom's valence is satisfied after the upgrade (sum of residuals = 0).
+  // If residual remains, the user is still adding atoms; keep all bonds at order 1
+  // so assembly order doesn't lock in a premature triple bond (e.g. C-C before adding H).
+  const sumResidual = Object.values(residual).reduce((a, b) => a + b, 0);
+  if (sumResidual > 0) {
+    // Component not yet fully assembled — reset bonds to single, valenceUsed = degree
+    for (const bond of bonds) bond.result.bondOrder = 1;
+    for (const atom of component) {
+      const myBonds = bonds.filter(b => b.idA === atom.id || b.idB === atom.id);
+      atom.valenceUsed = myBonds.length;
+    }
+  } else {
+    // Fully assembled — commit upgraded bond orders
+    for (const bond of bonds) bond.result.bondOrder = Math.max(1, Math.min(3, bond.result.bondOrder));
+    for (const atom of component) {
+      const myBonds = bonds.filter(b => b.idA === atom.id || b.idB === atom.id);
+      atom.valenceUsed = myBonds.reduce((sum, b) => sum + (b.result.bondOrder || 1), 0);
+    }
   }
 
   // Step E: resync shared-electron visual state (only when all bonds are fully formed)
