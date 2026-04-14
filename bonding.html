@@ -793,6 +793,10 @@ class Atom {
 
     // Bond state
     this.bonds = [];          // Bond ids this atom is part of
+    // Covalent bonding capacity: electrons needed to complete octet.
+    // H: 2−1=1, C: 8−4=4, N: 8−5=3, O: 8−6=2. Simplified (transition metals) use ionic bonding.
+    this.valenceSlots = this.elem.simplified ? 0 : Math.max(0, octetOf(this.elem) - this.elem.valence);
+    this.valenceUsed  = 0;   // sum of bond orders for all covalent bonds; updated by recalcBondOrders
 
     // Drag state
     this.dragging  = false;
@@ -933,7 +937,13 @@ function canBond(a, b) {
     if (bond && (bond.idA === b.id || bond.idB === b.id)) return false;
   }
   const r = classifyBond(a.elem, b.elem);
-  return r.type !== 'none';
+  if (r.type === 'none') return false;
+  // Valence saturation: prevent over-bonding on covalent atoms
+  if (r.type !== 'ionic') {
+    if (a.valenceUsed >= a.valenceSlots) return false;
+    if (b.valenceUsed >= b.valenceSlots) return false;
+  }
+  return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1088,6 +1098,49 @@ function applyBondFinalState(bond) {
       }
     }
     // Settle lone-pair electrons to the far side of each atom (away from the bond)
+    settleLonePairs(atomA, atomB);
+    settleLonePairs(atomB, atomA);
+  }
+}
+
+// Re-sync the shared-electron visual state for all formed covalent bonds in a component.
+// Called by recalcBondOrders when bond orders change (e.g. adding a 3rd atom to a diatomic pair).
+function resyncSharedElectrons(component, bonds) {
+  for (const bond of bonds) {
+    if (bond.phase !== 'formed') continue;
+    const atomA = getAtomById(bond.idA);
+    const atomB = getAtomById(bond.idB);
+    if (!atomA || !atomB) continue;
+    const bo = bond.result.bondOrder || 1;
+
+    // Un-share all electrons currently shared between this pair
+    for (const e of atomA.electrons) {
+      if (e.shared && e.sharedWith === atomB.id) { e.shared = false; e.sharedWith = null; e.sharedBias = 0; }
+    }
+    for (const e of atomB.electrons) {
+      if (e.shared && e.sharedWith === atomA.id) { e.shared = false; e.sharedWith = null; e.sharedBias = 0; }
+    }
+
+    // Re-share exactly bo electrons from each atom toward the bond
+    let countA = 0;
+    for (const e of atomA.electrons) {
+      if (!e.shared && !e.transferred && e.transferTarget === null && countA < bo) {
+        e.shared = true; e.sharedWith = atomB.id;
+        e.sharedBias = bond.result.type === 'polar-covalent'
+          ? (atomA.elem.EN > atomB.elem.EN ? -0.35 : 0.35) : 0;
+        countA++;
+      }
+    }
+    let countB = 0;
+    for (const e of atomB.electrons) {
+      if (!e.shared && !e.transferred && e.transferTarget === null && countB < bo) {
+        e.shared = true; e.sharedWith = atomA.id;
+        e.sharedBias = bond.result.type === 'polar-covalent'
+          ? (atomB.elem.EN > atomA.elem.EN ? -0.35 : 0.35) : 0;
+        countB++;
+      }
+    }
+
     settleLonePairs(atomA, atomB);
     settleLonePairs(atomB, atomA);
   }
@@ -1348,25 +1401,50 @@ function recalcBondOrders(seedAtom) {
     b.result.type !== 'ionic' && atomSet.has(b.idA) && atomSet.has(b.idB)
   );
 
-  // Compute bond order for each bond based on both atoms' needs / degree
-  for (const bond of bonds) {
-    const atomA = getAtomById(bond.idA);
-    const atomB = getAtomById(bond.idB);
-    if (!atomA || !atomB) continue;
-
-    // Count how many covalent bonds each atom has in this component
-    const degA = bonds.filter(b => b.idA === atomA.id || b.idB === atomA.id).length;
-    const degB = bonds.filter(b => b.idA === atomB.id || b.idB === atomB.id).length;
-
-    const needA = octetOf(atomA.elem) - atomA.elem.valence;
-    const needB = octetOf(atomB.elem) - atomB.elem.valence;
-
-    const boA = degA > 0 ? Math.floor(needA / degA) : 1;
-    const boB = degB > 0 ? Math.floor(needB / degB) : 1;
-    const bo  = Math.max(1, Math.min(boA, boB, 3));
-
-    bond.result.bondOrder = bo;
+  if (bonds.length === 0) {
+    for (const atom of component) atom.valenceUsed = 0;
+    return;
   }
+
+  // Step A: initialize all bond orders to 1
+  for (const bond of bonds) bond.result.bondOrder = 1;
+
+  // Step B: compute residual bonding capacity per atom (valenceSlots minus bonds already assigned)
+  const residual = {};
+  for (const atom of component) {
+    const myBonds = bonds.filter(b => b.idA === atom.id || b.idB === atom.id);
+    residual[atom.id] = atom.valenceSlots - myBonds.length;
+  }
+
+  // Step C: greedy bond-order upgrade — repeatedly find bonds that can increase order
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (const bond of bonds) {
+      if (bond.result.bondOrder >= 3) continue;
+      const rA = residual[bond.idA] || 0;
+      const rB = residual[bond.idB] || 0;
+      const gain = Math.min(rA, rB, 3 - bond.result.bondOrder);
+      if (gain > 0) {
+        bond.result.bondOrder += gain;
+        residual[bond.idA] -= gain;
+        residual[bond.idB] -= gain;
+        improved = true;
+      }
+    }
+  }
+
+  // Step D: clamp and sync valenceUsed for every atom in the component
+  for (const bond of bonds) {
+    bond.result.bondOrder = Math.max(1, Math.min(3, bond.result.bondOrder));
+  }
+  for (const atom of component) {
+    const myBonds = bonds.filter(b => b.idA === atom.id || b.idB === atom.id);
+    atom.valenceUsed = myBonds.reduce((sum, b) => sum + (b.result.bondOrder || 1), 0);
+  }
+
+  // Step E: resync shared-electron visual state (only when all bonds are fully formed)
+  if (bonds.every(b => b.phase === 'formed')) resyncSharedElectrons(component, bonds);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1394,17 +1472,23 @@ function checkStoichiometry() {
     const r = bond.result;
     if (r.type === 'none') continue;
 
-    const catSym = r.cation?.sym || atomA.elem.sym;
-    const aniSym = r.anion?.sym  || atomB.elem.sym;
-    const cCount = bySymbol[catSym] || 0;
-    const aCount = bySymbol[aniSym] || 0;
-
-    // Check if ratio matches stoichiometry
-    const g = gcd(cCount, aCount);
-    const complete = cCount > 0 && aCount > 0 &&
-                     (cCount / g) === r.stoichA &&
-                     (aCount / g) === r.stoichB;
-    bond.stoichComplete = complete;
+    if (r.type === 'ionic') {
+      // Ionic: check stage-wide element ratio against stoich
+      const catSym = r.cation?.sym || atomA.elem.sym;
+      const aniSym = r.anion?.sym  || atomB.elem.sym;
+      const cCount = bySymbol[catSym] || 0;
+      const aCount = bySymbol[aniSym] || 0;
+      const g = gcd(cCount, aCount);
+      bond.stoichComplete = cCount > 0 && aCount > 0 &&
+                            (cCount / g) === r.stoichA &&
+                            (aCount / g) === r.stoichB;
+    } else {
+      // Covalent: complete when every atom in the connected component is valence-saturated
+      const component = connectedComponent(atomA);
+      bond.stoichComplete = component.every(a =>
+        a.valenceSlots === 0 || a.valenceUsed >= a.valenceSlots
+      );
+    }
   }
 
   // Mark atom.stable
@@ -2070,7 +2154,7 @@ function connectedComponent(startAtom) {
 // Formula uses Hill order (C first, H second, then alphabetical).
 // Name ordering: less electronegative (more cation-like) element first, then anion with -ide suffix.
 // bondType: 'ionic' | 'polar-covalent' | 'nonpolar-covalent'
-function deriveFormula(atoms, bondType) {
+function deriveFormula(atoms, bondType, componentBonds) {
   const counts = {};
   for (const a of atoms) counts[a.elem.sym] = (counts[a.elem.sym] || 0) + 1;
 
@@ -2100,6 +2184,32 @@ function deriveFormula(atoms, bondType) {
 
   if (COMMON_NAMES[formula]) {
     return { formula, name: COMMON_NAMES[formula], counts };
+  }
+
+  // Organic recognition (requires componentBonds for bond-order checks)
+  if (bondType !== 'ionic' && componentBonds && componentBonds.length > 0) {
+    const cCount = counts['C'] || 0;
+    const hCount = counts['H'] || 0;
+    const elemCount = Object.keys(counts).length;
+    const allSingle = componentBonds.every(b => (b.result.bondOrder || 1) === 1);
+    // Alkane: CₙH₂ₙ₊₂, all single bonds
+    if (cCount > 0 && elemCount === 2 && hCount === 2 * cCount + 2 && allSingle) {
+      const ALKANE_NAMES = {1:'methane',2:'ethane',3:'propane',4:'butane',
+        5:'pentane',6:'hexane',7:'heptane',8:'octane',9:'nonane',10:'decane'};
+      return { formula, name: ALKANE_NAMES[cCount] || formula, counts };
+    }
+    // Alkene: CₙH₂ₙ, has at least one double bond
+    if (cCount > 1 && elemCount === 2 && hCount === 2 * cCount &&
+        componentBonds.some(b => (b.result.bondOrder || 1) === 2)) {
+      const ALKENE_NAMES = {2:'ethylene',3:'propylene',4:'butylene'};
+      return { formula, name: ALKENE_NAMES[cCount] || formula, counts };
+    }
+    // Alkyne: CₙH₂ₙ₋₂, has at least one triple bond
+    if (cCount > 1 && elemCount === 2 && hCount === 2 * cCount - 2 &&
+        componentBonds.some(b => (b.result.bondOrder || 1) === 3)) {
+      const ALKYNE_NAMES = {2:'acetylene',3:'propyne',4:'butyne'};
+      return { formula, name: ALKYNE_NAMES[cCount] || formula, counts };
+    }
   }
 
   const GREEK = ['','mono','di','tri','tetra','penta','hexa','hepta','octa','nona','deca'];
@@ -2239,8 +2349,12 @@ function updateInfo() {
   // Derive the actual molecular formula from the connected component on stage
   const lastAtom   = getAtomById(bond.idA);
   const component  = lastAtom ? connectedComponent(lastAtom) : [];
+  const atomSet    = new Set(component.map(a => a.id));
+  const componentBonds = stageBonds.filter(b =>
+    b.result.type !== 'ionic' && atomSet.has(b.idA) && atomSet.has(b.idB) && b.phase === 'formed'
+  );
   const { formula: stageFormula, name: stageName } = component.length > 1
-    ? deriveFormula(component, r.type)
+    ? deriveFormula(component, r.type, componentBonds)
     : { formula: r.formula, name: r.iupacName };
 
   const badgeClass = r.type === 'ionic'          ? 'badge-ionic'
@@ -2278,18 +2392,43 @@ function updateInfo() {
         <span class="info-val" style="color:var(--muted)">Incomplete — add more atoms</span></div>`;
     }
   } else {
-    const orderWords = ['','Single','Double','Triple'];
-    const bondDesc = (orderWords[r.bondOrder] || `Order ${r.bondOrder}`) + ` (${r.bondOrder} shared pair${r.bondOrder > 1 ? 's' : ''})`;
-    rows += `
-    <div class="info-row"><span class="info-key">ΔEN:</span>
-      <span class="info-val">${r.deltaEN.toFixed(2)}</span></div>
-    <div class="info-row"><span class="info-key">Bond order:</span>
-      <span class="info-val">${bondDesc}</span></div>`;
-    if (r.type === 'polar-covalent' && r.elemA.EN && r.elemB.EN) {
-      const less = r.elemA.EN < r.elemB.EN ? r.elemA : r.elemB;
-      const more = r.elemA.EN > r.elemB.EN ? r.elemA : r.elemB;
-      rows += `<div class="info-row"><span class="info-key">Dipole:</span>
-        <span class="info-val">δ+ on ${less.sym} · δ− on ${more.sym}</span></div>`;
+    const orderWords = ['','single','double','triple'];
+    if (componentBonds.length <= 1) {
+      // Diatomic or single bond: show per-bond ΔEN and order
+      const bo = componentBonds[0]?.result.bondOrder || r.bondOrder || 1;
+      const bondDesc = (orderWords[bo] || `order ${bo}`) + ` (${bo} shared pair${bo > 1 ? 's' : ''})`;
+      rows += `
+      <div class="info-row"><span class="info-key">ΔEN:</span>
+        <span class="info-val">${r.deltaEN.toFixed(2)}</span></div>
+      <div class="info-row"><span class="info-key">Bond order:</span>
+        <span class="info-val">${bondDesc}</span></div>`;
+      if (r.type === 'polar-covalent' && r.elemA.EN && r.elemB.EN) {
+        const less = r.elemA.EN < r.elemB.EN ? r.elemA : r.elemB;
+        const more = r.elemA.EN > r.elemB.EN ? r.elemA : r.elemB;
+        rows += `<div class="info-row"><span class="info-key">Dipole:</span>
+          <span class="info-val">δ+ on ${less.sym} · δ− on ${more.sym}</span></div>`;
+      }
+    } else {
+      // Multi-bond molecule: show per-bond-type summary
+      const bondTypeCounts = {};
+      for (const cb of componentBonds) {
+        const a = getAtomById(cb.idA); const b2 = getAtomById(cb.idB);
+        if (!a || !b2) continue;
+        const bo = cb.result.bondOrder || 1;
+        const key = [a.elem.sym, b2.elem.sym].sort().join('–') + ':' + bo;
+        bondTypeCounts[key] = (bondTypeCounts[key] || 0) + 1;
+      }
+      const bondSummary = Object.entries(bondTypeCounts).map(([k, n]) => {
+        const [pair, bo] = k.split(':');
+        return `${n > 1 ? n + '× ' : ''}${pair} (${orderWords[+bo] || 'order ' + bo})`;
+      }).join(', ');
+      const isComplete = component.every(a => a.valenceSlots === 0 || a.valenceUsed >= a.valenceSlots);
+      rows += `
+      <div class="info-row"><span class="info-key">Bonds:</span>
+        <span class="info-val">${bondSummary}</span></div>`;
+      rows += `<div class="info-row"><span class="info-key">Valence:</span>
+        <span class="info-val" style="color:${isComplete ? '#fbbf24' : 'var(--muted)'}">
+          ${isComplete ? '✓ All octets satisfied' : 'Incomplete — add more atoms'}</span></div>`;
     }
   }
 
@@ -2297,8 +2436,8 @@ function updateInfo() {
     `<div class="info-warning">⚠ ${ex.msg}</div>`
   ).join('');
 
-  // ΔEN bar: maps 0–3.5 range to 0–100%, thresholds at 0.4 (11%) and 1.7 (49%)
-  const enBar = buildENBar(r.deltaEN);
+  // ΔEN bar: show only for diatomic/single-bond molecules
+  const enBar = (r.type !== 'ionic' && componentBonds.length > 1) ? '' : buildENBar(r.deltaEN);
 
   panel.innerHTML = `
     <div class="info-formula">${stageFormula}</div>
@@ -2720,6 +2859,20 @@ canvas.addEventListener('contextmenu', e => {
       for (const a of group.atoms) { a.groupId = undefined; a.stable = false; }
       stageGroups.splice(gIdx, 1);
     }
+  }
+
+  // Recalculate bond orders and valenceUsed for any remaining partners whose component changed
+  const recalcSeeds = new Set();
+  for (const a of stageAtoms) {
+    if (a.bonds.length > 0) {
+      const comp = connectedComponent(a);
+      const seedId = Math.min(...comp.map(x => x.id));
+      recalcSeeds.add(seedId);
+    }
+  }
+  for (const seedId of recalcSeeds) {
+    const seed = getAtomById(seedId);
+    if (seed) recalcBondOrders(seed);
   }
 
   checkStoichiometry();
