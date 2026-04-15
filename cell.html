@@ -7,7 +7,7 @@
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #020617; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: #f1f5f9; }
-  canvas { display: block; cursor: pointer; touch-action: manipulation; }
+  canvas { display: block; cursor: pointer; touch-action: none; }
 
   #home-btn {
     position: fixed; top: 12px; left: 12px; z-index: 100;
@@ -19,21 +19,24 @@
   #home-btn:hover { color: #38bdf8; border-color: #38bdf8; }
 
   #info-card {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    position: fixed;
+    left: 14px;
+    bottom: 72px;
+    transform: none;
     background: #0f172a; border: 1px solid #334155; border-radius: 16px;
-    padding: 22px 26px; max-width: 370px; width: 92%; z-index: 200; display: none;
+    padding: 18px 20px; max-width: 330px; width: min(330px, calc(100vw - 28px)); z-index: 200; display: none;
     box-shadow: 0 24px 64px rgba(0,0,0,0.8);
   }
   #info-card.visible { display: block; }
-  #info-name { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
-  #info-subtitle { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.09em; color: #38bdf8; margin-bottom: 11px; }
-  #info-desc { font-size: 0.85rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 12px; }
+  #info-name { font-size: 1.03rem; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
+  #info-subtitle { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em; color: #38bdf8; margin-bottom: 9px; }
+  #info-desc { font-size: 0.8rem; color: #cbd5e1; line-height: 1.52; margin-bottom: 10px; }
   #info-model {
-    font-size: 0.78rem; color: #94a3b8; line-height: 1.55;
-    border-top: 1px solid #1e293b; padding-top: 10px; margin-bottom: 0;
+    font-size: 0.74rem; color: #94a3b8; line-height: 1.48;
+    border-top: 1px solid #1e293b; padding-top: 8px; margin-bottom: 0;
   }
   #info-model strong { color: #7dd3fc; }
-  #info-close { margin-top: 10px; font-size: 0.7rem; color: #475569; text-align: center; }
+  #info-close { margin-top: 8px; font-size: 0.66rem; color: #475569; text-align: center; }
 
   #hud {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -159,11 +162,35 @@
     top: 78px;
     z-index: 105;
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 12px;
     max-width: min(320px, calc(100vw - 28px));
     pointer-events: none;
   }
+  #energy-alert {
+    position: fixed;
+    right: 14px;
+    top: 386px;
+    z-index: 106;
+    width: min(320px, calc(100vw - 28px));
+    background: rgba(248,250,252,0.96);
+    color: #7f1d1d;
+    border: 2px solid #fca5a5;
+    border-radius: 16px;
+    padding: 10px 14px;
+    box-shadow: 0 14px 28px rgba(2,6,23,0.2);
+    font-size: 0.84rem;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    pointer-events: none;
+  }
+  #energy-alert.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  #energy-alert strong { color: #b91c1c; }
   #celly-guide.celebrate {
     animation: celly-bounce 0.72s ease-in-out infinite;
   }
@@ -185,7 +212,7 @@
     content: '';
     position: absolute;
     left: -11px;
-    bottom: 18px;
+    top: 34px;
     width: 18px;
     height: 18px;
     background: rgba(248,250,252,0.96);
@@ -217,6 +244,15 @@
   #tutorial-close { margin-top: 6px; font-size: 0.7rem; color: #475569; cursor: pointer; pointer-events: auto; }
   #tutorial-close:hover { color: #94a3b8; }
   @media (max-width: 760px) {
+    #info-card {
+      left: 50%;
+      right: auto;
+      bottom: 50%;
+      transform: translate(-50%, 50%);
+      width: min(calc(100vw - 18px), 360px);
+      max-width: 360px;
+      padding: 20px 22px;
+    }
     #hud {
       bottom: 14px;
       gap: 8px;
@@ -251,6 +287,15 @@
       gap: 8px;
       max-width: min(94vw, 360px);
     }
+    #energy-alert {
+      left: 50%;
+      right: auto;
+      top: auto;
+      bottom: 218px;
+      transform: translateX(-50%);
+      max-width: min(94vw, 360px);
+      width: min(94vw, 360px);
+    }
     #celly-avatar {
       width: 90px;
       height: 90px;
@@ -276,8 +321,8 @@
 </div>
 
 <div id="hud">
-  <span id="phase-chip">Phase 2 · Central Dogma</span>
-  <span id="phase-status">Interphase · G1 · mRNA 0 · Folded 0 · Packaged 0</span>
+  <span id="phase-chip">Interphase · G1</span>
+  <span id="phase-status">Fuel 100/100 · Glucose 0 · mRNA 0 · Folded 0 · Packaged 0 · Built 0/6</span>
   <span style="font-size:1rem">⚡</span>
   <span id="atp-label">ATP</span>
   <div id="atp-track"><div id="atp-fill" style="width:100%"></div></div>
@@ -292,12 +337,13 @@
     <div id="celly-text">Click the nucleus to make a transcript!</div>
   </div>
 </div>
+<div id="energy-alert" aria-live="polite"></div>
 
 <div id="build-panel">
   <div id="build-title">Organelle Building</div>
 </div>
 
-<div id="debug-jump">
+<div id="debug-jump" class="hidden">
   <div id="debug-title">Debug Jump</div>
   <div id="debug-actions">
     <button class="debug-btn" data-jump="organelles">Post Organelles</button>
@@ -348,17 +394,24 @@ document.getElementById('tutorial-close').onclick = () => tutEl.style.opacity = 
 setTimeout(() => tutEl.style.opacity = '0', 12000);
 const cellyText = document.getElementById('celly-text');
 const cellyGuide = document.getElementById('celly-guide');
+const energyAlert = document.getElementById('energy-alert');
 const debugPanel = document.getElementById('debug-jump');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CELL_R = 600;
-function cellScale() {
+let mobileZoom = 1;
+const MOBILE_ZOOM_MIN = 1;
+const MOBILE_ZOOM_MAX = 2.6;
+function baseCellScale() {
   const pad = 56;
   return Math.min(
     1,
     (canvas.width - pad) / (CELL_R * 2 + pad),
     (canvas.height - pad) / (CELL_R * 2 + pad)
   );
+}
+function cellScale() {
+  return baseCellScale() * mobileZoom;
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -523,6 +576,7 @@ const proteinTokens = [];
 const glucoseTokens = [];
 let cellyOverride = '';
 let cellyOverrideUntil = 0;
+let energyAlertUntil = 0;
 const endocytosisFx = { t: 0, pulse: 0 };
 phaseState.dnaProgress = 0;
 phaseState.dnaNeeded = 4;
@@ -549,6 +603,9 @@ for (const [id, cfg] of Object.entries(DUPLICATE_TARGETS)) {
 let dragToken = null;
 let dragPointer = null;
 let suppressCanvasClick = false;
+let pinchZooming = false;
+let pinchStartDistance = 0;
+let pinchStartZoom = 1;
 const SORTING_GUIDES = true;
 const SORTING_CENTER = { x: -95, y: 20 };
 const SORTING_ORIGINAL_TARGETS = {
@@ -714,6 +771,10 @@ function screenToWorld(clientX, clientY) {
   };
 }
 
+function touchDistance(t1, t2) {
+  return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+}
+
 function sortMotion(base, staging, target, p) {
   const clamp = Math.max(0, Math.min(1, p));
   const smooth = v => v * v * (3 - 2 * v);
@@ -739,6 +800,29 @@ function sortingStagingPoint(seed = 0) {
   return ring[seed % ring.length];
 }
 
+function sortedOriginalPosition(o) {
+  if (!SORTING_ORIGINAL_TARGETS[o.id]) return { x: o.x, y: o.y };
+  return SORTING_ORIGINAL_TARGETS[o.id];
+}
+
+function sortedDuplicatePosition(id, anchor, cfg) {
+  const base = { x: anchor.x + cfg.copyOffset.x, y: anchor.y + cfg.copyOffset.y };
+  const target = SORTING_DUPLICATE_TARGETS[id] || base;
+  return target;
+}
+
+function sortedBgMitoPosition(m, index) {
+  const stagedTargets = [
+    { x: -250, y: 240 },
+    { x: 90, y: 300 },
+    { x: -235, y: -175 },
+    { x: 300, y: 235 },
+    { x: -340, y: 92 },
+    { x: 145, y: 345 },
+  ];
+  return stagedTargets[index] || { x: m.x, y: m.y };
+}
+
 function organelleFloatOffset(o, t = performance.now() / 1000) {
   if (o.shape === 'mem_spot') return { x: 0, y: 0 };
   const phaseSeed = Array.from(o.id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
@@ -749,10 +833,11 @@ function organelleFloatOffset(o, t = performance.now() / 1000) {
   const swayY = Math.cos(t * 0.55 + groupPhase * 1.3) * 4.6;
   const daughterP = daughterLayoutProgress();
   if (daughterP > 0 && CYTOKINESIS_LEFT_TARGETS[o.id]) {
+    const start = sortedOriginalPosition(o);
     const target = CYTOKINESIS_LEFT_TARGETS[o.id];
     return {
-      x: swayX + (target.x - o.x) * daughterP,
-      y: swayY + (target.y - o.y) * daughterP,
+      x: swayX + (start.x + (target.x - start.x) * daughterP) - o.x,
+      y: swayY + (start.y + (target.y - start.y) * daughterP) - o.y,
     };
   }
   let mitosisX = 0;
@@ -1115,34 +1200,44 @@ function updatePhaseStatus() {
   if (mitosisSetupActive()) {
     phaseState.stage =
       phaseState.mitosisPhase === 'sorting'
-        ? 'Mitosis - Organelle Sorting'
+        ? 'Prophase'
         : phaseState.mitosisPhase === 'prophase'
-          ? 'Mitosis - Prophase'
+          ? 'Prophase'
           : phaseState.mitosisPhase === 'metaphase'
-            ? 'Mitosis - Metaphase'
+            ? 'Metaphase'
             : phaseState.mitosisPhase === 'anaphase'
-              ? 'Mitosis - Anaphase'
+              ? 'Anaphase'
               : phaseState.mitosisPhase === 'telophase'
-                ? 'Mitosis - Telophase'
-                : 'Mitosis - Cytokinesis';
-    document.getElementById('phase-chip').textContent =
-      phaseState.mitosisPhase === 'sorting'
-        ? 'Phase 5 - Organelle Sorting'
-        : phaseState.mitosisPhase === 'prophase'
-          ? 'Phase 5 - Prophase'
-          : phaseState.mitosisPhase === 'metaphase'
-            ? 'Phase 5 - Metaphase'
-            : phaseState.mitosisPhase === 'anaphase'
-              ? 'Phase 5 - Anaphase'
-              : phaseState.mitosisPhase === 'telophase'
-                ? 'Phase 5 - Telophase'
-                : 'Phase 5 - Cytokinesis';
+                ? 'Telophase'
+                : 'Cytokinesis';
+    document.getElementById('phase-chip').textContent = phaseState.stage;
   } else if (allOrganellesBuilt() && !phaseState.dnaComplete) {
     phaseState.stage = 'Interphase Â· S Phase';
     document.getElementById('phase-chip').textContent = 'Phase 4 Â· DNA Synthesis';
   } else if (phaseState.dnaComplete) {
     phaseState.stage = 'Interphase Â· G2';
     document.getElementById('phase-chip').textContent = 'Phase 4 Â· DNA Synthesized';
+  }
+  if (mitosisSetupActive()) {
+    phaseState.stage =
+      phaseState.mitosisPhase === 'sorting'
+        ? 'Prophase'
+        : phaseState.mitosisPhase === 'prophase'
+          ? 'Prophase'
+          : phaseState.mitosisPhase === 'metaphase'
+            ? 'Metaphase'
+            : phaseState.mitosisPhase === 'anaphase'
+              ? 'Anaphase'
+              : phaseState.mitosisPhase === 'telophase'
+                ? 'Telophase'
+                : 'Cytokinesis';
+    document.getElementById('phase-chip').textContent = phaseState.stage;
+  } else if (allOrganellesBuilt()) {
+    phaseState.stage = 'Interphase · S Phase';
+    document.getElementById('phase-chip').textContent = 'Interphase · S Phase';
+  } else {
+    phaseState.stage = 'Interphase · G1';
+    document.getElementById('phase-chip').textContent = 'Interphase · G1';
   }
   document.getElementById('phase-status').textContent =
     `${phaseState.stage} · Fuel ${metabolism.glucoseFuel}/${metabolism.glucoseMax} · Glucose ${glucoseVesicleCount()} · mRNA ${phaseState.mrnaReady} · Folded ${folded} · Packaged ${packaged} · Built ${buildCompleteCount()}/${Object.keys(DUPLICATE_TARGETS).length}`;
@@ -1155,6 +1250,22 @@ function setCellyOverride(text, duration = 1400) {
   cellyOverride = text;
   cellyOverrideUntil = performance.now() + duration;
   updateCellyText();
+}
+
+function showEnergyAlert(text, duration = 2200) {
+  if (!energyAlert) return;
+  energyAlert.innerHTML = text;
+  energyAlertUntil = performance.now() + duration;
+  energyAlert.classList.add('visible');
+}
+
+function promptLowATP(cost = 0) {
+  const costLine = cost > 0 ? ` That action needs <strong>${cost} ATP</strong>.` : '';
+  const refillLine = glucoseVesicleCount() > 0
+    ? ' Drag the glucose vesicle to a mitochondrion, then tap the mitochondria to make more ATP.'
+    : ' Click the glowing pocket at the top membrane to bring in glucose, then drag it to a mitochondrion and tap to make more ATP.';
+  showEnergyAlert(`Out of ATP!${costLine}${refillLine}`);
+  setCellyOverride("We're out of ATP! Bring glucose into the cell and feed it to a mitochondrion so we can keep going.", 2200);
 }
 
 function computeCellyText() {
@@ -1243,6 +1354,7 @@ function harvestATP(mito, openDetails = true) {
   if (metabolism.glucoseFuel <= 0) {
     mito.pulse = 0.45;
     spawnBurst(mito.x, mito.y, '#f87171', 8);
+    if (openDetails) openCard(mitoInfo);
     setCellyOverride("I'm hungry! Click the glowing pocket at the top membrane to bring glucose inside the cell!");
     updatePhaseStatus();
     return false;
@@ -1258,13 +1370,16 @@ function harvestATP(mito, openDetails = true) {
   }
   mito.pulse = 0.8;
   spawnBurst(mito.x, mito.y, '#fbbf24', 14);
-  if (openDetails && ATP.value >= ATP.max) openCard(mitoInfo);
+  if (openDetails) openCard(mitoInfo);
   updatePhaseStatus();
   return true;
 }
 
 function transcribeAtNucleus(org) {
-  if (ATP.value < org.cost) return false;
+  if (ATP.value < org.cost) {
+    promptLowATP(org.cost);
+    return false;
+  }
   ATP.value -= org.cost;
   state[org.id].pulse = 0.7;
   state[org.id].activeT = 1.1;
@@ -1289,7 +1404,11 @@ function transcribeAtNucleus(org) {
 }
 
 function translateAtRER(org) {
-  if (phaseState.mrnaReady <= 0 || ATP.value < org.cost) return false;
+  if (phaseState.mrnaReady <= 0) return false;
+  if (ATP.value < org.cost) {
+    promptLowATP(org.cost);
+    return false;
+  }
   ATP.value -= org.cost;
   phaseState.mrnaReady -= 1;
   state[org.id].pulse = 0.7;
@@ -1302,7 +1421,11 @@ function translateAtRER(org) {
 }
 
 function replicateDNA(org) {
-  if (!allOrganellesBuilt() || phaseState.dnaComplete || ATP.value < org.cost) return false;
+  if (!allOrganellesBuilt() || phaseState.dnaComplete) return false;
+  if (ATP.value < org.cost) {
+    promptLowATP(org.cost);
+    return false;
+  }
   ATP.value -= org.cost;
   phaseState.dnaProgress = Math.min(phaseState.dnaNeeded, phaseState.dnaProgress + 1);
   state[org.id].pulse = 0.95;
@@ -1393,7 +1516,11 @@ function deliverPackagedProtein(token) {
   const buildId = buildTargetForDropTarget(hit);
   if (!buildId) return false;
   const build = duplicateState[buildId];
-  if (!build || build.completed || ATP.value < BUILD_COST) return false;
+  if (!build || build.completed) return false;
+  if (ATP.value < BUILD_COST) {
+    promptLowATP(BUILD_COST);
+    return false;
+  }
   ATP.value -= BUILD_COST;
   build.delivered = Math.min(build.needed, build.delivered + 1);
   build.completed = build.delivered >= build.needed;
@@ -1457,16 +1584,14 @@ debugPanel.addEventListener('click', e => {
 });
 
 function handleWorldPress(worldX, worldY) {
-  if (cardOpen) {
-    closeCard();
-    if (!mitosisSetupActive()) return;
-  }
   const target = locateTarget(worldX, worldY);
   hoverTarget = target;
   if (!target) {
+    if (cardOpen) closeCard();
     return;
   }
   if (mitosisSetupActive()) {
+    if (cardOpen) closeCard();
     if (target.type !== 'org' || target.data.id !== 'nucleus') return;
     handleOrganelleAction(target.data);
     return;
@@ -1554,6 +1679,14 @@ canvas.addEventListener('mouseleave', () => {
 });
 canvas.addEventListener('touchstart', e => {
   if (!e.touches.length) return;
+  if (e.touches.length >= 2) {
+    e.preventDefault();
+    pinchZooming = true;
+    pinchStartDistance = touchDistance(e.touches[0], e.touches[1]);
+    pinchStartZoom = mobileZoom;
+    if (dragPointer === 'touch') endTokenDrag();
+    return;
+  }
   const world = screenToWorld(e.touches[0].clientX, e.touches[0].clientY);
   const token = tokenAt(world.x, world.y);
   if (token) {
@@ -1566,16 +1699,43 @@ canvas.addEventListener('touchstart', e => {
   handleWorldPress(world.x, world.y);
 }, { passive: false });
 canvas.addEventListener('touchmove', e => {
+  if (pinchZooming && e.touches.length >= 2) {
+    e.preventDefault();
+    const dist = touchDistance(e.touches[0], e.touches[1]);
+    if (pinchStartDistance > 0) {
+      mobileZoom = Math.max(MOBILE_ZOOM_MIN, Math.min(MOBILE_ZOOM_MAX, pinchStartZoom * (dist / pinchStartDistance)));
+    }
+    return;
+  }
   if (!dragToken || dragPointer !== 'touch' || !e.touches.length) return;
   e.preventDefault();
   handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
 window.addEventListener('touchmove', e => {
+  if (pinchZooming && e.touches.length >= 2) {
+    e.preventDefault();
+    const dist = touchDistance(e.touches[0], e.touches[1]);
+    if (pinchStartDistance > 0) {
+      mobileZoom = Math.max(MOBILE_ZOOM_MIN, Math.min(MOBILE_ZOOM_MAX, pinchStartZoom * (dist / pinchStartDistance)));
+    }
+    return;
+  }
   if (!dragToken || dragPointer !== 'touch' || !e.touches.length) return;
   e.preventDefault();
   handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
 window.addEventListener('touchend', e => {
+  if (pinchZooming) {
+    e.preventDefault();
+    if (e.touches.length >= 2) {
+      pinchStartDistance = touchDistance(e.touches[0], e.touches[1]);
+      pinchStartZoom = mobileZoom;
+    } else {
+      pinchZooming = false;
+      pinchStartDistance = 0;
+    }
+    return;
+  }
   if (dragPointer !== 'touch') return;
   e.preventDefault();
   endTokenDrag();
@@ -1598,6 +1758,9 @@ updatePhaseStatus();
 
 // ── Update ────────────────────────────────────────────────────────────────────
 function update(dt) {
+  if (energyAlert && energyAlert.classList.contains('visible') && performance.now() > energyAlertUntil) {
+    energyAlert.classList.remove('visible');
+  }
   if (endocytosisFx.t > 0) endocytosisFx.t = Math.max(0, endocytosisFx.t - dt * 1.65);
   if (endocytosisFx.pulse > 0) endocytosisFx.pulse = Math.max(0, endocytosisFx.pulse - dt * 0.9);
 
@@ -1812,32 +1975,66 @@ function drawCell() {
   if (cyto > 0) {
     const sep = 330 + cyto * 120;
     const rr = 420;
-    const drawOne = cx => {
-      const g = ctx.createRadialGradient(cx - 55, -50, 60, cx, 0, rr);
-      g.addColorStop(0, 'rgba(12,35,55,0.97)');
-      g.addColorStop(0.65, 'rgba(6,22,42,0.98)');
-      g.addColorStop(1, 'rgba(2,10,24,1)');
-      ctx.beginPath();
-      ctx.arc(cx, 0, rr, 0, Math.PI * 2);
-      ctx.fillStyle = g;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(cx, 0, rr + 7, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(99,232,170,0.55)';
-      ctx.lineWidth = 4;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(cx, 0, rr - 6, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(99,232,170,0.22)';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      for (let i = 0; i < 18; i++) {
-        const a = (i / 18) * Math.PI * 2;
-        arc(cx + Math.cos(a) * rr, Math.sin(a) * rr, 3.5, 'rgba(134,239,172,0.38)');
+    const drawUnionBoundary = (radius) => {
+      if (sep >= radius) {
+        ctx.beginPath();
+        ctx.arc(-sep, 0, radius, 0, Math.PI * 2);
+        ctx.moveTo(sep + radius, 0);
+        ctx.arc(sep, 0, radius, 0, Math.PI * 2);
+        return;
       }
+      const a = Math.acos(Math.max(-1, Math.min(1, sep / radius)));
+      const h = Math.sin(a) * radius;
+      ctx.beginPath();
+      ctx.moveTo(0, -h);
+      ctx.arc(-sep, 0, radius, a, Math.PI * 2 - a, false);
+      ctx.arc(sep, 0, radius, Math.PI + a, Math.PI - a, false);
+      ctx.closePath();
     };
-    drawOne(-sep);
-    drawOne(sep);
+    const fillUnion = () => {
+      const gLeft = ctx.createRadialGradient(-sep - 55, -50, 60, -sep, 0, rr);
+      gLeft.addColorStop(0, 'rgba(12,35,55,0.97)');
+      gLeft.addColorStop(0.65, 'rgba(6,22,42,0.98)');
+      gLeft.addColorStop(1, 'rgba(2,10,24,1)');
+      const gRight = ctx.createRadialGradient(sep - 55, -50, 60, sep, 0, rr);
+      gRight.addColorStop(0, 'rgba(12,35,55,0.97)');
+      gRight.addColorStop(0.65, 'rgba(6,22,42,0.98)');
+      gRight.addColorStop(1, 'rgba(2,10,24,1)');
+      drawUnionBoundary(rr);
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = gLeft;
+      ctx.beginPath();
+      ctx.arc(-sep, 0, rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = gRight;
+      ctx.beginPath();
+      ctx.arc(sep, 0, rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    fillUnion();
+    drawUnionBoundary(rr + 7);
+    ctx.strokeStyle = 'rgba(99,232,170,0.55)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    drawUnionBoundary(rr - 6);
+    ctx.strokeStyle = 'rgba(99,232,170,0.22)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    const bumpAngles = (() => {
+      if (sep >= rr) return null;
+      const a = Math.acos(Math.max(-1, Math.min(1, sep / rr)));
+      return { a };
+    })();
+    for (let i = 0; i < 16; i++) {
+      const ang = bumpAngles ? bumpAngles.a + (i / 15) * (Math.PI * 2 - bumpAngles.a * 2) : (i / 16) * Math.PI * 2;
+      arc(-sep + Math.cos(ang) * rr, Math.sin(ang) * rr, 3.5, 'rgba(134,239,172,0.38)');
+      const rightStart = bumpAngles ? Math.PI + bumpAngles.a : 0;
+      const rightSpan = bumpAngles ? Math.PI * 2 - bumpAngles.a * 2 : Math.PI * 2;
+      const rang = rightStart + (i / 15) * rightSpan;
+      arc(sep + Math.cos(rang) * rr, Math.sin(rang) * rr, 3.5, 'rgba(134,239,172,0.38)');
+    }
     return;
   }
   const lobeOffset = 255 * telo;
@@ -2076,15 +2273,21 @@ function dNucleus(o, active, t) {
   const { x, y, rx, ry } = o;
   if (lateMitosisActive()) return;
   const breakdownT = (mitosisProphaseActive() ? mitosisProphaseProgress() : (mitosisMetaphaseActive() || mitosisAnaphaseActive() || mitosisTelophaseActive()) ? 1 : 0);
-  const phaseFade = Math.max(0, 1 - breakdownT * 1.2);
+  const fadeStart = 0.12;
+  const fadeT = Math.max(0, Math.min(1, (breakdownT - fadeStart) / (1 - fadeStart)));
+  const phaseFade = Math.max(0, 1 - Math.pow(fadeT, 1.45));
   if (phaseFade <= 0.02) return;
+  const spriteScale = 1 - fadeT * 0.06;
+  const spriteGlow = active && !mitosisProphaseActive() ? { glow: '#f0abfc', blur: 26 } : {};
+  drawSprite('nucleus', x + 10, y + 10, 672 * spriteScale, 475 * spriteScale, {
+    alpha: phaseFade,
+    ...spriteGlow,
+  });
   ctx.save();
-  ctx.globalAlpha = phaseFade;
-  drawSprite('nucleus', x + 10, y + 10, 672, 475, active ? { glow: '#f0abfc', blur: 26 } : {});
   if (active) {
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.5 * phaseFade;
     ctx.beginPath();
-    ctx.ellipse(x, y, rx + 10, ry + 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, (rx + 10) * spriteScale, (ry + 8) * spriteScale, 0, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(244,114,182,0.85)';
     ctx.lineWidth = 3;
     ctx.stroke();
@@ -2236,8 +2439,8 @@ function dMemSpot(o, active, t) {
 }
 
 // ── Draw particles ────────────────────────────────────────────────────────────
-function drawMitosisChromosomes() {
-  if (!mitosisProphaseActive() && !mitosisMetaphaseActive() && !mitosisAnaphaseActive()) return;
+function getMitosisChromosomeLayout() {
+  if (!mitosisProphaseActive() && !mitosisMetaphaseActive() && !mitosisAnaphaseActive()) return null;
   const prophase = mitosisProphaseProgress();
   const metaphase = mitosisMetaphaseProgress();
   const anaphase = mitosisAnaphaseProgress();
@@ -2255,6 +2458,36 @@ function drawMitosisChromosomes() {
     { sx: center.x - 20, sy: center.y + 76, rot: -0.38, col: '#60a5fa' },
     { sx: center.x + 96, sy: center.y + 44, rot: 0.46, col: '#c084fc' },
   ];
+  const chromosomes = sets.map((cfg, i) => {
+    const condensedX = center.x + (cfg.sx - center.x) * Math.max(0.16, 1 - condensed * 0.76);
+    const condensedY = center.y + (cfg.sy - center.y) * Math.max(0.16, 1 - condensed * 0.76);
+    const targetX = plateX;
+    const targetY = plateTop + i * plateSpacing * 2.2;
+    const metaX = condensedX + (targetX - condensedX) * metaphase;
+    const metaY = condensedY + (targetY - condensedY) * metaphase;
+    const split = 62 + i * 8;
+    const driftY = (i - 1.5) * 16;
+    return {
+      cfg,
+      index: i,
+      centromere: { x: metaX, y: metaY },
+      leftCentromere: {
+        x: metaX + (leftPole.x + split - metaX) * anaphase,
+        y: metaY + (leftPole.y + driftY - metaY) * anaphase,
+      },
+      rightCentromere: {
+        x: metaX + (rightPole.x - split - metaX) * anaphase,
+        y: metaY + (rightPole.y + driftY - metaY) * anaphase,
+      },
+    };
+  });
+  return { prophase, metaphase, anaphase, condensed, center, plateX, leftPole, rightPole, chromosomes };
+}
+
+function drawMitosisChromosomes() {
+  const layout = getMitosisChromosomeLayout();
+  if (!layout) return;
+  const { prophase, metaphase, anaphase, condensed, center, plateX, chromosomes } = layout;
   if (mitosisProphaseActive() && condensed < 0.45) {
     ctx.save();
     ctx.globalAlpha = 0.22 + condensed * 0.28;
@@ -2277,24 +2510,8 @@ function drawMitosisChromosomes() {
     }
     ctx.restore();
   }
-  for (let i = 0; i < sets.length; i++) {
-    const cfg = sets[i];
-    const condensedX = center.x + (cfg.sx - center.x) * Math.max(0.16, 1 - condensed * 0.76);
-    const condensedY = center.y + (cfg.sy - center.y) * Math.max(0.16, 1 - condensed * 0.76);
-    const targetX = plateX;
-    const targetY = plateTop + i * plateSpacing * 2.2;
-    const metaX = condensedX + (targetX - condensedX) * metaphase;
-    const metaY = condensedY + (targetY - condensedY) * metaphase;
-    const split = 62 + i * 8;
-    const driftY = (i - 1.5) * 16;
-    const leftCentromere = {
-      x: metaX + (leftPole.x + split - metaX) * anaphase,
-      y: metaY + (leftPole.y + driftY - metaY) * anaphase,
-    };
-    const rightCentromere = {
-      x: metaX + (rightPole.x - split - metaX) * anaphase,
-      y: metaY + (rightPole.y + driftY - metaY) * anaphase,
-    };
+  for (const chromosome of chromosomes) {
+    const { cfg, index: i, centromere, leftCentromere, rightCentromere } = chromosome;
     const rot = cfg.rot * Math.max(0.08, 1 - condensed * 0.86 - metaphase * 0.9) + anaphase * 0.18 * (i % 2 === 0 ? -1 : 1);
     const scale = 0.14 + condensed * 0.98 + metaphase * 0.18;
     const alpha = 0.04 + condensed * 0.9 + metaphase * 0.08 + anaphase * 0.06;
@@ -2330,7 +2547,6 @@ function drawMitosisChromosomes() {
       drawChromatid(leftCentromere, -1);
       drawChromatid(rightCentromere, 1);
     } else {
-      const centromere = { x: metaX, y: metaY };
       ctx.save();
       ctx.translate(centromere.x, centromere.y);
       ctx.rotate(rot);
@@ -2461,10 +2677,11 @@ function drawBuildProgress() {
         ? (() => {
             const daughterP = daughterLayoutProgress();
             if (daughterP > 0) {
+              const start = sortedDuplicatePosition(id, anchor, cfg);
               const target = CYTOKINESIS_RIGHT_TARGETS[id] || { x: anchor.x + cfg.copyOffset.x, y: anchor.y + cfg.copyOffset.y };
               return {
-                x: (anchor.x + cfg.copyOffset.x) + (target.x - (anchor.x + cfg.copyOffset.x)) * daughterP,
-                y: (anchor.y + cfg.copyOffset.y) + (target.y - (anchor.y + cfg.copyOffset.y)) * daughterP,
+                x: start.x + (target.x - start.x) * daughterP,
+                y: start.y + (target.y - start.y) * daughterP,
               };
             }
             const p = mitosisGroupingProgress();
@@ -2553,29 +2770,48 @@ function drawMito(x, y, angle, size, alpha) {
 }
 
 function drawProphaseSpindleGuides() {
-  if (!mitosisProphaseActive() && !mitosisMetaphaseActive() && !mitosisAnaphaseActive()) return;
-  const p = mitosisProphaseActive() ? mitosisProphaseProgress() : 1;
-  const metaphase = mitosisMetaphaseProgress();
-  const anaphase = mitosisAnaphaseProgress();
-  const center = SORTING_CENTER;
-  const leftPole = SORTING_ORIGINAL_TARGETS.centriole;
-  const rightPole = SORTING_DUPLICATE_TARGETS.centriole;
-  const fade = Math.min(0.9, p * 0.9 + metaphase * 0.12 + anaphase * 0.14);
+  const layout = getMitosisChromosomeLayout();
+  if (!layout) return;
+  const { prophase: p, metaphase, anaphase, leftPole, rightPole, chromosomes } = layout;
+  const fade = mitosisAnaphaseActive()
+    ? 0.88 + anaphase * 0.12
+    : mitosisMetaphaseActive()
+      ? 0.82 + metaphase * 0.12
+      : Math.min(0.9, p * 0.9);
   const drawPole = (pole, align) => {
     ctx.save();
     ctx.globalAlpha = fade;
-    glow('#f8fafc', 10);
-    ctx.strokeStyle = 'rgba(226,232,240,0.38)';
-    ctx.lineWidth = 2;
-    for (let i = -2; i <= 2; i++) {
+    glow('#f8fafc', anaphase > 0 ? 14 : 10);
+    ctx.strokeStyle = anaphase > 0
+      ? 'rgba(241,245,249,0.88)'
+      : metaphase > 0
+        ? 'rgba(226,232,240,0.62)'
+        : 'rgba(226,232,240,0.38)';
+    ctx.lineWidth = anaphase > 0 ? 3.8 : metaphase > 0 ? 2.8 : 2;
+    for (const chromosome of chromosomes) {
+      const i = chromosome.index;
+      const target = anaphase > 0
+        ? (align === 'left' ? chromosome.leftCentromere : chromosome.rightCentromere)
+        : chromosome.centromere;
+      const ctrlX = anaphase > 0
+        ? pole.x + (target.x - pole.x) * 0.82
+        : pole.x + (target.x - pole.x) * (metaphase > 0 ? 0.58 : 0.46);
+      const ctrlY = anaphase > 0
+        ? pole.y + (target.y - pole.y) * 0.18
+        : pole.y + (target.y - pole.y) * 0.34 + (align === 'left' ? -1 : 1) * (i - 1.5) * 10;
       ctx.beginPath();
       ctx.moveTo(pole.x, pole.y);
-      const pull = mitosisMetaphaseActive() ? metaphase * 0.78 : 0;
-      const split = mitosisAnaphaseActive() ? anaphase * (96 + Math.abs(i) * 8) : 0;
-      const endX = center.x + i * 9 * (1 - pull) + (align === 'left' ? -split : split);
-      const endY = center.y + i * 42 + (mitosisAnaphaseActive() ? (i - 0.5) * 8 : 0);
-      ctx.quadraticCurveTo((pole.x + center.x) * 0.5, center.y + i * (78 - pull * 24), endX, endY);
+      ctx.quadraticCurveTo(ctrlX, ctrlY, target.x, target.y);
       ctx.stroke();
+      if (anaphase > 0) {
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(241,245,249,0.92)';
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, 4.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(226,232,240,0.8)';
@@ -2644,7 +2880,6 @@ function draw() {
 
   drawCell();
   drawSortingDebugOverlay();
-  drawProphaseSpindleGuides();
   // background mito
   for (let i = 0; i < BG_MITO.length; i++) {
     const m = BG_MITO[i];
@@ -2652,6 +2887,7 @@ function draw() {
       ? (() => {
           const daughterP = daughterLayoutProgress();
           if (daughterP > 0) {
+            const start = sortedBgMitoPosition(m, i);
             const targets = [
               { x: -486, y: 176 },
               { x: 438, y: 182 },
@@ -2662,8 +2898,8 @@ function draw() {
             ];
             const target = targets[i];
             return {
-              x: (target.x - m.x) * daughterP,
-              y: (target.y - m.y) * daughterP,
+              x: (start.x + (target.x - start.x) * daughterP) - m.x,
+              y: (start.y + (target.y - start.y) * daughterP) - m.y,
             };
           }
           const p = mitosisGroupingProgress();
@@ -2705,6 +2941,7 @@ function draw() {
   drawOrgs();
   drawTelophaseDaughterNuclei();
   drawMitosisChromosomes();
+  drawProphaseSpindleGuides();
   drawBuildProgress();
   drawParticles();
   drawGlucoseTokens();
