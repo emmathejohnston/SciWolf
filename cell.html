@@ -65,6 +65,44 @@
     border-radius: 16px;
     backdrop-filter: blur(8px);
   }
+  #debug-jump {
+    position: fixed;
+    right: 14px;
+    bottom: 148px;
+    z-index: 110;
+    width: 220px;
+    padding: 10px 12px;
+    background: rgba(15,23,42,0.92);
+    border: 1px solid #475569;
+    border-radius: 14px;
+    backdrop-filter: blur(8px);
+  }
+  #debug-jump.hidden { display: none; }
+  #debug-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fda4af;
+    margin-bottom: 8px;
+  }
+  #debug-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .debug-btn {
+    border: 1px solid #64748b;
+    background: rgba(30,41,59,0.95);
+    color: #e2e8f0;
+    font-size: 0.74rem;
+    border-radius: 999px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .debug-btn:hover {
+    border-color: #fda4af;
+    color: #fff1f2;
+  }
   #build-title {
     font-size: 0.74rem;
     text-transform: uppercase;
@@ -126,6 +164,9 @@
     max-width: min(320px, calc(100vw - 28px));
     pointer-events: none;
   }
+  #celly-guide.celebrate {
+    animation: celly-bounce 0.72s ease-in-out infinite;
+  }
   #celly-bubble {
     position: relative;
     background: rgba(248,250,252,0.96);
@@ -160,6 +201,10 @@
     filter: drop-shadow(0 14px 22px rgba(2,6,23,0.38));
     flex: 0 0 auto;
   }
+  @keyframes celly-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-16px); }
+  }
 
   #tutorial {
     position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
@@ -190,6 +235,13 @@
       right: auto;
       top: auto;
       bottom: 108px;
+      transform: translateX(-50%);
+      width: min(calc(100vw - 18px), 360px);
+    }
+    #debug-jump {
+      left: 50%;
+      right: auto;
+      bottom: 218px;
       transform: translateX(-50%);
       width: min(calc(100vw - 18px), 360px);
     }
@@ -245,6 +297,16 @@
   <div id="build-title">Organelle Building</div>
 </div>
 
+<div id="debug-jump">
+  <div id="debug-title">Debug Jump</div>
+  <div id="debug-actions">
+    <button class="debug-btn" data-jump="organelles">Post Organelles</button>
+    <button class="debug-btn" data-jump="dna">Post DNA</button>
+    <button class="debug-btn" data-jump="mitosis">Mitosis Setup</button>
+    <button class="debug-btn" data-jump="hide">Hide</button>
+  </div>
+</div>
+
 <div id="tutorial">
   Click the <strong>nucleus</strong> to make mRNA, then click the <strong>rough ER</strong> to build a folded protein.<br>
   Drag the folded protein to the <strong>Golgi apparatus</strong> to package it, then drag packaged proteins onto organelles to build second copies.
@@ -285,6 +347,8 @@ const tutEl = document.getElementById('tutorial');
 document.getElementById('tutorial-close').onclick = () => tutEl.style.opacity = '0';
 setTimeout(() => tutEl.style.opacity = '0', 12000);
 const cellyText = document.getElementById('celly-text');
+const cellyGuide = document.getElementById('celly-guide');
+const debugPanel = document.getElementById('debug-jump');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CELL_R = 600;
@@ -310,7 +374,7 @@ const ORGS = [
   },
   {
     id: 'nucleolus', name: 'Nucleolus', sub: 'Ribosome Factory',
-    x: -105, y: 8, r: 50, shape: 'nucleolus', ir: 75, cost: 15,
+    x: -105, y: 8, r: 34, shape: 'nucleolus', ir: 46, cost: 15,
     dur: 18, pc: '#bae6fd',
     desc: 'A dense, membrane-free region inside the nucleus where ribosomal RNA (rRNA) is transcribed and ribosome subunits are assembled, then exported through nuclear pores to the cytoplasm.',
     model: '<strong>Model note:</strong> Appears as a dark blob in light microscopy — how it was first described. It is not enclosed by a membrane; it assembles spontaneously around specific chromosomal loci called nucleolus organiser regions. It dissolves entirely during cell division.'
@@ -460,14 +524,23 @@ const glucoseTokens = [];
 let cellyOverride = '';
 let cellyOverrideUntil = 0;
 const endocytosisFx = { t: 0, pulse: 0 };
+phaseState.dnaProgress = 0;
+phaseState.dnaNeeded = 4;
+phaseState.organellesCelebrated = false;
+phaseState.dnaComplete = false;
+phaseState.mitosisStarted = false;
+phaseState.mitosisSetupT = 0;
+phaseState.mitosisPrompted = false;
+phaseState.mitosisPhase = 'idle';
+phaseState.winCelebrated = false;
 const BUILD_COST = 3;
 const DUPLICATE_TARGETS = {
-  golgi:       { label: 'Golgi', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('golgi')), copyOffset: { x: 120, y: 34 }, sprite: 'golgi', size: () => ({ w: 360, h: 255 }) },
-  mitochondria:{ label: 'Mitochondria', proteinsNeeded: 2, anchor: () => ({ x: -368, y: 300 }), copyOffset: { x: 118, y: 40 }, sprite: 'mitochondria', size: () => ({ w: 150, h: 106 }), angle: 0.35 },
-  ser:         { label: 'Smooth ER', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('ser')), copyOffset: { x: -112, y: -128 }, sprite: 'smooth_er', size: () => ({ w: 320, h: 226 }) },
-  lysosome:    { label: 'Lysosome', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('lyso_a')), copyOffset: { x: 118, y: 82 }, sprite: 'lysosome', size: () => ({ w: 108, h: 76 }) },
-  vacuole:     { label: 'Vacuole', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('vac_lg')), copyOffset: { x: 180, y: 56 }, sprite: 'vacuole', size: () => ({ w: 184, h: 132 }) },
-  centriole:   { label: 'Centriole', proteinsNeeded: 1, anchor: () => organelleAnchor(getOrg('centriole')), copyOffset: { x: 102, y: -24 }, sprite: 'centriole', size: () => ({ w: 160, h: 114 }) },
+  golgi:       { label: 'Golgi', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('golgi')), copyOffset: { x: 120, y: 34 }, sprite: 'golgi', size: () => ({ w: 432, h: 306 }) },
+  mitochondria:{ label: 'Mitochondria', proteinsNeeded: 2, anchor: () => ({ x: -368, y: 300 }), copyOffset: { x: 118, y: 40 }, sprite: 'mitochondria', size: () => ({ w: 180, h: 127 }), angle: 0.35 },
+  ser:         { label: 'Smooth ER', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('ser')), copyOffset: { x: -112, y: -128 }, sprite: 'smooth_er', size: () => ({ w: 384, h: 271 }) },
+  lysosome:    { label: 'Lysosome', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('lyso_a')), copyOffset: { x: 118, y: 82 }, sprite: 'lysosome', size: () => ({ w: 216, h: 152 }) },
+  vacuole:     { label: 'Vacuole', proteinsNeeded: 2, anchor: () => organelleAnchor(getOrg('vac_lg')), copyOffset: { x: 180, y: 56 }, sprite: 'vacuole', size: () => ({ w: 221, h: 158 }) },
+  centriole:   { label: 'Centriole', proteinsNeeded: 1, anchor: () => organelleAnchor(getOrg('centriole')), copyOffset: { x: 102, y: -24 }, sprite: 'centriole', size: () => ({ w: 192, h: 137 }) },
 };
 const duplicateState = {};
 for (const [id, cfg] of Object.entries(DUPLICATE_TARGETS)) {
@@ -476,6 +549,55 @@ for (const [id, cfg] of Object.entries(DUPLICATE_TARGETS)) {
 let dragToken = null;
 let dragPointer = null;
 let suppressCanvasClick = false;
+const SORTING_GUIDES = true;
+const SORTING_CENTER = { x: -95, y: 20 };
+const SORTING_ORIGINAL_TARGETS = {
+  golgi: { x: -315, y: 80 },
+  ser: { x: -315, y: -110 },
+  rer: { x: 150, y: 68 },
+  vac_lg: { x: -290, y: -250 },
+  vac_sm: { x: 215, y: -235 },
+  lyso_a: { x: -265, y: 195 },
+  lyso_b: { x: -325, y: 130 },
+  lyso_c: { x: 255, y: 150 },
+  centriole: { x: -470, y: 24 },
+  ves_a: { x: 175, y: -135 },
+  ves_b: { x: 285, y: -75 },
+  ribosome: { x: 185, y: 245 },
+};
+const SORTING_DUPLICATE_TARGETS = {
+  golgi: { x: 250, y: 82 },
+  mitochondria: { x: 205, y: 315 },
+  ser: { x: 285, y: -115 },
+  lysosome: { x: 315, y: 195 },
+  vacuole: { x: 230, y: -270 },
+  centriole: { x: 395, y: 12 },
+};
+const CYTOKINESIS_LEFT_CENTER = { x: -335, y: 0 };
+const CYTOKINESIS_RIGHT_CENTER = { x: 335, y: 0 };
+const CYTOKINESIS_LEFT_TARGETS = {
+  nucleus: { x: -1000, y: -8 },
+  rer: { x: -458, y: 96 },
+  ser: { x: -512, y: 8 },
+  golgi: { x: -240, y: -18 },
+  vac_lg: { x: -330, y: -185 },
+  vac_sm: { x: -498, y: -116 },
+  lyso_a: { x: -255, y: 158 },
+  lyso_b: { x: -472, y: 138 },
+  lyso_c: { x: -252, y: -126 },
+  centriole: { x: -582, y: 0 },
+  ves_a: { x: -296, y: -132 },
+  ves_b: { x: -214, y: -104 },
+  ribosome: { x: -360, y: 220 },
+};
+const CYTOKINESIS_RIGHT_TARGETS = {
+  golgi: { x: 452, y: -10 },
+  mitochondria: { x: 412, y: 186 },
+  ser: { x: 176, y: 18 },
+  lysosome: { x: 500, y: 142 },
+  vacuole: { x: 336, y: -180 },
+  centriole: { x: 582, y: 0 },
+};
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {};
@@ -484,6 +606,7 @@ ORGS.forEach(o => { state[o.id] = { activeT: 0, emitTimer: 0, pulse: 0 }; });
 // ── Particles ─────────────────────────────────────────────────────────────────
 const parts = [];
 const flashes = []; // absorption flash rings
+const confetti = [];
 
 // Burst on activation (short-lived scatter)
 function spawnBurst(ox, oy, col, n = 10) {
@@ -536,6 +659,23 @@ function spawnAbsorb(x, y, col) {
   flashes.push({ x, y, col, r: 6, life: 1 });
 }
 
+function spawnConfettiBurst() {
+  const colors = ['#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#c084fc', '#fb7185'];
+  for (let i = 0; i < 140; i++) {
+    confetti.push({
+      x: (Math.random() - 0.5) * canvas.width,
+      y: -canvas.height * 0.55 - Math.random() * 120,
+      vx: (Math.random() - 0.5) * 140,
+      vy: 60 + Math.random() * 180,
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 7,
+      size: 6 + Math.random() * 8,
+      col: colors[i % colors.length],
+      life: 3.6 + Math.random() * 1.4,
+    });
+  }
+}
+
 // ── Pointer state ─────────────────────────────────────────────────────────────
 let hoverTarget = null;
 
@@ -574,6 +714,31 @@ function screenToWorld(clientX, clientY) {
   };
 }
 
+function sortMotion(base, staging, target, p) {
+  const clamp = Math.max(0, Math.min(1, p));
+  const smooth = v => v * v * (3 - 2 * v);
+  const gather = smooth(Math.min(1, clamp / 0.42));
+  const spread = smooth(Math.max(0, Math.min(1, (clamp - 0.58) / 0.42)));
+  const sx = base.x + (staging.x - base.x) * gather;
+  const sy = base.y + (staging.y - base.y) * gather;
+  return {
+    x: sx + (target.x - staging.x) * spread,
+    y: sy + (target.y - staging.y) * spread,
+  };
+}
+
+function sortingStagingPoint(seed = 0) {
+  const ring = [
+    { x: SORTING_CENTER.x - 54, y: SORTING_CENTER.y - 52 },
+    { x: SORTING_CENTER.x + 58, y: SORTING_CENTER.y - 48 },
+    { x: SORTING_CENTER.x - 42, y: SORTING_CENTER.y + 44 },
+    { x: SORTING_CENTER.x + 46, y: SORTING_CENTER.y + 48 },
+    { x: SORTING_CENTER.x - 8, y: SORTING_CENTER.y - 88 },
+    { x: SORTING_CENTER.x + 4, y: SORTING_CENTER.y + 92 },
+  ];
+  return ring[seed % ring.length];
+}
+
 function organelleFloatOffset(o, t = performance.now() / 1000) {
   if (o.shape === 'mem_spot') return { x: 0, y: 0 };
   const phaseSeed = Array.from(o.id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
@@ -582,7 +747,30 @@ function organelleFloatOffset(o, t = performance.now() / 1000) {
     : phaseSeed * 0.11;
   const swayX = Math.sin(t * 0.42 + groupPhase) * 3.2;
   const swayY = Math.cos(t * 0.55 + groupPhase * 1.3) * 4.6;
-  return { x: swayX, y: swayY };
+  const daughterP = daughterLayoutProgress();
+  if (daughterP > 0 && CYTOKINESIS_LEFT_TARGETS[o.id]) {
+    const target = CYTOKINESIS_LEFT_TARGETS[o.id];
+    return {
+      x: swayX + (target.x - o.x) * daughterP,
+      y: swayY + (target.y - o.y) * daughterP,
+    };
+  }
+  let mitosisX = 0;
+  let mitosisY = 0;
+  if (mitosisSetupActive()) {
+    const p = mitosisGroupingProgress();
+    if (SORTING_ORIGINAL_TARGETS[o.id]) {
+      const seed = Array.from(o.id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+      const staged = sortingStagingPoint(seed);
+      const target = SORTING_ORIGINAL_TARGETS[o.id];
+      const sorted = sortMotion({ x: o.x, y: o.y }, staged, target, p);
+      mitosisX = sorted.x - o.x;
+      mitosisY = sorted.y - o.y;
+    } else if (o.id === 'nucleus' || o.id === 'nuclear_env' || o.id === 'nucleolus' || o.id === 'dna') {
+      mitosisY = -8 * mitosisProphaseProgress();
+    }
+  }
+  return { x: swayX + mitosisX, y: swayY + mitosisY };
 }
 
 function organelleAnchor(o) {
@@ -611,10 +799,13 @@ function pointInOrg(x, y, o) {
     return nx * nx + ny * ny <= 1;
   }
   if (o.id === 'dna') {
+    if (!allOrganellesBuilt() || phaseState.mitosisStarted) {
+      return false;
+    }
     const nucleolus = ORGS.find(org => org.id === 'nucleolus');
     if (nucleolus) {
       const nucleolusAnchor = organelleAnchor(nucleolus);
-      const nucleolusRadius = Math.max(nucleolus.r || 0, 54);
+      const nucleolusRadius = Math.max(nucleolus.r || 0, 38);
       if (Math.hypot(x - nucleolusAnchor.x, y - nucleolusAnchor.y) <= nucleolusRadius) {
         return false;
       }
@@ -625,6 +816,32 @@ function pointInOrg(x, y, o) {
 }
 
 function locateTarget(x, y) {
+  if (mitosisSetupActive()) {
+    const nucleus = getOrg('nucleus');
+    if (nucleus) {
+      const guide = SORTING_CENTER;
+      const nx = (x - guide.x) / (nucleus.rx + 48);
+      const ny = (y - guide.y) / (nucleus.ry + 42);
+      if (nx * nx + ny * ny <= 1) {
+        return { type: 'org', data: nucleus };
+      }
+    }
+  }
+  if (allOrganellesBuilt() && !phaseState.dnaComplete && !phaseState.mitosisStarted) {
+    const dna = getOrg('dna');
+    const nucleus = getOrg('nucleus');
+    if (dna && nucleus) {
+      const dnaAnchor = organelleAnchor(dna);
+      const nucleusAnchor = organelleAnchor(nucleus);
+      const dx = (x - dnaAnchor.x) / 108;
+      const dy = (y - dnaAnchor.y) / 86;
+      const nx = (x - nucleusAnchor.x) / (nucleus.rx * 0.72);
+      const ny = (y - nucleusAnchor.y) / (nucleus.ry * 0.68);
+      if (dx * dx + dy * dy <= 1 || nx * nx + ny * ny <= 1) {
+        return { type: 'org', data: dna };
+      }
+    }
+  }
   for (let i = ORGS.length - 1; i >= 0; i--) {
     const org = ORGS[i];
     if (pointInOrg(x, y, org)) return { type: 'org', data: org };
@@ -721,6 +938,134 @@ function buildCompleteCount() {
   return Object.values(duplicateState).filter(entry => entry.completed).length;
 }
 
+function allOrganellesBuilt() {
+  return buildCompleteCount() >= Object.keys(DUPLICATE_TARGETS).length;
+}
+
+function mitosisSetupActive() {
+  return phaseState.mitosisStarted || phaseState.mitosisSetupT > 0;
+}
+
+function mitosisProgress() {
+  return phaseState.mitosisSetupT;
+}
+
+function mitosisSortingActive() {
+  return mitosisSetupActive() && phaseState.mitosisPhase === 'sorting';
+}
+
+function mitosisProphaseActive() {
+  return mitosisSetupActive() && phaseState.mitosisPhase === 'prophase';
+}
+
+function mitosisMetaphaseActive() {
+  return mitosisSetupActive() && phaseState.mitosisPhase === 'metaphase';
+}
+
+function mitosisAnaphaseActive() {
+  return mitosisSetupActive() && phaseState.mitosisPhase === 'anaphase';
+}
+
+function mitosisTelophaseActive() {
+  return mitosisSetupActive() && phaseState.mitosisPhase === 'telophase';
+}
+
+function mitosisCytokinesisActive() {
+  return mitosisSetupActive() && phaseState.mitosisPhase === 'cytokinesis';
+}
+
+function mitosisGroupingProgress() {
+  if (!mitosisSetupActive()) return 0;
+  return phaseState.mitosisPhase === 'sorting' ? phaseState.mitosisSetupT : 1;
+}
+
+function mitosisProphaseProgress() {
+  return mitosisProphaseActive() ? phaseState.mitosisSetupT : 0;
+}
+
+function mitosisMetaphaseProgress() {
+  return mitosisMetaphaseActive() ? phaseState.mitosisSetupT : 0;
+}
+
+function mitosisAnaphaseProgress() {
+  return mitosisAnaphaseActive() ? phaseState.mitosisSetupT : 0;
+}
+
+function mitosisTelophaseProgress() {
+  return mitosisTelophaseActive() ? phaseState.mitosisSetupT : 0;
+}
+
+function mitosisCytokinesisProgress() {
+  return mitosisCytokinesisActive() ? phaseState.mitosisSetupT : 0;
+}
+
+function lateMitosisActive() {
+  return mitosisTelophaseActive() || mitosisCytokinesisActive();
+}
+
+function daughterLayoutProgress() {
+  const anaphasePortion = mitosisAnaphaseProgress() * 0.24;
+  const telophasePortion = 0.24 + mitosisTelophaseProgress() * 0.48;
+  if (mitosisCytokinesisActive()) {
+    return 0.72 + mitosisCytokinesisProgress() * 0.28;
+  }
+  if (mitosisTelophaseActive()) return telophasePortion;
+  if (mitosisAnaphaseActive()) return anaphasePortion;
+  return 0;
+}
+
+function setAllOrganellesBuilt() {
+  for (const entry of Object.values(duplicateState)) {
+    entry.delivered = entry.needed;
+    entry.completed = true;
+  }
+  phaseState.organellesCelebrated = true;
+}
+
+function debugJump(mode) {
+  if (mode === 'hide') {
+    debugPanel.classList.add('hidden');
+    return;
+  }
+  ATP.value = ATP.max;
+  metabolism.glucoseFuel = metabolism.glucoseMax;
+  glucoseTokens.length = 0;
+  proteinTokens.length = 0;
+  phaseState.mrnaReady = 0;
+  phaseState.dnaProgress = 0;
+  phaseState.dnaComplete = false;
+  phaseState.mitosisStarted = false;
+  phaseState.mitosisSetupT = 0;
+  phaseState.mitosisPrompted = false;
+  phaseState.mitosisPhase = 'idle';
+  phaseState.winCelebrated = false;
+  endocytosisFx.t = 0;
+  endocytosisFx.pulse = 0;
+  confetti.length = 0;
+  if (cellyGuide) cellyGuide.classList.remove('celebrate');
+  if (mode === 'organelles' || mode === 'dna' || mode === 'mitosis') {
+    setAllOrganellesBuilt();
+  }
+  if (mode === 'dna' || mode === 'mitosis') {
+    phaseState.dnaProgress = phaseState.dnaNeeded;
+    phaseState.dnaComplete = true;
+  }
+  if (mode === 'mitosis') {
+    phaseState.mitosisStarted = true;
+    phaseState.mitosisSetupT = 1;
+    phaseState.mitosisPhase = 'telophase';
+  }
+  setCellyOverride(
+    mode === 'organelles'
+      ? 'Debug jump: organelles duplicated.'
+      : mode === 'dna'
+        ? 'Debug jump: DNA duplicated.'
+        : 'Debug jump: mitosis setup ready.',
+    1400
+  );
+  updatePhaseStatus();
+}
+
 function buildTargetForDropTarget(target) {
   if (!target) return null;
   if (target.type === 'mito') return 'mitochondria';
@@ -733,6 +1078,28 @@ function buildTargetForDropTarget(target) {
 
 function updateBuildPanel() {
   const panel = document.getElementById('build-panel');
+  if (mitosisSetupActive()) {
+    const pct = Math.round(phaseState.mitosisSetupT * 100);
+    const label =
+      phaseState.mitosisPhase === 'sorting'
+        ? 'Organelle Sorting'
+        : phaseState.mitosisPhase === 'prophase'
+          ? 'Prophase'
+          : phaseState.mitosisPhase === 'metaphase'
+            ? 'Metaphase'
+            : phaseState.mitosisPhase === 'anaphase'
+              ? 'Anaphase'
+              : phaseState.mitosisPhase === 'telophase'
+                ? 'Telophase'
+                : 'Cytokinesis';
+    panel.innerHTML = `<div id="build-title">Mitosis Setup</div><div class="build-row"><span>${label}</span><div class="build-track"><div class="build-fill" style="width:${pct}%"></div></div><span class="build-count">${pct}%</span></div>`;
+    return;
+  }
+  if (allOrganellesBuilt()) {
+    const pct = Math.round((phaseState.dnaProgress / phaseState.dnaNeeded) * 100);
+    panel.innerHTML = `<div id="build-title">DNA Synthesis</div><div class="build-row"><span>DNA</span><div class="build-track"><div class="build-fill" style="width:${pct}%"></div></div><span class="build-count">${phaseState.dnaProgress}/${phaseState.dnaNeeded}</span></div>`;
+    return;
+  }
   const title = '<div id="build-title">Organelle Building</div>';
   const rows = Object.entries(DUPLICATE_TARGETS).map(([id, cfg]) => {
     const state = duplicateState[id];
@@ -745,6 +1112,38 @@ function updateBuildPanel() {
 function updatePhaseStatus() {
   const folded = proteinTokens.filter(token => token.kind === 'folded').length;
   const packaged = packagedCount();
+  if (mitosisSetupActive()) {
+    phaseState.stage =
+      phaseState.mitosisPhase === 'sorting'
+        ? 'Mitosis - Organelle Sorting'
+        : phaseState.mitosisPhase === 'prophase'
+          ? 'Mitosis - Prophase'
+          : phaseState.mitosisPhase === 'metaphase'
+            ? 'Mitosis - Metaphase'
+            : phaseState.mitosisPhase === 'anaphase'
+              ? 'Mitosis - Anaphase'
+              : phaseState.mitosisPhase === 'telophase'
+                ? 'Mitosis - Telophase'
+                : 'Mitosis - Cytokinesis';
+    document.getElementById('phase-chip').textContent =
+      phaseState.mitosisPhase === 'sorting'
+        ? 'Phase 5 - Organelle Sorting'
+        : phaseState.mitosisPhase === 'prophase'
+          ? 'Phase 5 - Prophase'
+          : phaseState.mitosisPhase === 'metaphase'
+            ? 'Phase 5 - Metaphase'
+            : phaseState.mitosisPhase === 'anaphase'
+              ? 'Phase 5 - Anaphase'
+              : phaseState.mitosisPhase === 'telophase'
+                ? 'Phase 5 - Telophase'
+                : 'Phase 5 - Cytokinesis';
+  } else if (allOrganellesBuilt() && !phaseState.dnaComplete) {
+    phaseState.stage = 'Interphase Â· S Phase';
+    document.getElementById('phase-chip').textContent = 'Phase 4 Â· DNA Synthesis';
+  } else if (phaseState.dnaComplete) {
+    phaseState.stage = 'Interphase Â· G2';
+    document.getElementById('phase-chip').textContent = 'Phase 4 Â· DNA Synthesized';
+  }
   document.getElementById('phase-status').textContent =
     `${phaseState.stage} · Fuel ${metabolism.glucoseFuel}/${metabolism.glucoseMax} · Glucose ${glucoseVesicleCount()} · mRNA ${phaseState.mrnaReady} · Folded ${folded} · Packaged ${packaged} · Built ${buildCompleteCount()}/${Object.keys(DUPLICATE_TARGETS).length}`;
   updateBuildPanel();
@@ -766,13 +1165,52 @@ function computeCellyText() {
   const rer = getOrg('rer');
   let nextCost = 0;
 
-  if (phaseState.mrnaReady <= 0) nextCost = nucleus ? nucleus.cost : 0;
+  if (allOrganellesBuilt() && !phaseState.dnaComplete) nextCost = getOrg('dna') ? getOrg('dna').cost : 20;
+  else if (phaseState.mrnaReady <= 0) nextCost = nucleus ? nucleus.cost : 0;
   else if (folded <= 0) nextCost = rer ? rer.cost : 0;
   else if (packaged <= 0 || remainingBuilds > 0) nextCost = BUILD_COST;
 
   if (ATP.value < nextCost && metabolism.glucoseFuel <= 0) {
     if (glucoseVesicleCount() > 0) return 'Drag the glucose vesicle from the top membrane to a mitochondrion so it can make ATP!';
     return "I'm hungry! Click the glowing pocket at the top membrane to bring glucose inside the cell!";
+  }
+  if (phaseState.dnaComplete && !phaseState.mitosisStarted) {
+    return 'DNA is ready. Click the nucleus area to begin organelle sorting for mitosis.';
+  }
+  if (mitosisSetupActive()) {
+    if (phaseState.mitosisPhase === 'sorting') {
+      return phaseState.mitosisSetupT < 1
+        ? 'Organelles are sorting into balanced groups on each side of the cell.'
+        : 'Organelle sorting is done. Click the nucleus area again to begin prophase.';
+    }
+    if (phaseState.mitosisPhase === 'prophase') {
+      return phaseState.mitosisSetupT < 1
+        ? 'Prophase is underway as the nuclear envelope breaks down and chromosomes condense.'
+        : 'Prophase is done. Click the nucleus area again to move into metaphase.';
+    }
+    if (phaseState.mitosisPhase === 'metaphase') {
+      return phaseState.mitosisSetupT < 1
+        ? 'Metaphase is underway. The chromosomes are lining up at the center of the cell.'
+        : 'Metaphase is done. Click the nucleus area again to begin anaphase.';
+    }
+    if (phaseState.mitosisPhase === 'anaphase') {
+      return phaseState.mitosisSetupT < 1
+        ? 'Anaphase is underway. The spindle fibers are pulling sister chromatids apart.'
+        : 'Anaphase is done. Click the nucleus area again to begin telophase.';
+    }
+    if (phaseState.mitosisPhase === 'telophase') {
+      return phaseState.mitosisSetupT < 1
+        ? 'Telophase is underway. The cell membrane is pinching into two daughter-cell lobes.'
+        : 'Telophase is done. Click the nucleus area again to complete cytokinesis.';
+    }
+    if (phaseState.mitosisPhase === 'cytokinesis' && phaseState.mitosisSetupT >= 1) {
+      return 'We did it! Mitosis is complete and two daughter cells have formed!';
+    }
+    return 'Cytokinesis is underway. Two daughter cells are separating and reforming their own layouts.';
+  }
+  if (allOrganellesBuilt() && !phaseState.dnaComplete) {
+    if (!phaseState.organellesCelebrated) return 'Every organelle is duplicated. DNA is next!';
+    return 'Amazing! Click the DNA to start duplicating the genome!';
   }
   if (ATP.value < ATP.max && metabolism.glucoseFuel > 0) return 'Tap the mitochondria to harvest the ATP!';
   if (phaseState.mrnaReady <= 0) return 'Click the nucleus to make a transcript!';
@@ -863,6 +1301,72 @@ function translateAtRER(org) {
   return true;
 }
 
+function replicateDNA(org) {
+  if (!allOrganellesBuilt() || phaseState.dnaComplete || ATP.value < org.cost) return false;
+  ATP.value -= org.cost;
+  phaseState.dnaProgress = Math.min(phaseState.dnaNeeded, phaseState.dnaProgress + 1);
+  state[org.id].pulse = 0.95;
+  state[org.id].activeT = 1.2;
+  const nucleus = getOrg('nucleus') || org;
+  for (let i = 0; i < 4; i++) {
+    spawnDirected(nucleus, org, {
+      col: '#818cf8',
+      r: 5,
+      label: 'DNA',
+    });
+  }
+  spawnBurst(organelleAnchor(org).x, organelleAnchor(org).y, '#818cf8', 16);
+  if (phaseState.dnaProgress >= phaseState.dnaNeeded) {
+    phaseState.dnaComplete = true;
+    setCellyOverride('DNA duplicated! The cell is ready for the next stage!', 2200);
+  } else {
+    setCellyOverride('Beautiful! Keep clicking the DNA to finish replication!', 1500);
+  }
+  updatePhaseStatus();
+  return true;
+}
+
+function startMitosisSetup() {
+  if (!phaseState.dnaComplete) return false;
+  if (!phaseState.mitosisStarted) {
+    phaseState.mitosisStarted = true;
+    phaseState.mitosisPhase = 'sorting';
+    phaseState.mitosisSetupT = 0;
+    phaseState.mitosisPrompted = true;
+    setCellyOverride('Mitosis time! First the organelles sort into balanced groups on each side of the cell.', 2600);
+  } else if (phaseState.mitosisPhase === 'sorting' && phaseState.mitosisSetupT >= 1) {
+    phaseState.mitosisPhase = 'prophase';
+    phaseState.mitosisSetupT = 0;
+    phaseState.mitosisPrompted = true;
+    setCellyOverride('Great! Now prophase begins as the nuclear envelope breaks down and chromosomes condense.', 2400);
+  } else if (phaseState.mitosisPhase === 'prophase' && phaseState.mitosisSetupT >= 1) {
+    phaseState.mitosisPhase = 'metaphase';
+    phaseState.mitosisSetupT = 0;
+    phaseState.mitosisPrompted = true;
+    setCellyOverride('Nice! Now metaphase begins as the chromosomes line up down the middle of the cell.', 2400);
+  } else if (phaseState.mitosisPhase === 'metaphase' && phaseState.mitosisSetupT >= 1) {
+    phaseState.mitosisPhase = 'anaphase';
+    phaseState.mitosisSetupT = 0;
+    phaseState.mitosisPrompted = true;
+    setCellyOverride('Here comes anaphase! The spindle fibers are pulling the sister chromatids apart.', 2400);
+  } else if (phaseState.mitosisPhase === 'anaphase' && phaseState.mitosisSetupT >= 1) {
+    phaseState.mitosisPhase = 'telophase';
+    phaseState.mitosisSetupT = 0;
+    phaseState.mitosisPrompted = true;
+    glucoseTokens.length = 0;
+    setCellyOverride('Telophase has begun! The cell membrane is pinching into two daughter cells.', 2400);
+  } else if (phaseState.mitosisPhase === 'telophase' && phaseState.mitosisSetupT >= 1) {
+    phaseState.mitosisPhase = 'cytokinesis';
+    phaseState.mitosisSetupT = 0;
+    phaseState.mitosisPrompted = true;
+    setCellyOverride('Cytokinesis has begun! The daughter cells are separating into two independent cells.', 2400);
+  } else {
+    return false;
+  }
+  updatePhaseStatus();
+  return true;
+}
+
 function tryPackageAtGolgi(token) {
   const golgi = getOrg('golgi');
   if (!golgi || token.kind !== 'folded') return false;
@@ -905,6 +1409,10 @@ function deliverPackagedProtein(token) {
   spawnBurst(token.x, token.y, '#34d399', 14);
   const idx = proteinTokens.findIndex(item => item.id === token.id);
   if (idx >= 0) proteinTokens.splice(idx, 1);
+  if (allOrganellesBuilt() && !phaseState.organellesCelebrated) {
+    phaseState.organellesCelebrated = true;
+    setCellyOverride('Amazing! All the organelles are duplicated. Now click the DNA to duplicate it next!', 2400);
+  }
   updatePhaseStatus();
   return true;
 }
@@ -924,6 +1432,11 @@ function deliverGlucoseToMito(token) {
 }
 
 function handleOrganelleAction(org) {
+  if (org.id === 'dna') return phaseState.dnaComplete && !phaseState.mitosisStarted ? false : replicateDNA(org);
+  if (org.id === 'nucleus' && phaseState.dnaComplete) return startMitosisSetup();
+  if (allOrganellesBuilt() && !phaseState.dnaComplete && org.id !== 'membrane') return false;
+  if (mitosisSetupActive() && org.id !== 'nucleus' && org.id !== 'membrane') return false;
+  if (lateMitosisActive() && org.id === 'membrane') return false;
   if (org.id === 'nucleus') return transcribeAtNucleus(org);
   if (org.id === 'rer') return translateAtRER(org);
   if (org.id === 'membrane') {
@@ -937,18 +1450,29 @@ function handleOrganelleAction(org) {
   return false;
 }
 
+debugPanel.addEventListener('click', e => {
+  const btn = e.target.closest('.debug-btn');
+  if (!btn) return;
+  debugJump(btn.dataset.jump);
+});
+
 function handleWorldPress(worldX, worldY) {
   if (cardOpen) {
     closeCard();
-    return;
+    if (!mitosisSetupActive()) return;
   }
   const target = locateTarget(worldX, worldY);
   hoverTarget = target;
   if (!target) {
     return;
   }
+  if (mitosisSetupActive()) {
+    if (target.type !== 'org' || target.data.id !== 'nucleus') return;
+    handleOrganelleAction(target.data);
+    return;
+  }
   if (target.type === 'mito') harvestATP(target.data);
-  else if (!handleOrganelleAction(target.data)) activateOrganelle(target.data);
+  else if (!handleOrganelleAction(target.data)) activateOrganelle(target.data, !mitosisSetupActive());
 }
 
 function beginTokenDrag(token, pointerId = 'mouse') {
@@ -1127,6 +1651,57 @@ function update(dt) {
     if (m.pulse > 0) m.pulse = Math.max(0, m.pulse - dt * 1.8);
   }
 
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i];
+    c.vy += 240 * dt;
+    c.x += c.vx * dt;
+    c.y += c.vy * dt;
+    c.rot += c.vr * dt;
+    c.life -= dt;
+    if (c.life <= 0 || c.y > canvas.height * 0.7) confetti.splice(i, 1);
+  }
+
+  if (phaseState.mitosisStarted && phaseState.mitosisSetupT < 1) {
+    const speed =
+      phaseState.mitosisPhase === 'sorting'
+        ? 0.14
+        : phaseState.mitosisPhase === 'prophase'
+          ? 0.18
+          : phaseState.mitosisPhase === 'metaphase'
+            ? 0.2
+            : phaseState.mitosisPhase === 'anaphase'
+              ? 0.17
+              : phaseState.mitosisPhase === 'telophase'
+                ? 0.14
+                : 0.12;
+    phaseState.mitosisSetupT = Math.min(1, phaseState.mitosisSetupT + dt * speed);
+    if (phaseState.mitosisPhase === 'sorting' && phaseState.mitosisSetupT >= 1 && phaseState.mitosisPrompted) {
+      setCellyOverride('Organelle sorting is done. Click the nucleus area again to begin prophase!', 2400);
+      phaseState.mitosisPrompted = false;
+    } else if (phaseState.mitosisPhase === 'prophase' && phaseState.mitosisSetupT >= 1 && phaseState.mitosisPrompted) {
+      setCellyOverride('Prophase is done. Click the nucleus area again to move into metaphase!', 2400);
+      phaseState.mitosisPrompted = false;
+    } else if (phaseState.mitosisPhase === 'metaphase' && phaseState.mitosisSetupT >= 1 && phaseState.mitosisPrompted) {
+      setCellyOverride('Metaphase is set. The chromosomes are lined up at the middle plate!', 2400);
+      phaseState.mitosisPrompted = false;
+    } else if (phaseState.mitosisPhase === 'anaphase' && phaseState.mitosisSetupT >= 1 && phaseState.mitosisPrompted) {
+      setCellyOverride('Anaphase is underway! The sister chromatids have separated and are moving to opposite poles.', 2400);
+      phaseState.mitosisPrompted = false;
+    } else if (phaseState.mitosisPhase === 'telophase' && phaseState.mitosisSetupT >= 1 && phaseState.mitosisPrompted) {
+      setCellyOverride('Telophase is set. The membrane has pinched into a two-lobed daughter-cell shape.', 2400);
+      phaseState.mitosisPrompted = false;
+    } else if (phaseState.mitosisPhase === 'cytokinesis' && phaseState.mitosisSetupT >= 1 && phaseState.mitosisPrompted) {
+      setCellyOverride('Cytokinesis is complete! Two daughter cells have separated.', 2400);
+      phaseState.mitosisPrompted = false;
+    }
+  }
+  if (phaseState.mitosisPhase === 'cytokinesis' && phaseState.mitosisSetupT >= 1 && !phaseState.winCelebrated) {
+    phaseState.winCelebrated = true;
+    if (cellyGuide) cellyGuide.classList.add('celebrate');
+    setCellyOverride('We did it! You completed mitosis and made two new cells!', 5000);
+    spawnConfettiBurst();
+  }
+
   for (const token of proteinTokens) {
     if (token.isDragging) continue;
     const home = tokenHome(token);
@@ -1147,11 +1722,17 @@ function update(dt) {
   }
 
   // Hint
-  if (hoverTarget && !cardOpen) {
+  if (mitosisSetupActive()) {
+    hint.classList.remove('show');
+  } else if (hoverTarget && !cardOpen) {
     if (hoverTarget.type === 'mito') {
       hint.textContent = metabolism.glucoseFuel > 0
         ? 'Click mitochondrion to generate ATP +1'
         : 'Bring a glucose vesicle here to refuel mitochondria';
+    } else if (hoverTarget.data.id === 'dna') {
+      hint.textContent = allOrganellesBuilt() && !phaseState.dnaComplete
+        ? `Click DNA to replicate it (-${hoverTarget.data.cost} ATP)`
+        : 'DNA replication begins after all organelles are duplicated';
     } else if (hoverTarget.data.id === 'nucleus') {
       hint.textContent = `Click nucleus to transcribe mRNA (-${hoverTarget.data.cost} ATP)`;
     } else if (hoverTarget.data.id === 'rer') {
@@ -1163,7 +1744,9 @@ function update(dt) {
         ? `Drop packaged protein to build Golgi (-${BUILD_COST} ATP)`
         : 'Drag folded protein here to package it';
     } else if (hoverTarget.data.id === 'membrane') {
-      hint.textContent = 'Click membrane to bring glucose into the cell';
+      hint.textContent = lateMitosisActive()
+        ? 'Cell membrane is now focused on cytokinesis.'
+        : 'Click membrane to bring glucose into the cell';
     } else if (dragToken && dragToken.kind === 'packaged') {
       const buildId = buildTargetForDropTarget(hoverTarget);
       if (buildId && duplicateState[buildId] && !duplicateState[buildId].completed) {
@@ -1224,37 +1807,115 @@ function drawSprite(key, x, y, w, h, opts = {}) {
 // ── Draw cell ─────────────────────────────────────────────────────────────────
 function drawCell() {
   const r = CELL_R;
+  const telo = mitosisTelophaseProgress();
+  const cyto = mitosisCytokinesisProgress();
+  if (cyto > 0) {
+    const sep = 330 + cyto * 120;
+    const rr = 420;
+    const drawOne = cx => {
+      const g = ctx.createRadialGradient(cx - 55, -50, 60, cx, 0, rr);
+      g.addColorStop(0, 'rgba(12,35,55,0.97)');
+      g.addColorStop(0.65, 'rgba(6,22,42,0.98)');
+      g.addColorStop(1, 'rgba(2,10,24,1)');
+      ctx.beginPath();
+      ctx.arc(cx, 0, rr, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, 0, rr + 7, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(99,232,170,0.55)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, 0, rr - 6, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(99,232,170,0.22)';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2;
+        arc(cx + Math.cos(a) * rr, Math.sin(a) * rr, 3.5, 'rgba(134,239,172,0.38)');
+      }
+    };
+    drawOne(-sep);
+    drawOne(sep);
+    return;
+  }
+  const lobeOffset = 255 * telo;
+  const pinch = 360 * telo;
+  const drawBoundary = (radialScale = 1) => {
+    const outer = r * radialScale;
+    const neckY = Math.max(outer * 0.18, outer - pinch * radialScale);
+    const lobeX = lobeOffset * radialScale;
+    const lobeR = outer * (0.94 + telo * 0.04);
+    ctx.beginPath();
+    if (telo <= 0.001) {
+      ctx.arc(0, 0, outer, 0, Math.PI * 2);
+      return;
+    }
+    ctx.moveTo(0, -neckY);
+    ctx.bezierCurveTo(
+      lobeX * 0.22, -outer * 0.98,
+      lobeX + lobeR * 0.92, -outer * 0.78,
+      lobeX + lobeR * 0.92, 0
+    );
+    ctx.bezierCurveTo(
+      lobeX + lobeR * 0.92, outer * 0.78,
+      lobeX * 0.22, outer * 0.98,
+      0, neckY
+    );
+    ctx.bezierCurveTo(
+      -lobeX * 0.22, outer * 0.98,
+      -(lobeX + lobeR * 0.92), outer * 0.78,
+      -(lobeX + lobeR * 0.92), 0
+    );
+    ctx.bezierCurveTo(
+      -(lobeX + lobeR * 0.92), -outer * 0.78,
+      -lobeX * 0.22, -outer * 0.98,
+      0, -neckY
+    );
+    ctx.closePath();
+  };
   // Cytoplasm
   const g = ctx.createRadialGradient(-80, -60, 80, 0, 0, r);
   g.addColorStop(0, 'rgba(12,35,55,0.97)');
   g.addColorStop(0.65, 'rgba(6,22,42,0.98)');
   g.addColorStop(1, 'rgba(2,10,24,1)');
-  arc(0, 0, r, g);
+  drawBoundary(1);
+  ctx.fillStyle = g;
+  ctx.fill();
 
   // Cytosol particles (static, seeded)
   for (let i = 0; i < 180; i++) {
     const s = i * 17.3;
-    const px = Math.cos(s) * Math.cos(s * 1.27) * r * 0.88;
-    const py = Math.sin(s * 0.71) * Math.sin(s * 1.09) * r * 0.88;
-    if (Math.hypot(px, py) > r * 0.87) continue;
+    const baseX = Math.cos(s) * Math.cos(s * 1.27) * r * 0.88;
+    const baseY = Math.sin(s * 0.71) * Math.sin(s * 1.09) * r * 0.88;
+    const side = baseX >= 0 ? 1 : -1;
+    const px = baseX + side * lobeOffset * telo * 0.62;
+    const py = baseY * (1 - telo * 0.04);
+    const localX = px - side * lobeOffset * 0.88;
+    if (Math.hypot(localX, py) > r * 0.9) continue;
     ctx.beginPath(); ctx.arc(px, py, 1.1, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(100,180,220,0.055)'; ctx.fill();
   }
 
   // Membrane double ring
-  ctx.beginPath(); ctx.arc(0, 0, r + 7, 0, Math.PI * 2);
+  drawBoundary((r + 7) / r);
   ctx.strokeStyle = 'rgba(99,232,170,0.55)'; ctx.lineWidth = 4; ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 0, r - 6, 0, Math.PI * 2);
+  drawBoundary((r - 6) / r);
   ctx.strokeStyle = 'rgba(99,232,170,0.22)'; ctx.lineWidth = 2.5; ctx.stroke();
 
   // Membrane protein bumps
   for (let i = 0; i < 30; i++) {
     const a = (i / 30) * Math.PI * 2;
-    arc(Math.cos(a) * r, Math.sin(a) * r, 4, 'rgba(134,239,172,0.38)');
+    const side = Math.cos(a) >= 0 ? 1 : -1;
+    const neckFactor = 1 - Math.pow(Math.cos(a), 2);
+    const x = Math.cos(a) * r * 0.96 + side * lobeOffset * 0.94 - side * neckFactor * pinch * 0.2;
+    const y = Math.sin(a) * r * (0.98 - telo * 0.04);
+    arc(x, y, 4, 'rgba(134,239,172,0.38)');
   }
 
   const membrane = getOrg('membrane');
-  if (membrane) {
+  if (membrane && !lateMitosisActive()) {
     const anchor = organelleAnchor(membrane);
     const pocketDepth = 34 + endocytosisFx.t * 72;
     const pocketWidth = 54 + endocytosisFx.t * 18;
@@ -1303,15 +1964,63 @@ function drawCell() {
   }
 }
 
+function drawTelophaseDaughterNuclei() {
+  const telo = mitosisTelophaseProgress();
+  const cyto = mitosisCytokinesisProgress();
+  const reform = cyto > 0 ? 1 : telo;
+  if (reform <= 0) return;
+  const leftStart = { x: -273, y: 8 };
+  const rightStart = { x: 173, y: 8 };
+  const leftEnd = { x: CYTOKINESIS_LEFT_CENTER.x - 25, y: 0 };
+  const rightEnd = { x: CYTOKINESIS_RIGHT_CENTER.x - 25, y: 0 };
+  const telophaseCenterLeft = { x: -235 - telo * 38, y: 8 };
+  const telophaseCenterRight = { x: 135 + telo * 38, y: 8 };
+  const leftCenter = cyto > 0
+    ? {
+        x: leftStart.x + (leftEnd.x - leftStart.x) * cyto,
+        y: leftStart.y + (leftEnd.y - leftStart.y) * cyto,
+      }
+    : telophaseCenterLeft;
+  const rightCenter = cyto > 0
+    ? {
+        x: rightStart.x + (rightEnd.x - rightStart.x) * cyto,
+        y: rightStart.y + (rightEnd.y - rightStart.y) * cyto,
+      }
+    : telophaseCenterRight;
+  const alpha = Math.max(0, (reform - 0.18) / 0.82);
+  const envAlpha = Math.max(0, (reform - 0.3) / 0.7);
+  const drawOne = center => {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    drawSprite('nucleus', center.x, center.y, 380, 269, { glow: '#f0abfc', blur: 18, alpha: alpha * 0.92 });
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = envAlpha * 0.9;
+    glow('#67e8f9', 12);
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, 112, 90, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(103,232,249,0.72)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([7, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  };
+  drawOne(leftCenter);
+  drawOne(rightCenter);
+}
+
 // ── Draw each organelle ───────────────────────────────────────────────────────
 function drawOrgs() {
   const t = performance.now() / 1000;
+  const mitosisMode = mitosisSetupActive();
   for (const o of ORGS) {
     const float = organelleFloatOffset(o, t);
     const drawOrg = o.shape === 'mem_spot' ? o : { ...o, x: o.x + float.x, y: o.y + float.y };
     const s = state[o.id];
     const active = s.activeT > 0;
-    const hovered = hoverTarget && hoverTarget.type === 'org' && hoverTarget.data.id === o.id;
+    const hovered = !mitosisMode && hoverTarget && hoverTarget.type === 'org' && hoverTarget.data.id === o.id;
 
     if (hovered && !active) {
       ctx.save(); ctx.globalAlpha = 0.28;
@@ -1350,36 +2059,46 @@ function drawOrgs() {
       case 'mem_spot':  dMemSpot(drawOrg, active, t); break;
     }
 
-    // Label (always visible, dim)
-    ctx.font = '9.5px Segoe UI, sans-serif';
-    ctx.fillStyle = active ? 'rgba(226,232,240,0.75)' : 'rgba(148,163,184,0.32)';
-    ctx.textAlign = 'center';
-    const ly = drawOrg.shape === 'rer' || drawOrg.shape === 'ser' || drawOrg.shape === 'golgi'
-      ? drawOrg.y + 72 : drawOrg.y + (drawOrg.ry || drawOrg.r || 30) + 18;
-    ctx.fillText(drawOrg.name, drawOrg.x, ly);
-    ctx.textAlign = 'left';
+    if (!mitosisMode) {
+      // Label (always visible, dim)
+      ctx.font = '9.5px Segoe UI, sans-serif';
+      ctx.fillStyle = active ? 'rgba(226,232,240,0.75)' : 'rgba(148,163,184,0.32)';
+      ctx.textAlign = 'center';
+      const ly = drawOrg.shape === 'rer' || drawOrg.shape === 'ser' || drawOrg.shape === 'golgi'
+        ? drawOrg.y + 72 : drawOrg.y + (drawOrg.ry || drawOrg.r || 30) + 18;
+      ctx.fillText(drawOrg.name, drawOrg.x, ly);
+      ctx.textAlign = 'left';
+    }
   }
 }
 
 function dNucleus(o, active, t) {
   const { x, y, rx, ry } = o;
-  drawSprite('nucleus', x + 10, y + 10, 560, 396, active ? { glow: '#f0abfc', blur: 26 } : {});
+  if (lateMitosisActive()) return;
+  const breakdownT = (mitosisProphaseActive() ? mitosisProphaseProgress() : (mitosisMetaphaseActive() || mitosisAnaphaseActive() || mitosisTelophaseActive()) ? 1 : 0);
+  const phaseFade = Math.max(0, 1 - breakdownT * 1.2);
+  if (phaseFade <= 0.02) return;
+  ctx.save();
+  ctx.globalAlpha = phaseFade;
+  drawSprite('nucleus', x + 10, y + 10, 672, 475, active ? { glow: '#f0abfc', blur: 26 } : {});
   if (active) {
-    ctx.save();
     ctx.globalAlpha = 0.5;
     ctx.beginPath();
     ctx.ellipse(x, y, rx + 10, ry + 8, 0, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(244,114,182,0.85)';
     ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.restore();
   }
+  ctx.restore();
 }
 
 function dNucleolus(o, active, t) {
   const { x, y, r } = o;
+  const breakdownT = (mitosisProphaseActive() ? mitosisProphaseProgress() : (mitosisMetaphaseActive() || mitosisAnaphaseActive() || mitosisTelophaseActive()) ? 1 : 0);
+  const phaseFade = Math.max(0, 1 - breakdownT * 1.5);
+  if (phaseFade <= 0.02) return;
   ctx.save();
-  ctx.globalAlpha = active ? 0.7 : 0.18;
+  ctx.globalAlpha = (active ? 0.7 : 0.18) * phaseFade;
   glow(active ? '#4ade80' : '#a3e635', active ? 18 : 8);
   ctx.beginPath();
   ctx.ellipse(x + 14, y + 14, r * 0.82, r * 0.72, -0.12, 0, Math.PI * 2);
@@ -1390,6 +2109,7 @@ function dNucleolus(o, active, t) {
 }
 
 function dDNA(o, active, t) {
+  if (mitosisProphaseActive() || mitosisMetaphaseActive() || mitosisAnaphaseActive() || mitosisTelophaseActive()) return;
   const bx = o.x + 8, by = o.y + 25;
   ctx.save();
   ctx.globalAlpha = active ? 0.82 : 0.42;
@@ -1413,49 +2133,75 @@ function dDNA(o, active, t) {
 
 function dNEnv(o, active, t) {
   const { x, y, rx, ry } = o;
+  const breakdownT = (mitosisProphaseActive() ? mitosisProphaseProgress() : (mitosisMetaphaseActive() || mitosisAnaphaseActive() || mitosisTelophaseActive()) ? 1 : 0);
+  const phaseFade = Math.max(0, 1 - breakdownT * 1.75);
+  const breakup = breakdownT;
+  if (phaseFade <= 0.02 && breakup < 0.08) return;
   ctx.save();
-  ctx.globalAlpha = active ? 0.85 : 0.22;
+  ctx.globalAlpha = (active ? 0.85 : 0.22) * phaseFade;
   glow('#67e8f9', active ? 18 : 8);
   ctx.beginPath(); ctx.ellipse(x, y, rx + 10, ry + 8, 0, 0, Math.PI * 2);
   ctx.strokeStyle = active ? 'rgba(103,232,249,0.95)' : 'rgba(103,232,249,0.35)';
   ctx.lineWidth = active ? 3 : 1.5;
   ctx.setLineDash([7, 5]); ctx.stroke(); ctx.setLineDash([]);
   ctx.restore();
+  if (breakup > 0.08) {
+    const shards = 9;
+    const burst = Math.min(1, (breakup - 0.08) / 0.92);
+    for (let i = 0; i < shards; i++) {
+      const ang = (i / shards) * Math.PI * 2 + 0.2;
+      const px = x + Math.cos(ang) * (rx + 10 + burst * 34);
+      const py = y + Math.sin(ang) * (ry + 8 + burst * 24);
+      const len = 16 + burst * 10;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(ang + Math.PI / 2 + burst * 0.4);
+      ctx.globalAlpha = 0.7 * (1 - burst * 0.55);
+      glow('#67e8f9', 12);
+      ctx.strokeStyle = 'rgba(103,232,249,0.8)';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.5, 0);
+      ctx.lineTo(len * 0.5, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
 }
 
 function dRER(o, active, t) {
   const { x, y } = o;
-  drawSprite('rough_er', x + 18, y + 4, 468, 332, active ? { glow: '#c084fc', blur: 18 } : { alpha: 0.94 });
+  drawSprite('rough_er', x + 18, y + 4, 562, 398, active ? { glow: '#c084fc', blur: 18 } : { alpha: 0.94 });
 }
 
 function dSER(o, active, t) {
   const { x, y } = o;
-  drawSprite('smooth_er', x - 4, y + 8, 430, 304, active ? { glow: '#fb923c', blur: 16 } : { alpha: 0.92 });
+  drawSprite('smooth_er', x - 4, y + 8, 516, 365, active ? { glow: '#fb923c', blur: 16 } : { alpha: 0.92 });
 }
 
 function dRibosomes(o, active, t) {
   const { x, y } = o;
-  drawSprite('ribosome', x, y + 4, 126, 89, active ? { glow: '#a3e635', blur: 14 } : {});
+  drawSprite('ribosome', x, y + 4, 151, 107, active ? { glow: '#a3e635', blur: 14 } : {});
 }
 
 function dGolgi(o, active, t) {
   const { x, y } = o;
-  drawSprite('golgi', x + 10, y + 6, 440, 311, active ? { glow: '#34d399', blur: 20 } : {});
+  drawSprite('golgi', x + 10, y + 6, 528, 373, active ? { glow: '#34d399', blur: 20 } : {});
 }
 
 function dVacuole(o, active, t) {
   const { x, y, r } = o;
-  drawSprite('vacuole', x, y, r * 2.5, r * 1.78, active ? { glow: '#7dd3fc', blur: 20 } : { alpha: 0.92 });
+  drawSprite('vacuole', x, y, r * 3, r * 2.136, active ? { glow: '#7dd3fc', blur: 20 } : { alpha: 0.92 });
 }
 
 function dLysosome(o, active, t) {
   const { x, y, r } = o;
-  drawSprite('lysosome', x, y, r * 3.6, r * 2.55, active ? { glow: '#c084fc', blur: 16 } : {});
+  drawSprite('lysosome', x, y, r * 7.2, r * 5.1, active ? { glow: '#c084fc', blur: 16 } : {});
 }
 
 function dCentriole(o, active, t) {
   const { x, y, r } = o;
-  drawSprite('centriole', x, y, r * 3.9, r * 2.76, active ? { glow: '#f59e0b', blur: 16 } : {});
+  drawSprite('centriole', x, y, r * 4.68, r * 3.312, active ? { glow: '#f59e0b', blur: 16 } : {});
 }
 
 function dVesicle(o, active, t) {
@@ -1490,7 +2236,150 @@ function dMemSpot(o, active, t) {
 }
 
 // ── Draw particles ────────────────────────────────────────────────────────────
+function drawMitosisChromosomes() {
+  if (!mitosisProphaseActive() && !mitosisMetaphaseActive() && !mitosisAnaphaseActive()) return;
+  const prophase = mitosisProphaseProgress();
+  const metaphase = mitosisMetaphaseProgress();
+  const anaphase = mitosisAnaphaseProgress();
+  const condensed = mitosisProphaseActive() ? prophase : 1;
+  const nucleus = getOrg('nucleus');
+  const center = nucleus ? organelleAnchor(nucleus) : { x: -95, y: 20 };
+  const plateX = center.x;
+  const plateSpacing = 26;
+  const plateTop = center.y - 78;
+  const leftPole = SORTING_ORIGINAL_TARGETS.centriole;
+  const rightPole = SORTING_DUPLICATE_TARGETS.centriole;
+  const sets = [
+    { sx: center.x - 88, sy: center.y - 58, rot: -0.74, col: '#818cf8' },
+    { sx: center.x + 54, sy: center.y - 18, rot: 0.56, col: '#a78bfa' },
+    { sx: center.x - 20, sy: center.y + 76, rot: -0.38, col: '#60a5fa' },
+    { sx: center.x + 96, sy: center.y + 44, rot: 0.46, col: '#c084fc' },
+  ];
+  if (mitosisProphaseActive() && condensed < 0.45) {
+    ctx.save();
+    ctx.globalAlpha = 0.22 + condensed * 0.28;
+    ctx.strokeStyle = 'rgba(165,180,252,0.58)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const ox = Math.sin(i * 1.35) * 56;
+      const oy = Math.cos(i * 1.18) * 42;
+      ctx.beginPath();
+      ctx.moveTo(center.x + ox * 0.8, center.y + oy * 0.8);
+      ctx.bezierCurveTo(
+        center.x + ox + 30,
+        center.y + oy - 26,
+        center.x + ox - 18,
+        center.y + oy + 28,
+        center.x + ox * 0.52,
+        center.y + oy * 0.52
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  for (let i = 0; i < sets.length; i++) {
+    const cfg = sets[i];
+    const condensedX = center.x + (cfg.sx - center.x) * Math.max(0.16, 1 - condensed * 0.76);
+    const condensedY = center.y + (cfg.sy - center.y) * Math.max(0.16, 1 - condensed * 0.76);
+    const targetX = plateX;
+    const targetY = plateTop + i * plateSpacing * 2.2;
+    const metaX = condensedX + (targetX - condensedX) * metaphase;
+    const metaY = condensedY + (targetY - condensedY) * metaphase;
+    const split = 62 + i * 8;
+    const driftY = (i - 1.5) * 16;
+    const leftCentromere = {
+      x: metaX + (leftPole.x + split - metaX) * anaphase,
+      y: metaY + (leftPole.y + driftY - metaY) * anaphase,
+    };
+    const rightCentromere = {
+      x: metaX + (rightPole.x - split - metaX) * anaphase,
+      y: metaY + (rightPole.y + driftY - metaY) * anaphase,
+    };
+    const rot = cfg.rot * Math.max(0.08, 1 - condensed * 0.86 - metaphase * 0.9) + anaphase * 0.18 * (i % 2 === 0 ? -1 : 1);
+    const scale = 0.14 + condensed * 0.98 + metaphase * 0.18;
+    const alpha = 0.04 + condensed * 0.9 + metaphase * 0.08 + anaphase * 0.06;
+    const chromatidLength = 26 * scale;
+    const chromatidSpread = 18 * scale + anaphase * 18;
+    const drawChromatid = (centromere, direction) => {
+      ctx.save();
+      ctx.translate(centromere.x, centromere.y);
+      ctx.rotate(rot + direction * anaphase * 0.22);
+      ctx.globalAlpha = alpha;
+      glow(cfg.col, 18);
+      ctx.strokeStyle = cfg.col;
+      ctx.lineWidth = 10 * scale;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(direction * chromatidSpread, -chromatidLength);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(direction * chromatidSpread, chromatidLength);
+      if (anaphase < 0.08) {
+        ctx.moveTo(-direction * chromatidSpread, -chromatidLength);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(-direction * chromatidSpread, chromatidLength);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(224,231,255,0.88)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    if (mitosisAnaphaseActive()) {
+      drawChromatid(leftCentromere, -1);
+      drawChromatid(rightCentromere, 1);
+    } else {
+      const centromere = { x: metaX, y: metaY };
+      ctx.save();
+      ctx.translate(centromere.x, centromere.y);
+      ctx.rotate(rot);
+      ctx.globalAlpha = alpha;
+      glow(cfg.col, 18);
+      ctx.strokeStyle = cfg.col;
+      ctx.lineWidth = 10 * scale;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-18 * scale, -26 * scale);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(-18 * scale, 26 * scale);
+      ctx.moveTo(18 * scale, -26 * scale);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(18 * scale, 26 * scale);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(224,231,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  if (mitosisMetaphaseActive()) {
+    ctx.save();
+    ctx.globalAlpha = 0.22 + metaphase * 0.5;
+    ctx.strokeStyle = 'rgba(148,163,184,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(plateX, -CELL_R * 0.72);
+    ctx.lineTo(plateX, CELL_R * 0.72);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+}
+
 function drawParticles() {
+  for (const c of confetti) {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    ctx.globalAlpha = Math.max(0, Math.min(1, c.life));
+    ctx.fillStyle = c.col;
+    ctx.fillRect(-c.size * 0.5, -c.size * 0.25, c.size, c.size * 0.5);
+    ctx.restore();
+  }
   for (const p of parts) {
     ctx.save();
     ctx.globalAlpha = Math.max(0, p.life * 0.92);
@@ -1538,6 +2427,20 @@ function drawParticles() {
 }
 
 function drawBuildProgress() {
+  if (allOrganellesBuilt() && phaseState.dnaProgress > 0 && !phaseState.dnaComplete) {
+    const dna = getOrg('dna');
+    const anchor = dna ? organelleAnchor(dna) : null;
+    if (anchor) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(anchor.x, anchor.y, 82, -Math.PI / 2, -Math.PI / 2 + (phaseState.dnaProgress / phaseState.dnaNeeded) * Math.PI * 2);
+      ctx.strokeStyle = 'rgba(129,140,248,0.92)';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
   for (const [id, cfg] of Object.entries(DUPLICATE_TARGETS)) {
     const entry = duplicateState[id];
     const anchor = cfg.anchor();
@@ -1554,7 +2457,26 @@ function drawBuildProgress() {
     }
     if (entry.completed) {
       const size = cfg.size();
-      drawSprite(cfg.sprite, anchor.x + cfg.copyOffset.x, anchor.y + cfg.copyOffset.y, size.w, size.h, {
+      const mitosisMirror = mitosisSetupActive()
+        ? (() => {
+            const daughterP = daughterLayoutProgress();
+            if (daughterP > 0) {
+              const target = CYTOKINESIS_RIGHT_TARGETS[id] || { x: anchor.x + cfg.copyOffset.x, y: anchor.y + cfg.copyOffset.y };
+              return {
+                x: (anchor.x + cfg.copyOffset.x) + (target.x - (anchor.x + cfg.copyOffset.x)) * daughterP,
+                y: (anchor.y + cfg.copyOffset.y) + (target.y - (anchor.y + cfg.copyOffset.y)) * daughterP,
+              };
+            }
+            const p = mitosisGroupingProgress();
+            const base = { x: anchor.x + cfg.copyOffset.x, y: anchor.y + cfg.copyOffset.y };
+            const staged = sortingStagingPoint(id.length);
+            const target = SORTING_DUPLICATE_TARGETS[id] || base;
+            return sortMotion(base, staged, target, p);
+          })()
+        : { x: anchor.x + cfg.copyOffset.x, y: anchor.y + cfg.copyOffset.y };
+      const copyX = mitosisMirror.x;
+      const copyY = mitosisMirror.y;
+      drawSprite(cfg.sprite, copyX, copyY, size.w, size.h, {
         alpha: 0.66,
         angle: cfg.angle || 0,
         glow: '#4ade80',
@@ -1564,7 +2486,7 @@ function drawBuildProgress() {
       ctx.font = 'bold 11px Segoe UI, sans-serif';
       ctx.fillStyle = 'rgba(134,239,172,0.95)';
       ctx.textAlign = 'center';
-      ctx.fillText('Duplicated', anchor.x + cfg.copyOffset.x, anchor.y + cfg.copyOffset.y + size.h * 0.6);
+      ctx.fillText('Duplicated', copyX, copyY + size.h * 0.6);
       ctx.restore();
     }
   }
@@ -1624,10 +2546,91 @@ function drawGlucoseTokens() {
 
 // ── Draw mitochondrion ────────────────────────────────────────────────────────
 function drawMito(x, y, angle, size, alpha) {
-  drawSprite('mitochondria', x, y, size * 4.5, size * 3.2, {
+  drawSprite('mitochondria', x, y, size * 5.4, size * 3.84, {
     angle,
     alpha,
   });
+}
+
+function drawProphaseSpindleGuides() {
+  if (!mitosisProphaseActive() && !mitosisMetaphaseActive() && !mitosisAnaphaseActive()) return;
+  const p = mitosisProphaseActive() ? mitosisProphaseProgress() : 1;
+  const metaphase = mitosisMetaphaseProgress();
+  const anaphase = mitosisAnaphaseProgress();
+  const center = SORTING_CENTER;
+  const leftPole = SORTING_ORIGINAL_TARGETS.centriole;
+  const rightPole = SORTING_DUPLICATE_TARGETS.centriole;
+  const fade = Math.min(0.9, p * 0.9 + metaphase * 0.12 + anaphase * 0.14);
+  const drawPole = (pole, align) => {
+    ctx.save();
+    ctx.globalAlpha = fade;
+    glow('#f8fafc', 10);
+    ctx.strokeStyle = 'rgba(226,232,240,0.38)';
+    ctx.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(pole.x, pole.y);
+      const pull = mitosisMetaphaseActive() ? metaphase * 0.78 : 0;
+      const split = mitosisAnaphaseActive() ? anaphase * (96 + Math.abs(i) * 8) : 0;
+      const endX = center.x + i * 9 * (1 - pull) + (align === 'left' ? -split : split);
+      const endY = center.y + i * 42 + (mitosisAnaphaseActive() ? (i - 0.5) * 8 : 0);
+      ctx.quadraticCurveTo((pole.x + center.x) * 0.5, center.y + i * (78 - pull * 24), endX, endY);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(226,232,240,0.8)';
+    ctx.font = '10px Segoe UI, sans-serif';
+    ctx.textAlign = align;
+    ctx.fillText('spindle pole', pole.x, pole.y - 18);
+    ctx.restore();
+  };
+  drawPole(leftPole, 'left');
+  drawPole(rightPole, 'right');
+}
+
+function drawSortingDebugOverlay() {
+  if (!SORTING_GUIDES || !mitosisSetupActive()) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(125,211,252,0.28)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([12, 10]);
+  ctx.beginPath();
+  ctx.moveTo(SORTING_CENTER.x, -CELL_R * 0.88);
+  ctx.lineTo(SORTING_CENTER.x, CELL_R * 0.88);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = 'rgba(52,211,153,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(SORTING_CENTER.x - 180, SORTING_CENTER.y, 170, 340, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(SORTING_CENTER.x + 180, SORTING_CENTER.y, 170, 340, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.font = '11px Segoe UI, sans-serif';
+  ctx.fillStyle = 'rgba(125,211,252,0.9)';
+  ctx.textAlign = 'center';
+  ctx.fillText('Center Guide', SORTING_CENTER.x, -CELL_R * 0.9);
+
+  const drawTarget = (label, point, color) => {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.fillText(label, point.x, point.y - 14);
+    ctx.restore();
+  };
+
+  Object.entries(SORTING_ORIGINAL_TARGETS).forEach(([id, point]) => drawTarget(id, point, 'rgba(248,250,252,0.72)'));
+  Object.entries(SORTING_DUPLICATE_TARGETS).forEach(([id, point]) => drawTarget(`${id} copy`, point, 'rgba(74,222,128,0.76)'));
+  ctx.restore();
 }
 
 // ── Draw player ───────────────────────────────────────────────────────────────
@@ -1640,15 +2643,59 @@ function draw() {
   ctx.scale(cellScale(), cellScale());
 
   drawCell();
+  drawSortingDebugOverlay();
+  drawProphaseSpindleGuides();
   // background mito
-  for (const m of BG_MITO) {
-    drawMito(m.x, m.y, m.a, m.s, 0.38 + m.pulse * 0.45);
+  for (let i = 0; i < BG_MITO.length; i++) {
+    const m = BG_MITO[i];
+    const mitoShift = mitosisSetupActive()
+      ? (() => {
+          const daughterP = daughterLayoutProgress();
+          if (daughterP > 0) {
+            const targets = [
+              { x: -486, y: 176 },
+              { x: 438, y: 182 },
+              { x: -450, y: -148 },
+              { x: 500, y: 124 },
+              { x: -540, y: 86 },
+              { x: 392, y: 242 },
+            ];
+            const target = targets[i];
+            return {
+              x: (target.x - m.x) * daughterP,
+              y: (target.y - m.y) * daughterP,
+            };
+          }
+          const p = mitosisGroupingProgress();
+          const staged = [
+            { x: SORTING_CENTER.x - 42, y: SORTING_CENTER.y - 18 },
+            { x: SORTING_CENTER.x + 56, y: SORTING_CENTER.y + 12 },
+            { x: SORTING_CENTER.x - 58, y: SORTING_CENTER.y - 64 },
+            { x: SORTING_CENTER.x + 70, y: SORTING_CENTER.y - 28 },
+            { x: SORTING_CENTER.x - 74, y: SORTING_CENTER.y + 56 },
+            { x: SORTING_CENTER.x + 46, y: SORTING_CENTER.y + 72 },
+          ][i];
+          const target = [
+            { x: -250, y: 240 },
+            { x: 90, y: 300 },
+            { x: -235, y: -175 },
+            { x: 300, y: 235 },
+            { x: -340, y: 92 },
+            { x: 145, y: 345 },
+          ][i];
+          const sorted = sortMotion({ x: m.x, y: m.y }, staged, target, p);
+          return { x: sorted.x - m.x, y: sorted.y - m.y };
+        })()
+      : { x: 0, y: 0 };
+    const mx = m.x + mitoShift.x;
+    const my = m.y + mitoShift.y;
+    drawMito(mx, my, m.a, m.s, 0.38 + m.pulse * 0.45);
     if (m.pulse > 0 || (hoverTarget && hoverTarget.type === 'mito' && hoverTarget.data === m)) {
       ctx.save();
       ctx.globalAlpha = Math.max(0.22, m.pulse * 0.5);
       glow('#fbbf24', 18);
       ctx.beginPath();
-      ctx.ellipse(m.x, m.y, m.s * 2.6, m.s * 1.45, m.a, 0, Math.PI * 2);
+      ctx.ellipse(mx, my, m.s * 2.6, m.s * 1.45, m.a, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(251,191,36,0.9)';
       ctx.lineWidth = 2.4;
       ctx.stroke();
@@ -1656,6 +2703,8 @@ function draw() {
     }
   }
   drawOrgs();
+  drawTelophaseDaughterNuclei();
+  drawMitosisChromosomes();
   drawBuildProgress();
   drawParticles();
   drawGlucoseTokens();
