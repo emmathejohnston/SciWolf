@@ -3438,135 +3438,100 @@ function showGraveCard(g) {
 // ── UI DRAWING ────────────────────────────────────────────────────────────────
 
 function drawUI() {
-  // Season/Year card
+  uiBtnBounds = [];
+  pouchBtnBounds = [];
+
   const season = Math.floor((year%1)*4);
   const seasonNames = ['Spring','Summer','Autumn','Winter'];
   const yearInt = Math.floor(year);
   const label = `Year ${yearInt} · ${seasonNames[season]}`;
 
+  // ── Top-right: moon button | year/season card ─────────────────────────────
   ctx.font = 'bold 14px Segoe UI, system-ui, sans-serif';
   const tw = ctx.measureText(label).width;
+
+  const moonLbl = '☾';
+  ctx.font = '15px Segoe UI, system-ui, sans-serif';
+  const mw = ctx.measureText(moonLbl).width + 20;
+  const moonX = canvas.width - tw - 32 - mw - 6;
+  ctx.fillStyle = mycelialView ? 'rgba(196,181,253,0.20)' : 'rgba(15,23,42,0.75)';
+  roundRect(ctx, moonX, 12, mw, 36, 8);
+  ctx.fillStyle = mycelialView ? '#c4b5fd' : '#94a3b8';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(moonLbl, moonX + 10, 30);
+  ctx.textBaseline = 'alphabetic';
+  uiBtnBounds.push({ x: moonX, y: 12, w: mw, h: 36, action: 'mycelium' });
+
+  ctx.font = 'bold 14px Segoe UI, system-ui, sans-serif';
   ctx.fillStyle = 'rgba(15,23,42,0.75)';
   roundRect(ctx, canvas.width-tw-32, 12, tw+24, 36, 8);
   ctx.fillStyle = '#f1f5f9';
   ctx.fillText(label, canvas.width-tw-20, 35);
 
-  // Hunger bar
-  const hx=62, hy=14, hw=120, hh=12;
-  ctx.fillStyle='rgba(15,23,42,0.75)';
-  roundRect(ctx, hx-8, hy-2, hw+30, hh+18, 8);
-  ctx.font='11px Segoe UI, system-ui, sans-serif';
-  ctx.fillStyle='#94a3b8';
-  ctx.fillText('Hunger', hx, hy+11);
-  // bar bg
-  ctx.fillStyle='#1e293b';
-  roundRect(ctx, hx, hy+14, hw, hh, 5);
-  // bar fill
+  // ── Top-left: hunger bar ─────────────────────────────────────────────────
+  const hx = 54, hy = 12, hw = 110, hh = 10;
+  const hPanW = hw + 16, hPanH = 44;
+  ctx.fillStyle = 'rgba(15,23,42,0.75)';
+  roundRect(ctx, hx, hy, hPanW, hPanH, 8);
+  ctx.fillStyle = '#1e293b';
+  roundRect(ctx, hx + 8, hy + 8, hw, hh, 5);
   const hue = player.hunger * 120;
   ctx.fillStyle = `hsl(${hue},80%,45%)`;
-  roundRect(ctx, hx, hy+14, hw*player.hunger, hh, 5);
+  roundRect(ctx, hx + 8, hy + 8, hw * player.hunger, hh, 5);
+  ctx.font = '11px Segoe UI, system-ui, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'center';
+  ctx.fillText('hunger', hx + 8 + hw / 2, hy + hh + 26);
+  ctx.textAlign = 'left';
 
-  // Seed pouch (only if carrying at least one seed)
-  pouchBtnBounds = [];
+  // ── Top-left: seed pouch, to the right of the hunger bar ─────────────────
   const pouchEntries = Object.entries(player.seeds).filter(([,n]) => n > 0);
+  const iconSize = 24, gap = 4, pad = 6;
+  const seedsX = hx + hPanW + 6;
   if (pouchEntries.length > 0) {
-    const iconSize = 24, gap = 4, pad = 6;
-    const px = hx - 8;
-    const py = hy + 36;
-    const pw = pad*2 + pouchEntries.length * iconSize + (pouchEntries.length-1) * gap;
-    const ph = pad*2 + iconSize;
+    const sw = pad + pouchEntries.length * (iconSize + gap) - gap + pad;
     ctx.fillStyle = 'rgba(15,23,42,0.75)';
-    roundRect(ctx, px, py, pw, ph, 8);
-    ctx.font = '10px Segoe UI, system-ui, sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText('Seeds', px + pad, py - 3);
+    roundRect(ctx, seedsX, hy, sw, hPanH, 8);
     for (let i = 0; i < pouchEntries.length; i++) {
       const [sid, count] = pouchEntries[i];
       const sp = SPECIES[sid];
       if (!sp) continue;
-      const ix = px + pad + i * (iconSize + gap);
-      const iy = py + pad;
+      const ix = seedsX + pad + i * (iconSize + gap);
+      const iy = hy + 5;
       const selected = player.selectedSeed === sid;
-      // slot background
       ctx.fillStyle = selected ? 'rgba(94,234,212,0.18)' : 'rgba(30,41,59,0.8)';
       roundRect(ctx, ix-2, iy-2, iconSize+4, iconSize+4, 5);
-      // icon
       ctx.drawImage(getSeedIcon(sp), ix, iy);
-      // selection ring
       if (selected) {
-        ctx.strokeStyle = '#5eead4';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#5eead4'; ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.roundRect ? ctx.roundRect(ix-2, iy-2, iconSize+4, iconSize+4, 5) : ctx.rect(ix-2, iy-2, iconSize+4, iconSize+4);
-        ctx.stroke();
-        ctx.lineWidth = 1;
+        ctx.stroke(); ctx.lineWidth = 1;
       }
-      // count badge
-      {
-        const bx = ix + iconSize - 7, by = iy + iconSize - 7;
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath(); ctx.arc(bx, by, 7, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = 'bold 10px Segoe UI, system-ui, sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(count), bx, by+0.5);
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      }
+      const bx2 = ix + iconSize - 7, by2 = iy + iconSize - 7;
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(bx2, by2, 7, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 10px Segoe UI, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(count), bx2, by2 + 0.5);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       pouchBtnBounds.push({ x: ix-2, y: iy-2, w: iconSize+4, h: iconSize+4, seedId: sid });
     }
+    ctx.font = '11px Segoe UI, system-ui, sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('seeds', seedsX + sw / 2, hy + hh + 26);
+    ctx.textAlign = 'left';
   } else if (player.selectedSeed) {
-    // Pouch emptied — clear stale selection.
     player.selectedSeed = null;
   }
   updateSeedCursor();
 
-  // Speed controls — [⏸/▶ Realtime] [1×] [16×] [64×]
-  uiBtnBounds = [];
-  ctx.font = '13px Segoe UI, system-ui, sans-serif';
-  const ctrlY = canvas.height - 50;
-  const ctrlH = 30;
-  const speedNames = ['1×', '16×', '64×'];
-  let bxr = canvas.width - 12;
-  // Speed buttons right-to-left
-  for (let i = speedNames.length - 1; i >= 0; i--) {
-    const lbl = speedNames[i];
-    const bw = ctx.measureText(lbl).width + 20;
-    bxr -= bw + 6;
-    const active = !paused && speedIdx === i;
-    ctx.fillStyle = active ? 'rgba(56,189,248,0.22)' : 'rgba(15,23,42,0.75)';
-    roundRect(ctx, bxr, ctrlY, bw, ctrlH, 7);
-    ctx.fillStyle = active ? '#38bdf8' : '#475569';
-    ctx.fillText(lbl, bxr + 10, ctrlY + 19);
-    uiBtnBounds.push({ x: bxr, y: ctrlY, w: bw, h: ctrlH, action: 'speed', idx: i });
-  }
-  // Realtime (pause) button
-  const pauseLbl = paused ? '▶ Resume' : '⏸ Realtime';
-  const pw = ctx.measureText(pauseLbl).width + 20;
-  bxr -= pw + 10;
-  ctx.fillStyle = paused ? 'rgba(251,191,36,0.18)' : 'rgba(15,23,42,0.75)';
-  roundRect(ctx, bxr, ctrlY, pw, ctrlH, 7);
-  ctx.fillStyle = paused ? '#fbbf24' : '#94a3b8';
-  ctx.fillText(pauseLbl, bxr + 10, ctrlY + 19);
-  uiBtnBounds.push({ x: bxr, y: ctrlY, w: pw, h: ctrlH, action: 'pause' });
-
-  // Mycelial-view (moon) button — sits to the left of pause.
-  const moonLbl = '☾';
-  ctx.font = '15px Segoe UI, system-ui, sans-serif';
-  const mw = ctx.measureText(moonLbl).width + 20;
-  ctx.font = '13px Segoe UI, system-ui, sans-serif';
-  bxr -= mw + 6;
-  ctx.fillStyle = mycelialView ? 'rgba(196,181,253,0.20)' : 'rgba(15,23,42,0.75)';
-  roundRect(ctx, bxr, ctrlY, mw, ctrlH, 7);
-  ctx.font = '15px Segoe UI, system-ui, sans-serif';
-  ctx.fillStyle = mycelialView ? '#c4b5fd' : '#94a3b8';
-  ctx.fillText(moonLbl, bxr + 10, ctrlY + 20);
-  ctx.font = '13px Segoe UI, system-ui, sans-serif';
-  uiBtnBounds.push({ x: bxr, y: ctrlY, w: mw, h: ctrlH, action: 'mycelium' });
-
   // Hint text
-  ctx.font='11px Segoe UI, system-ui, sans-serif';
-  ctx.fillStyle='rgba(148,163,184,0.7)';
-  ctx.fillText('Click species to learn · Harvest from info panel', 12, canvas.height-18);
+  ctx.font = '11px Segoe UI, system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(148,163,184,0.7)';
+  ctx.fillText('Click species to learn · Harvest from info panel', 12, canvas.height - 18);
 
   // Death message
   if (player.deathMsgT > 0) {
@@ -3643,20 +3608,45 @@ function drawDebug() {
 
   const lh = 15;
   const px = canvas.width - 12;
-  const py = canvas.height - 56 - lines.length * lh;
   const pw = 340;
-  const ph = lines.length * lh + 12;
+  const textH = lines.length * lh + 12;
+  const ctrlH = 38; // button row height + padding
+  const ph = textH + ctrlH;
+  const py = canvas.height - 12 - ph;
 
   ctx.fillStyle = 'rgba(10,12,20,0.82)';
   roundRect(ctx, px - pw, py, pw, ph, 8);
   ctx.font = '11px "SF Mono", "Fira Code", Menlo, monospace';
-  ctx.fillStyle = '#94a3b8';
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
-    if (l.startsWith('──')) ctx.fillStyle = '#64748b';
-    else ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = l.startsWith('──') ? '#64748b' : '#94a3b8';
     ctx.fillText(l, px - pw + 10, py + 14 + i * lh);
   }
+
+  // Time controls inside the pane
+  const btnY = py + textH + 7;
+  const btnH = 22;
+  ctx.font = '12px Segoe UI, system-ui, sans-serif';
+  let bx = px - pw + 8;
+  const speedNames = ['1×', '16×', '64×'];
+  for (let i = 0; i < speedNames.length; i++) {
+    const lbl = speedNames[i];
+    const bw = ctx.measureText(lbl).width + 14;
+    const active = !paused && speedIdx === i;
+    ctx.fillStyle = active ? 'rgba(56,189,248,0.22)' : 'rgba(30,41,59,0.9)';
+    roundRect(ctx, bx, btnY, bw, btnH, 5);
+    ctx.fillStyle = active ? '#38bdf8' : '#64748b';
+    ctx.fillText(lbl, bx + 7, btnY + 15);
+    uiBtnBounds.push({ x: bx, y: btnY, w: bw, h: btnH, action: 'speed', idx: i });
+    bx += bw + 5;
+  }
+  const pauseLbl = paused ? '▶ Resume' : '⏸ Realtime';
+  const pbw = ctx.measureText(pauseLbl).width + 14;
+  ctx.fillStyle = paused ? 'rgba(251,191,36,0.18)' : 'rgba(30,41,59,0.9)';
+  roundRect(ctx, bx, btnY, pbw, btnH, 5);
+  ctx.fillStyle = paused ? '#fbbf24' : '#64748b';
+  ctx.fillText(pauseLbl, bx + 7, btnY + 15);
+  uiBtnBounds.push({ x: bx, y: btnY, w: pbw, h: btnH, action: 'pause' });
 }
 
 // ── Biodiversity log — press `b` to dump per-species population to console ───
