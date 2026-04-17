@@ -49,27 +49,103 @@
   }
   #info-edible.good { background: rgba(34,197,94,0.12); color: #4ade80; }
   #info-edible.bad  { background: rgba(239,68,68,0.12);  color: #f87171; }
-  #info-harvest {
+  #info-persistence {
+    display: none; margin-top: 10px;
+    font-size: 0.78rem; color: #94a3b8; line-height: 1.5;
+  }
+  #info-persistence .plabel { margin-bottom: 3px; }
+  #info-persistence .pill {
+    display: inline-block; padding: 1px 8px;
+    border-radius: 10px; font-size: 0.72rem;
+    font-weight: 600; letter-spacing: 0.02em;
+    margin-left: 2px;
+  }
+  #info-persistence .pill.sexual      { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+  #info-persistence .pill.clonal      { background: rgba(94,234,212,0.15);  color: #5eead4; }
+  #info-persistence .pill.symbiotic   { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+  #info-persistence .pill.spore       { background: rgba(196,181,253,0.15); color: #c4b5fd; }
+  #info-persistence .pill.dioecious   { background: rgba(251,113,133,0.15); color: #fb7185; }
+  #info-persistence .pill.opportunist { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+  #info-persistence .pill.ancient     { background: rgba(200,180,160,0.15); color: #d6c7b5; }
+  #info-harvest, #info-listen {
     display: none; margin-top: 10px; width: 100%;
     padding: 9px 0; border-radius: 8px;
     font-size: 0.88rem; font-weight: 600; cursor: pointer;
     transition: opacity 0.15s;
   }
-  #info-harvest:hover { opacity: 0.8; }
+  #info-listen {
+    background: rgba(148,163,184,0.08); border: 1px solid rgba(148,163,184,0.30); color: #cbd5e1;
+    font-weight: 500; font-style: italic;
+  }
+  #info-harvest:hover, #info-listen:hover { opacity: 0.8; }
   #info-harvest.good    { background: rgba(34,197,94,0.15);   border: 1px solid rgba(34,197,94,0.35);   color: #4ade80; }
   #info-harvest.bad     { background: rgba(239,68,68,0.15);   border: 1px solid rgba(239,68,68,0.35);   color: #f87171; }
   #info-harvest.neutral { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.35); color: #94a3b8; }
-  #info-cutdown {
+  #info-cutdown, #info-tend {
     display: none; margin-top: 6px; width: 100%;
     padding: 9px 0; border-radius: 8px;
     font-size: 0.88rem; font-weight: 600; cursor: pointer;
     transition: opacity 0.15s;
     background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.35); color: #94a3b8;
   }
-  #info-cutdown:hover { opacity: 0.8; }
+  #info-tend {
+    background: rgba(94,234,212,0.10); border-color: rgba(94,234,212,0.35); color: #5eead4;
+  }
+  #info-cutdown:hover, #info-tend:hover { opacity: 0.8; }
   #info-close-hint {
     margin-top: 12px; font-size: 0.72rem;
     color: #475569; text-align: center;
+  }
+
+  /* D3 — end-of-age reflection overlay */
+  #reflect-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(6,6,12,0);
+    transition: background 1.6s ease;
+    justify-content: center; align-items: center;
+    flex-direction: column;
+  }
+  #reflect-overlay.visible {
+    display: flex;
+    background: rgba(6,6,12,0.92);
+  }
+  #reflect-overlay .reflect-body {
+    max-width: 460px; width: 90%;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 1.8s ease 0.8s;
+  }
+  #reflect-overlay.visible .reflect-body { opacity: 1; }
+  #reflect-overlay .reflect-summary {
+    font: 300 1rem/1.75 Georgia, 'Times New Roman', serif;
+    color: #cbd5e1;
+    margin-bottom: 28px;
+  }
+  #reflect-overlay .reflect-question {
+    font: italic 1.15rem/1.6 Georgia, 'Times New Roman', serif;
+    color: #f1f5f9;
+    margin-bottom: 16px;
+  }
+  #reflect-overlay .reflect-dismiss {
+    font: 0.78rem/1.5 'Segoe UI', system-ui, sans-serif;
+    color: #475569;
+    margin-bottom: 28px;
+  }
+  #reflect-overlay .reflect-continue {
+    display: inline-block;
+    background: none;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 8px 22px;
+    font: 0.82rem/1 'Segoe UI', system-ui, sans-serif;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  #reflect-overlay .reflect-continue:hover {
+    border-color: #64748b;
+    color: #e2e8f0;
   }
 </style>
 </head>
@@ -83,9 +159,24 @@
   <div id="info-latin"></div>
   <div id="info-desc"></div>
   <div id="info-edible"></div>
+  <div id="info-persistence">
+    <div class="plabel">Persistence &middot; <span class="pill"></span></div>
+    <div class="pnote"></div>
+  </div>
+  <button id="info-listen">Listen</button>
   <button id="info-harvest"></button>
   <button id="info-cutdown"></button>
+  <button id="info-tend">Tend</button>
   <div id="info-close-hint">click outside to close</div>
+</div>
+
+<div id="reflect-overlay">
+  <div class="reflect-body">
+    <div class="reflect-summary"></div>
+    <div class="reflect-question"></div>
+    <div class="reflect-dismiss"></div>
+    <button class="reflect-continue">continue living</button>
+  </div>
 </div>
 
 <script>
@@ -116,6 +207,37 @@ let speed = SPEEDS[speedIdx];
 
 // ── Camera ───────────────────────────────────────────────────────────────────
 let camX = 0;
+
+// ── Mycelial View ────────────────────────────────────────────────────────────
+// Toggle with `m` or the moon button. `mycelialT` eases 0..1 over ~0.8 s so
+// the transition reads as sinking into the soil, not a hard switch.
+let mycelialView = false;
+let mycelialT    = 0;
+let myceliumEdges = [];
+let _myceliumRecomputeTimer = 0;
+
+// Debug pane — toggle with ` (backtick)
+let showDebug = false;
+
+// C4 — player-as-node trail. Each entry ages out over ~0.7 s.
+let playerTrail = [];
+let _trailSampleTimer = 0;
+const TRAIL_LIFE = 0.7;
+
+// C5 — contextual text shown once per entry into mycelial view.
+const myceliumLines = [
+  "What you called a forest is also this.",
+  "Beneath every step, a city.",
+  "There is no above and below. There is only here.",
+  "The trees are talking. You are walking through the conversation.",
+  "You walked over me. I felt nothing, and everything.",
+  "What looks like many is one body, slowly.",
+];
+let _mycelialLineIdx  = 0;
+let mycelialLineText  = '';
+let mycelialLineT     = 0;     // seconds remaining in the 6 s fade cycle
+const MYCELIAL_LINE_DURATION = 6.0;
+let _prevMycelialView = false;
 
 // ── Ground ───────────────────────────────────────────────────────────────────
 function groundY(x) {
@@ -237,13 +359,13 @@ defSpecies('dandelion', {
 });
 
 defSpecies('fireweed', {
-  name: 'Rosebay Willowherb', latin: 'Chamerion angustifolium',
+  name: 'Fireweed', latin: 'Chamerion angustifolium',
   kingdom: 'plant', layer: 'ground',
   era: 'pioneer', coverMin: 0, coverMax: 0.20,
   maxAge: 6, matureAge: 2, heightPx: 80,
   spreadPerYear: 1.5, spreadRadius: 100,
   edible: { part: 'young shoots', restore: 0.10, poisonous: false, flavor: 'Mildly sweet, slightly mucilaginous. Good raw in spring.' },
-  info: "The pioneer of burnt and disturbed ground. Fireweed can colonise a fresh clearing within weeks, its seeds carried miles on the wind.",
+  info: "The pioneer of burnt and disturbed ground. Fireweed can colonise a clearing within weeks, its seeds carried for kilometres on the wind. After a fire, it is the first colour.",
   draw(ctx, x, gy, t, season, phase, id) {
     const h = 70 * t;
     // main stem
@@ -281,16 +403,52 @@ defSpecies('fireweed', {
   }
 });
 
+defSpecies('earthball', {
+  name: 'Common Earthball', latin: 'Scleroderma citrinum',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'pioneer', coverMin: 0, coverMax: 0.30,
+  maxAge: 0.4, matureAge: 0.1, heightPx: 12,
+  spreadPerYear: 2.5, spreadRadius: 50,
+  edible: { part: 'whole body', restore: -0.15, poisonous: true, flavor: 'Peppery and gritty. Mildly toxic — the warning is in the taste.' },
+  info: "An early colonist of poor, disturbed soils. Unlike most mushrooms it has no real stem — a leathery sphere bursts from the ground, releasing a brown cloud of spores when it splits.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    if (season < 1 || season > 2) return; // summer/autumn
+    const r = 8 * t;
+    // Sphere
+    ctx.beginPath();
+    ctx.ellipse(x, gy - r * 0.65, r, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#7a5a2a'; ctx.fill();
+    // Cracked surface
+    ctx.strokeStyle = '#3a2810'; ctx.lineWidth = 0.8;
+    for (let i = 0; i < 4; i++) {
+      const a = i * 1.4 + (id || 0);
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a) * r * 0.3, gy - r * 0.65 + Math.sin(a) * r * 0.3);
+      ctx.lineTo(x + Math.cos(a) * r * 0.85, gy - r * 0.65 + Math.sin(a) * r * 0.7);
+      ctx.stroke();
+    }
+    // Split-open spore puff in late autumn
+    if (t > 0.75 && season === 2) {
+      ctx.fillStyle = 'rgba(60,40,20,0.55)';
+      for (let i = 0; i < 5; i++) {
+        const px = x + (prand((id||0), i) - 0.5) * r * 1.2;
+        const py = gy - r * 1.3 - prand((id||0), i + 5) * 6;
+        drawCircle(ctx, px, py, 1.4, 'rgba(60,40,20,0.55)');
+      }
+    }
+  }
+});
+
 // ── EARLY SUCCESSION ──────────────────────────────────────────────────────────
 
 defSpecies('grass', {
-  name: 'Bunchgrass', latin: 'Deschampsia cespitosa',
+  name: 'Canada Wild Rye', latin: 'Elymus canadensis',
   kingdom: 'plant', layer: 'ground',
   era: 'early', coverMin: 0, coverMax: 0.35,
   maxAge: 15, matureAge: 3, heightPx: 35,
   spreadPerYear: 0.8, spreadRadius: 80,
   edible: { part: 'seeds', restore: 0.05, poisonous: false, flavor: 'Starchy, like a thin oat.' },
-  info: "Grasses stabilise soil with dense fibrous roots. A single tussock may host dozens of invertebrate species.",
+  info: "A native bunch grass that stabilises exposed soil. Its nodding seed heads feed birds through autumn, and its roots hold the earth together while the forest decides what to become.",
   draw(ctx, x, gy, t, season, phase) {
     const h = 30 * t;
     const col = season === 3 ? '#8a9e6a' : '#7ab648';
@@ -356,55 +514,60 @@ defSpecies('yarrow', {
   }
 });
 
-defSpecies('blackberry', {
-  name: 'Blackberry', latin: 'Rubus fruticosus',
-  kingdom: 'plant', layer: 'shrub',
+defSpecies('raspberry', {
+  name: 'Wild Red Raspberry', latin: 'Rubus idaeus',
+  kingdom: 'plant', layer: 'ground',
   era: 'early', coverMin: 0, coverMax: 0.55,
-  maxAge: 20, matureAge: 5, heightPx: 90,
-  spreadPerYear: 0.6, spreadRadius: 90,
-  edible: { part: 'berries', restore: 0.22, poisonous: false, flavor: 'Sweet-tart, deeply satisfying. One of the great free foods.' },
-  info: "Blackberry is simultaneously nurse, armour, and larder. Its dense thicket shelters tree seedlings from deer, while feeding birds who spread those seedlings' seeds.",
+  maxAge: 15, matureAge: 4, heightPx: 80,
+  spreadPerYear: 0.7, spreadRadius: 90,
+  edible: { part: 'berries', restore: 0.20, poisonous: false, flavor: 'Bright, sweet-tart, warm from the sun. Worth the scratches.' },
+  info: "Wild raspberry colonises clearings and forest edges. Its thickets shelter young trees from browsing deer, and birds carry its seeds deep into the woods.",
   draw(ctx, x, gy, t, season, phase, id) {
-    const h = 75 * t;
-    // arching canes
+    const h = 70 * t;
+    // upright canes with slight arch
     for (let c = -1; c <= 1; c++) {
       ctx.beginPath();
-      ctx.moveTo(x + c*8, gy);
+      ctx.moveTo(x + c*6, gy);
       ctx.bezierCurveTo(
-        x + c*25, gy - h*0.4,
-        x + c*10, gy - h*0.8,
-        x + c*20, gy - h
+        x + c*18, gy - h*0.5,
+        x + c*12, gy - h*0.85,
+        x + c*15, gy - h
       );
-      ctx.strokeStyle = '#5a3e2b'; ctx.lineWidth = 2.5; ctx.stroke();
-      // leaves
+      ctx.strokeStyle = '#6a3828'; ctx.lineWidth = 2.2; ctx.stroke();
+      // trifoliate leaves
       for (let i = 0; i < 5; i++) {
         const p = i / 5;
-        const lx = x + c*(8+(p*12));
+        const lx = x + c*(6+(p*9));
         const ly = gy - h * (p*0.9 + 0.05);
         ctx.beginPath();
-        ctx.ellipse(lx, ly, 8*t, 5*t, c*0.4, 0, Math.PI*2);
-        ctx.fillStyle = season === 3 ? '#4a6020' : '#6a9030'; ctx.fill();
+        ctx.ellipse(lx, ly, 7*t, 4.5*t, c*0.3, 0, Math.PI*2);
+        ctx.fillStyle = season === 3 ? '#4a5a20' : '#5a8a28'; ctx.fill();
       }
     }
-    // berries/flowers
+    // flowers/berries
     if (t > 0.6) {
-      if (season === 1) {
-        // white flowers
+      if (season === 0 || season === 1) {
+        // small white flowers
         for (let i = 0; i < 6; i++) {
-          const bx = x + (prand(id, i)-0.5)*30*t;
-          const by = gy - h*0.7 - prand(id, i+10)*h*0.2;
+          const bx = x + (prand(id, i)-0.5)*26*t;
+          const by = gy - h*0.6 - prand(id, i+10)*h*0.25;
           for (let p = 0; p < 5; p++) {
             const pa = (p/5)*Math.PI*2;
-            ctx.beginPath(); ctx.arc(bx+Math.cos(pa)*4,by+Math.sin(pa)*4,2.5,0,Math.PI*2);
-            ctx.fillStyle='#f0f0f0'; ctx.fill();
+            ctx.beginPath(); ctx.arc(bx+Math.cos(pa)*3,by+Math.sin(pa)*3,2,0,Math.PI*2);
+            ctx.fillStyle='#f0f0e8'; ctx.fill();
           }
         }
-      } else if (season === 2) {
-        for (let i = 0; i < 10; i++) {
-          const bx = x + (prand(id, i+20)-0.5)*28*t;
-          const by = gy - h*0.5 - prand(id, i+30)*h*0.3;
-          drawCircle(ctx, bx, by, 4.5, '#1a0a2e');
-          drawCircle(ctx, bx-1, by-1, 1.5, 'rgba(100,60,160,0.5)');
+      }
+      if (season === 1 || season === 2) {
+        // red berries — drupelets
+        for (let i = 0; i < 8; i++) {
+          const bx = x + (prand(id, i+20)-0.5)*24*t;
+          const by = gy - h*0.45 - prand(id, i+30)*h*0.3;
+          drawCircle(ctx, bx, by, 4, '#cc2828');
+          // drupelet texture
+          for (let d = 0; d < 3; d++) {
+            drawCircle(ctx, bx+(d-1)*2, by-1, 1.2, '#e04040');
+          }
         }
       }
     }
@@ -412,13 +575,13 @@ defSpecies('blackberry', {
 });
 
 defSpecies('birch', {
-  name: 'Silver Birch', latin: 'Betula pendula',
+  name: 'Paper Birch', latin: 'Betula papyrifera',
   kingdom: 'plant', layer: 'canopy',
-  era: 'early', coverMin: 0, coverMax: 0.45,
+  era: 'early', coverMin: 0, coverMax: 0.55, soilMin: 0.02,
   maxAge: 80, matureAge: 14, heightPx: 220,
   spreadPerYear: 0.3, spreadRadius: 150,
-  edible: { part: 'sap (spring)', restore: 0.15, poisonous: false, flavor: 'Faintly sweet, watery. Drink it straight from the tree in early spring.' },
-  info: "The birch is a pioneer tree — fast-growing, light-hungry, short-lived. Its roots partner with fungi and its canopy shelters the next generation of trees that will eventually replace it.",
+  edible: { part: 'sap (spring)', restore: 0.15, poisonous: false, flavor: 'Faintly sweet, watery. Boiled down, it becomes syrup — though you need forty litres of sap for one of syrup.' },
+  info: "Paper birch grows fast, dies young, and makes way. Its bark peels in white sheets — waterproof, rot-resistant. Canoes, baskets, containers, shelters, and writing surfaces were made from it for thousands of years.",
   draw(ctx, x, gy, t, season, phase) {
     const h = 210 * t;
     const tw = 5 + t * 4;
@@ -465,53 +628,151 @@ defSpecies('birch', {
   }
 });
 
-defSpecies('rowan', {
-  name: 'Rowan', latin: 'Sorbus aucuparia',
+defSpecies('red_maple', {
+  name: 'Red Maple', latin: 'Acer rubrum',
   kingdom: 'plant', layer: 'canopy',
-  era: 'early', coverMin: 0, coverMax: 0.75,
-  maxAge: 80, matureAge: 10, heightPx: 140,
+  era: 'early', coverMin: 0, coverMax: 0.80,
+  maxAge: 150, matureAge: 15, heightPx: 180,
   spreadPerYear: 0.25, spreadRadius: 120,
-  edible: { part: 'berries (cooked)', restore: 0.12, poisonous: false, flavor: 'Astringent raw, but rich and complex when cooked. High in vitamin C.' },
-  info: "The rowan is a tree of edges — found at forest margins and high altitudes where little else grows. Its berries are one of the most important foods for birds entering the hungry winter months.",
+  edible: { part: 'sap (spring)', restore: 0.10, poisonous: false, flavor: 'Sweeter than birch sap but not as sweet as sugar maple. Drinkable raw.' },
+  info: "Red maple is one of the most adaptable trees in eastern North America. It grows in swamps and on dry ridges, in sun and in shade. In autumn it turns the colour that gave it its name — the first blaze of the season.",
   draw(ctx, x, gy, t, season, phase, id) {
-    const h = 130 * t;
-    const tw = 4 + t*3;
-    // trunk
+    const h = 170 * t;
+    const tw = 5 + t*5;
+    // trunk — smooth grey bark
     ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
-    ctx.strokeStyle = '#7a6050'; ctx.lineWidth = tw; ctx.stroke();
-    if (t < 0.2) return;
-    const leafCol = season === 0 ? '#b8e040' : season === 1 ? '#5a9830' : season === 2 ? '#d08020' : null;
-    // pinnate leaf clusters
-    for (let b = 0; b < 5; b++) {
-      const bh = gy - h*(0.4 + b*0.12);
+    ctx.strokeStyle = '#7a7a78'; ctx.lineWidth = tw; ctx.stroke();
+    if (t < 0.15) return;
+    // brilliant fall colors
+    const leafCol = season === 0 ? '#c8e060' : season === 1 ? '#4a8828' : season === 2 ? '#cc2020' : null;
+    // rounded crown with opposite branching
+    for (let b = 0; b < 6; b++) {
+      const bh = gy - h*(0.35 + b*0.10);
       const side = b%2===0?1:-1;
-      const blen = 20 + b*8;
-      ctx.beginPath(); ctx.moveTo(x,bh); ctx.lineTo(x+side*blen*t,bh-8);
-      ctx.strokeStyle='#6a5040'; ctx.lineWidth=1.8; ctx.stroke();
+      const blen = (25 + b*8)*t;
+      ctx.beginPath(); ctx.moveTo(x,bh);
+      ctx.quadraticCurveTo(x+side*blen*0.5,bh-10, x+side*blen,bh+5);
+      ctx.strokeStyle='#6a5a50'; ctx.lineWidth=2; ctx.stroke();
       if (leafCol && season!==3) {
-        for (let li = 0; li < 5; li++) {
-          const lx = x + side*(blen*li/6)*t;
-          const ly = bh - 8*(li/5);
-          ctx.beginPath(); ctx.ellipse(lx,ly,6*t,3.5*t,side*0.3,0,Math.PI*2);
-          ctx.fillStyle=leafCol; ctx.fill();
+        for (let c = 0; c < 3; c++) {
+          const cx2 = x + side*(blen*0.3 + c*blen*0.25);
+          const cy2 = bh - 5 + c*3;
+          ctx.beginPath(); ctx.arc(cx2,cy2,12*t,0,Math.PI*2);
+          ctx.fillStyle = leafCol; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
         }
       }
     }
-    // berries in late summer/autumn
-    if ((season===1||season===2) && t>0.5) {
-      for (let i=0;i<12;i++) {
-        const bx=x+(prand(id,i)-0.5)*40*t;
-        const by=gy-h*0.6-prand(id,i+50)*h*0.3;
-        drawCircle(ctx,bx,by,3.5,'#e84020');
+    // crown
+    if (season!==3 && leafCol && t>0.25) {
+      ctx.beginPath(); ctx.arc(x,gy-h*0.75,30*t,0,Math.PI*2);
+      ctx.fillStyle = leafCol; ctx.globalAlpha=0.75; ctx.fill(); ctx.globalAlpha=1;
+    }
+    // samaras (helicopter seeds) in late spring/summer
+    if ((season===0||season===1) && t>0.4) {
+      for (let i=0;i<6;i++) {
+        const sx2=x+(prand(id,i)-0.5)*30*t;
+        const sy2=gy-h*0.5-prand(id,i+50)*h*0.25;
+        ctx.beginPath(); ctx.moveTo(sx2,sy2); ctx.lineTo(sx2+6,sy2+12);
+        ctx.strokeStyle='#a06040'; ctx.lineWidth=1.2; ctx.stroke();
+        drawCircle(ctx,sx2,sy2,2,'#b07050');
       }
     }
-    // spring white flowers
-    if (season===0 && t>0.5) {
-      for (let i=0;i<8;i++) {
-        const fx=x+(prand(id,i+60)-0.5)*35*t;
-        const fy=gy-h*0.5-prand(id,i+70)*h*0.4;
-        ctx.beginPath(); ctx.arc(fx,fy,4*t,0,Math.PI*2);
-        ctx.fillStyle='rgba(250,248,240,0.9)'; ctx.fill();
+    // red flower clusters in very early spring
+    if (season===0 && t>0.3) {
+      for (let i=0;i<6;i++) {
+        const fx=x+(prand(id,i+60)-0.5)*25*t;
+        const fy=gy-h*0.6-prand(id,i+70)*h*0.2;
+        drawCircle(ctx,fx,fy,3,'#cc3030');
+      }
+    }
+  }
+});
+
+defSpecies('shaggy_inkcap', {
+  name: 'Shaggy Inkcap', latin: 'Coprinus comatus',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'early', coverMin: 0, coverMax: 0.50,
+  maxAge: 0.2, matureAge: 0.05, heightPx: 28,
+  spreadPerYear: 3, spreadRadius: 60,
+  edible: { part: 'cap when young and white', restore: 0.18, poisonous: false, flavor: 'Delicate and faintly sweet — but eat within hours. By morning the cap has dissolved itself into black ink.' },
+  info: "Lawyer's Wig. Pushes through trampled grassland and roadside verges. By the time you fetch a basket, the cap has begun to autodigest, releasing its spores as a slow drip of black liquid.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season < 1 || season > 2) return;
+    const h = 26 * t;
+    // Slim white stem
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
+    ctx.strokeStyle = '#f0ece2'; ctx.lineWidth = 3 * t; ctx.stroke();
+    // Tall cylindrical cap
+    ctx.beginPath();
+    ctx.moveTo(x - 6 * t, gy - h * 0.3);
+    ctx.quadraticCurveTo(x - 7 * t, gy - h * 1.0, x - 4 * t, gy - h * 1.05);
+    ctx.quadraticCurveTo(x, gy - h * 1.18, x + 4 * t, gy - h * 1.05);
+    ctx.quadraticCurveTo(x + 7 * t, gy - h * 1.0, x + 6 * t, gy - h * 0.3);
+    ctx.closePath();
+    ctx.fillStyle = '#f8f5ed'; ctx.fill();
+    // Shaggy upturned scales
+    ctx.strokeStyle = '#b8a890'; ctx.lineWidth = 0.9;
+    for (let i = 0; i < 5; i++) {
+      const sy = gy - h * (0.4 + i * 0.12);
+      ctx.beginPath(); ctx.moveTo(x - 5 * t, sy); ctx.lineTo(x - 7 * t, sy - 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 5 * t, sy); ctx.lineTo(x + 7 * t, sy - 1.5); ctx.stroke();
+    }
+    // Black ink dripping from base of cap when fully ripe
+    if (t > 0.85 && season === 2) {
+      ctx.fillStyle = '#1a1014';
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.ellipse(x + (i - 1) * 3, gy - h * 0.25 + i * 3, 1.5, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+});
+
+defSpecies('dogwood', {
+  name: 'Alternate-leaf Dogwood', latin: 'Cornus alternifolia',
+  kingdom: 'plant', layer: 'shrub',
+  era: 'early', coverMin: 0, coverMax: 0.60,
+  maxAge: 40, matureAge: 8, heightPx: 80,
+  spreadPerYear: 0.3, spreadRadius: 80,
+  edible: { part: 'berries (bitter)', restore: 0.04, poisonous: false, flavor: 'Bitter and astringent. Not worth eating, but the birds disagree.' },
+  info: "Dogwood grows in horizontal tiers, each branch a flat shelf of leaves. In spring, clusters of creamy flowers. In autumn, blue-black berries on red stems — a signal designed for birds, not for us.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 70 * t;
+    // trunk
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 3+t*3; ctx.stroke();
+    if (t < 0.2) return;
+    const leafCol = season===0?'#90c840': season===1?'#3a7020': season===2?'#8a3020': null;
+    // horizontal tiered branches — the signature of this species
+    for (let b = 0; b < 5; b++) {
+      const bh = gy - h*(0.3 + b*0.14);
+      const side = b%2===0?1:-1;
+      const blen = (20 + b*6)*t;
+      ctx.beginPath(); ctx.moveTo(x,bh); ctx.lineTo(x+side*blen,bh);
+      ctx.strokeStyle='#5a4030'; ctx.lineWidth=1.8; ctx.stroke();
+      if (leafCol && season!==3) {
+        ctx.beginPath(); ctx.ellipse(x+side*blen*0.5,bh-3,blen*0.45,6*t,0,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.globalAlpha=0.8; ctx.fill(); ctx.globalAlpha=1;
+      }
+    }
+    // cream flower clusters in spring
+    if (season===0 && t>0.4) {
+      for (let i=0;i<5;i++) {
+        const fx=x+(prand(id,i)-0.5)*30*t;
+        const fy=gy-h*0.5-prand(id,i+10)*h*0.15;
+        ctx.beginPath(); ctx.arc(fx,fy,5*t,0,Math.PI*2);
+        ctx.fillStyle='rgba(255,250,235,0.9)'; ctx.fill();
+      }
+    }
+    // blue-black berries on red stems in autumn
+    if (season===2 && t>0.4) {
+      for (let i=0;i<6;i++) {
+        const bx=x+(prand(id,i+20)-0.5)*25*t;
+        const by=gy-h*0.4-prand(id,i+30)*h*0.2;
+        ctx.beginPath(); ctx.moveTo(bx,by+6); ctx.lineTo(bx,by);
+        ctx.strokeStyle='#cc3030'; ctx.lineWidth=1; ctx.stroke();
+        drawCircle(ctx,bx,by,3,'#1a1a40');
       }
     }
   }
@@ -519,203 +780,247 @@ defSpecies('rowan', {
 
 // ── MID SUCCESSION ────────────────────────────────────────────────────────────
 
-defSpecies('hazel', {
-  name: 'Hazel', latin: 'Corylus avellana',
+defSpecies('witch_hazel', {
+  name: 'Witch Hazel', latin: 'Hamamelis virginiana',
   kingdom: 'plant', layer: 'shrub',
   era: 'mid', coverMin: 0.10, coverMax: 0.85,
-  maxAge: 80, matureAge: 12, heightPx: 120,
-  spreadPerYear: 0.3, spreadRadius: 100,
-  edible: { part: 'nuts', restore: 0.30, poisonous: false, flavor: 'Rich, creamy. One of the most calorie-dense wild foods. Worth the search.' },
-  info: "Hazel has fed humans and animals for thousands of years. It supports over 70 species of insect. Coppiced hazel grows back vigorously and was the structural material of ancient buildings.",
+  maxAge: 150, matureAge: 10, heightPx: 100,
+  spreadPerYear: 0.25, spreadRadius: 90,
+  edible: null,
+  info: "Witch hazel flowers in late autumn when everything else has stopped — spidery yellow ribbons on bare branches. The seed capsules take a full year to ripen, then explode, shooting seeds ten metres.",
   draw(ctx, x, gy, t, season, phase, id) {
-    const h = 110 * t;
-    const stems = 5;
-    const leafCol = season===0?'#b0d840': season===1?'#50902a': season===2?'#c07018': null;
+    const h = 90 * t;
+    const stems = 4;
+    const leafCol = season===0?'#b0d840': season===1?'#4a8a28': season===2?'#c08820': null;
+    // multi-stemmed — forking from the base
     for (let s=0;s<stems;s++) {
-      const ox = (s-2)*10*t;
-      const lean = (s-2)*8;
-      ctx.beginPath(); ctx.moveTo(x+ox,gy); ctx.quadraticCurveTo(x+ox+lean*0.5,gy-h*0.6,x+ox+lean,gy-h);
-      ctx.strokeStyle='#7a6040'; ctx.lineWidth=3+t*2; ctx.stroke();
+      const ox = (s-1.5)*9*t;
+      const lean = (s-1.5)*10;
+      ctx.beginPath(); ctx.moveTo(x+ox,gy);
+      ctx.quadraticCurveTo(x+ox+lean*0.4,gy-h*0.5,x+ox+lean,gy-h);
+      ctx.strokeStyle='#6a5a40'; ctx.lineWidth=2.5+t*2; ctx.stroke();
       if (season!==3 && leafCol && t>0.2) {
-        // round leaves
-        for (let l=3;l<8;l++) {
-          const p=l/9;
-          const lx=x+ox+lean*p*0.8;
+        // oval leaves with wavy edges
+        for (let l=3;l<7;l++) {
+          const p=l/8;
+          const lx=x+ox+lean*p*0.7;
           const ly=gy-h*p;
-          ctx.beginPath(); ctx.arc(lx,ly,8*t,0,Math.PI*2);
+          ctx.beginPath(); ctx.ellipse(lx,ly,9*t,6*t,lean*0.01,0,Math.PI*2);
           ctx.fillStyle=leafCol; ctx.globalAlpha=0.8; ctx.fill(); ctx.globalAlpha=1;
         }
       }
     }
-    // catkins in spring
-    if (season===0 && t>0.3) {
-      for (let i=0;i<4;i++) {
-        const cx=x+(i-1.5)*15*t;
-        const cy=gy-h*0.6;
-        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy+20*t);
-        ctx.strokeStyle='#c8b830'; ctx.lineWidth=3; ctx.stroke();
-      }
-    }
-    // hazelnuts in autumn
-    if (season===2 && t>0.5) {
-      for (let i=0;i<6;i++) {
-        const nx=x+(prand(id,i+80)-0.5)*50*t;
-        const ny=gy-h*0.4-prand(id,i+90)*h*0.3;
-        drawCircle(ctx,nx,ny,5,'#8b6030');
-        ctx.beginPath(); ctx.arc(nx,ny,5,0,Math.PI*2);
-        ctx.strokeStyle='#5a4020'; ctx.lineWidth=1; ctx.stroke();
+    // spidery yellow flowers in AUTUMN (the signature — it blooms when others finish)
+    if (season===2 && t>0.4) {
+      for (let i=0;i<8;i++) {
+        const fx=x+(prand(id,i)-0.5)*40*t;
+        const fy=gy-h*0.5-prand(id,i+10)*h*0.3;
+        // four ribbon-like petals
+        for (let p=0;p<4;p++) {
+          const pa=(p/4)*Math.PI*2;
+          ctx.beginPath();
+          ctx.moveTo(fx,fy);
+          ctx.lineTo(fx+Math.cos(pa)*8*t,fy+Math.sin(pa)*8*t);
+          ctx.strokeStyle='#e8c830'; ctx.lineWidth=1.5; ctx.stroke();
+        }
       }
     }
   }
 });
 
-defSpecies('hawthorn', {
-  name: 'Hawthorn', latin: 'Crataegus monogyna',
+defSpecies('serviceberry', {
+  name: 'Serviceberry', latin: 'Amelanchier canadensis',
   kingdom: 'plant', layer: 'shrub',
   era: 'mid', coverMin: 0.05, coverMax: 1.0,
-  maxAge: 400, matureAge: 25, heightPx: 110,
-  spreadPerYear: 0.2, spreadRadius: 80,
-  edible: { part: 'haws & young leaves', restore: 0.15, poisonous: false, flavor: 'Haws are mealy and slightly sweet. Young leaves are mild and pleasant.' },
-  info: "One of Britain's oldest native trees, hawthorn can live for centuries. Its dense thorny growth is impenetrable to livestock but irresistible to nesting birds.",
+  maxAge: 80, matureAge: 10, heightPx: 100,
+  spreadPerYear: 0.25, spreadRadius: 80,
+  edible: { part: 'berries', restore: 0.20, poisonous: false, flavor: 'Sweet, almondy, almost like a blueberry crossed with a mild cherry. One of the best wild fruits in Ontario.' },
+  info: "Serviceberry blooms white in early spring — often the first tree to flower, before the leaves. Its berries ripen in June. Birds, bears, and people compete for them. The name may come from the thaw: when the ground softened enough for burial services.",
   draw(ctx, x, gy, t, season, phase, id) {
-    const h = 100*t;
-    const tw = 6+t*5;
-    // gnarled trunk
+    const h = 90*t;
+    const tw = 5+t*4;
+    // smooth grey trunk, often multi-stemmed
     ctx.beginPath();
-    ctx.moveTo(x-tw/2,gy);
-    ctx.quadraticCurveTo(x+5,gy-h*0.4,x-tw/2,gy-h);
-    ctx.lineWidth=tw; ctx.strokeStyle='#5a4030'; ctx.stroke();
+    ctx.moveTo(x-tw/3,gy);
+    ctx.quadraticCurveTo(x+3,gy-h*0.4,x,gy-h);
+    ctx.lineWidth=tw; ctx.strokeStyle='#7a7068'; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+tw/3,gy);
+    ctx.quadraticCurveTo(x-2,gy-h*0.5,x+4,gy-h*0.9);
+    ctx.lineWidth=tw*0.7; ctx.strokeStyle='#7a7068'; ctx.stroke();
     if (t<0.15) return;
-    const leafCol = season===0?'#60b030': season===1?'#3a7820': season===2?'#8a5015': null;
-    // dense gnarly crown
-    for (let b=0;b<8;b++) {
-      const a = (b/8)*Math.PI*1.8 - 0.9;
-      const br = (25+b*4)*t;
+    const leafCol = season===0?'#70b038': season===1?'#3a7820': season===2?'#c04020': null;
+    // open, airy crown
+    for (let b=0;b<7;b++) {
+      const a = (b/7)*Math.PI*1.6 - 0.8;
+      const br = (20+b*4)*t;
       const bx = x+Math.cos(a)*br;
-      const by = gy-h*0.5+Math.sin(a)*br*0.4;
+      const by = gy-h*0.5+Math.sin(a)*br*0.35;
       if (season!==3 && leafCol) {
-        ctx.beginPath(); ctx.arc(bx,by,12*t,0,Math.PI*2);
-        ctx.fillStyle=leafCol; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
-      } else {
-        ctx.beginPath(); ctx.moveTo(x,gy-h*0.5);
-        ctx.lineTo(bx,by);
-        ctx.strokeStyle='#5a3a20'; ctx.lineWidth=2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(bx,by,10*t,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
       }
     }
-    // may blossom in spring
-    if (season===0 && t>0.4) {
-      for (let i=0;i<15;i++) {
-        const a=(i/15)*Math.PI*2;
-        const br=(15+prand(id,i)*20)*t;
-        const fx=x+Math.cos(a)*br;
-        const fy=gy-h*0.5+Math.sin(a)*br*0.5-10;
-        drawCircle(ctx,fx,fy,3,'rgba(255,248,240,0.95)');
-      }
-    }
-    // haws in autumn
-    if (season===2 && t>0.4) {
+    // white flowers in early spring (before leaves fully open)
+    if (season===0 && t>0.3) {
       for (let i=0;i<12;i++) {
         const a=(i/12)*Math.PI*2;
-        const br=(10+prand(id,i+15)*20)*t;
+        const br=(12+prand(id,i)*18)*t;
         const fx=x+Math.cos(a)*br;
-        const fy=gy-h*0.45+Math.sin(a)*br*0.5;
-        drawCircle(ctx,fx,fy,4,'#cc2010');
+        const fy=gy-h*0.5+Math.sin(a)*br*0.4-8;
+        // five-petaled white flowers
+        for (let p=0;p<5;p++) {
+          const pa=(p/5)*Math.PI*2;
+          ctx.beginPath();
+          ctx.ellipse(fx+Math.cos(pa)*3.5,fy+Math.sin(pa)*3.5,2.5,1.5,pa,0,Math.PI*2);
+          ctx.fillStyle='#f8f8f0'; ctx.fill();
+        }
+      }
+    }
+    // berries in summer
+    if (season===1 && t>0.4) {
+      for (let i=0;i<10;i++) {
+        const a=(i/10)*Math.PI*2;
+        const br=(8+prand(id,i+15)*18)*t;
+        const fx=x+Math.cos(a)*br;
+        const fy=gy-h*0.45+Math.sin(a)*br*0.45;
+        drawCircle(ctx,fx,fy,3.5,'#3a1848');
       }
     }
   }
 });
 
 defSpecies('fern', {
-  name: 'Bracken', latin: 'Pteridium aquilinum',
+  name: 'Ostrich Fern', latin: 'Matteuccia struthiopteris',
   kingdom: 'plant', layer: 'ground',
   era: 'mid', coverMin: 0.05, coverMax: 0.80,
-  maxAge: 30, matureAge: 3, heightPx: 70,
+  maxAge: 40, matureAge: 3, heightPx: 80,
   spreadPerYear: 0.7, spreadRadius: 90,
-  edible: { part: 'fiddleheads (caution)', restore: 0.06, poisonous: true, flavor: 'Actually mildly toxic. Eat only a little — it has been eaten as a famine food.' },
-  info: "Bracken is ancient — its family predates the dinosaurs by 200 million years. It covers vast areas of upland Britain, sheltering deer and small mammals.",
+  edible: { part: 'fiddleheads (spring)', restore: 0.12, poisonous: false, flavor: 'Green, grassy, slightly nutty. One of the few safe fern fiddleheads — a spring delicacy in Ontario.' },
+  info: "Ostrich fern grows in a tall vase shape from a central crown. Its spring fiddleheads are one of the most sought-after wild foods in eastern Canada. The fertile fronds persist through winter — stiff, dark, and full of spores.",
   draw(ctx, x, gy, t, season, phase) {
-    const h = 60*t;
+    const h = 70*t;
     if (season===3) {
-      // flattened winter form
-      ctx.beginPath(); ctx.ellipse(x,gy,15*t,4*t,0,0,Math.PI*2);
-      ctx.fillStyle='#5a4020'; ctx.fill(); return;
+      // persistent fertile fronds — dark brown stiff spikes
+      for (let s=-1;s<=1;s+=2) {
+        ctx.beginPath();
+        ctx.moveTo(x+s*3,gy);
+        ctx.lineTo(x+s*5,gy-h*0.6);
+        ctx.strokeStyle='#4a3018'; ctx.lineWidth=2.5; ctx.stroke();
+      }
+      return;
     }
-    const col = season===2?'#8a6020': season===0?'#70c040':'#4a8c20';
-    for (let side=-1;side<=1;side+=2) {
+    const col = season===2?'#6a7020': season===0?'#60c040':'#3a8a20';
+    // vase-shaped frond arrangement — arching outward from centre
+    const fronds = 7;
+    for (let f=0;f<fronds;f++) {
+      const angle = (f/(fronds-1) - 0.5) * 2.2; // spread across a wide arc
+      const tipX = x + Math.sin(angle)*35*t;
+      const tipY = gy - h;
       ctx.beginPath();
       ctx.moveTo(x,gy);
-      ctx.quadraticCurveTo(x+side*20*t,gy-h*0.6,x+side*30*t,gy-h);
-      ctx.strokeStyle='#5a7030'; ctx.lineWidth=2; ctx.stroke();
-      // pinnae (leaflets)
-      for (let i=2;i<10;i++) {
-        const p=i/11;
-        const fx=x+side*(20*t*p*0.9);
-        const fy=gy-h*p;
-        const fw=(12-i)*t*0.9;
+      ctx.quadraticCurveTo(x+Math.sin(angle)*12*t, gy-h*0.6, tipX, tipY);
+      ctx.strokeStyle='#4a7028'; ctx.lineWidth=2; ctx.stroke();
+      // pinnae along each frond
+      for (let i=2;i<9;i++) {
+        const p=i/10;
+        const px2=x+Math.sin(angle)*35*t*p*p;
+        const py2=gy-h*p;
+        const fw=(10-i)*t*0.8;
+        const side = Math.sign(angle) || 1;
         ctx.beginPath();
-        ctx.moveTo(fx,fy);
-        ctx.lineTo(fx+side*fw*0.8,fy-fw*0.3);
-        ctx.lineTo(fx+side*fw,fy+fw*0.2);
+        ctx.moveTo(px2,py2);
+        ctx.lineTo(px2+side*fw,py2-fw*0.25);
+        ctx.lineTo(px2+side*fw*0.6,py2+fw*0.15);
         ctx.fillStyle=col; ctx.fill();
       }
     }
-    // spring fiddleheads — uncurling
+    // spring fiddleheads — tight curls emerging from the crown
     if (season===0 && t<0.5) {
-      ctx.beginPath();
-      ctx.arc(x,gy-15*t,8*t,0,Math.PI*2);
-      ctx.strokeStyle='#80c040'; ctx.lineWidth=2; ctx.stroke();
+      for (let i=-1;i<=1;i++) {
+        ctx.beginPath();
+        ctx.arc(x+i*8,gy-12*t,6*t, Math.PI*0.5, Math.PI*2.2);
+        ctx.strokeStyle='#70b838'; ctx.lineWidth=2.5; ctx.stroke();
+      }
     }
   }
 });
 
-defSpecies('foxglove', {
-  name: 'Foxglove', latin: 'Digitalis purpurea',
+defSpecies('baneberry', {
+  name: 'White Baneberry', latin: 'Actaea pachypoda',
   kingdom: 'plant', layer: 'ground',
-  era: 'mid', coverMin: 0.05, coverMax: 0.45,
-  maxAge: 2, matureAge: 2, heightPx: 130,
-  spreadPerYear: 1.2, spreadRadius: 80,
-  edible: { part: 'DO NOT EAT', restore: -0.3, poisonous: true, flavor: 'Toxic. The source of the heart drug digitalis. Beautiful but deadly.' },
-  info: "The foxglove contains cardiac glycosides that can stop a human heart — yet the same compounds, refined, have saved millions of lives as the drug digoxin.",
-  draw(ctx, x, gy, t, season, phase) {
-    const h = 120*t;
-    // basal rosette
-    for (let i=0;i<7;i++) {
-      const a=(i/7)*Math.PI*2;
+  era: 'mid', coverMin: 0.10, coverMax: 0.80,
+  maxAge: 15, matureAge: 3, heightPx: 55,
+  spreadPerYear: 0.5, spreadRadius: 60,
+  edible: { part: 'DO NOT EAT', restore: -0.30, poisonous: true, flavor: 'The white berries with their black dot look like doll\'s eyes. Six berries can stop a human heart.' },
+  info: "Doll\'s Eyes. The white berries on red stems are unmistakable and lethally toxic. A plant of deep shade in old deciduous forest — if you find baneberry, the woods around you are old.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 50*t;
+    if (season===3) {
+      // dried stems persist
+      ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h*0.6);
+      ctx.strokeStyle='#5a4020'; ctx.lineWidth=1.5; ctx.stroke();
+      return;
+    }
+    // compound leaves — spreading, toothed
+    const leafCol = season===2?'#8a6820': season===0?'#60a030':'#3a7820';
+    for (let i=0;i<5;i++) {
+      const a=(i/5)*Math.PI*1.6 - 0.8;
+      const lx = x+Math.cos(a)*22*t;
+      const ly = gy-h*0.3+Math.sin(a)*6;
       ctx.beginPath();
       ctx.moveTo(x,gy);
-      ctx.quadraticCurveTo(x+Math.cos(a)*18*t,gy+Math.sin(a)*8-4,x+Math.cos(a)*28*t,gy+Math.sin(a)*12*t-3);
-      ctx.strokeStyle='#708040'; ctx.lineWidth=2; ctx.stroke();
+      ctx.quadraticCurveTo(x+Math.cos(a)*12*t,gy-h*0.2,lx,ly);
+      ctx.strokeStyle='#5a7030'; ctx.lineWidth=1.5; ctx.stroke();
+      // leaflets
+      for (let j=0;j<3;j++) {
+        const p=(j+1)/4;
+        const jx=x+Math.cos(a)*22*t*p;
+        const jy=gy-h*0.3*p+Math.sin(a)*6*p;
+        ctx.beginPath(); ctx.ellipse(jx,jy,6*t,3.5*t,a,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.fill();
+      }
     }
-    // spike
-    ctx.beginPath(); ctx.moveTo(x,gy-5); ctx.lineTo(x,gy-h);
-    ctx.strokeStyle='#608030'; ctx.lineWidth=2.5; ctx.stroke();
-    // bells
-    if (t>0.5 && season!==3) {
-      for (let i=0;i<10;i++) {
-        const bh=gy-h*0.3-i*h*0.06;
-        const side=Math.sin(i)*3;
-        ctx.beginPath();
-        ctx.moveTo(x+side,bh);
-        ctx.bezierCurveTo(x+side+12,bh,x+side+12,bh+14,x+side,bh+16);
-        ctx.bezierCurveTo(x+side-4,bh+16,x+side-4,bh+8,x+side,bh);
-        ctx.fillStyle=`hsl(${300+i*4},60%,55%)`; ctx.fill();
-        // spots
-        for (let s=0;s<3;s++) {
-          drawCircle(ctx,x+side+4+s*2,bh+9,1,'rgba(255,255,255,0.4)');
-        }
+    // stem + flower cluster or berries
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#5a7030'; ctx.lineWidth=2; ctx.stroke();
+    // white flower cluster in spring
+    if (season===0 && t>0.5) {
+      for (let i=0;i<8;i++) {
+        const fx=x+(prand(id,i)-0.5)*14*t;
+        const fy=gy-h-prand(id,i+10)*8;
+        drawCircle(ctx,fx,fy,2,'#f0f0e8');
+      }
+    }
+    // DOLL'S EYES — white berries with black dots on red stems in late summer/autumn
+    if ((season===1||season===2) && t>0.6) {
+      const stemY = gy-h;
+      // red berry stem
+      ctx.beginPath(); ctx.moveTo(x,stemY); ctx.lineTo(x,stemY-12*t);
+      ctx.strokeStyle='#cc2020'; ctx.lineWidth=2; ctx.stroke();
+      for (let i=0;i<5;i++) {
+        const bx=x+(prand(id,i+20)-0.5)*16*t;
+        const by=stemY-prand(id,i+30)*14*t;
+        // red pedicel
+        ctx.beginPath(); ctx.moveTo(x,stemY-6*t); ctx.lineTo(bx,by);
+        ctx.strokeStyle='#cc2020'; ctx.lineWidth=1.2; ctx.stroke();
+        // white berry
+        drawCircle(ctx,bx,by,3.5*t,'#f0f0e8');
+        // black "pupil" dot
+        drawCircle(ctx,bx,by,1.2*t,'#1a1a1a');
       }
     }
   }
 });
 
 defSpecies('ash', {
-  name: 'Ash', latin: 'Fraxinus excelsior',
+  name: 'White Ash', latin: 'Fraxinus americana',
   kingdom: 'plant', layer: 'canopy',
   era: 'mid', coverMin: 0, coverMax: 1.0,
-  maxAge: 200, matureAge: 20, heightPx: 260,
+  maxAge: 200, matureAge: 20, heightPx: 250,
   spreadPerYear: 0.2, spreadRadius: 130,
   edible: { part: 'keys (pickled)', restore: 0.08, poisonous: false, flavor: 'Bitter raw, but pickled ash keys are sharp and caperlike.' },
-  info: "Ash was once the most common woodland tree in Britain. Now threatened by ash dieback disease, mature ash trees are becoming rare — each surviving one a small miracle.",
+  info: "White ash is being killed across Ontario by the emerald ash borer — an invasive beetle that arrived in shipping pallets. Mature ash are becoming rare. Each surviving one is not just a tree but a question about what we move across borders.",
   draw(ctx, x, gy, t, season, phase, id) {
     const h = 255*t;
     const tw = 8+t*8;
@@ -756,129 +1061,410 @@ defSpecies('ash', {
   }
 });
 
+defSpecies('stinkhorn', {
+  name: 'Common Stinkhorn', latin: 'Phallus impudicus',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'mid', coverMin: 0.10, coverMax: 0.85,
+  maxAge: 0.15, matureAge: 0.05, heightPx: 24,
+  spreadPerYear: 2, spreadRadius: 70,
+  edible: { part: 'egg stage (rarely)', restore: -0.05, poisonous: false, flavor: 'A foul carrion stench that flies mistake for meat. They carry the spores away on their feet.' },
+  info: "Bursts from a soft white 'egg' in the leaf litter, growing inches per hour. Its slimy olive cap reeks of rotting flesh — a strategy that bypasses wind by recruiting flies for dispersal.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season < 1 || season > 2) return;
+    const h = 22 * t;
+    // White spongy stalk
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
+    ctx.strokeStyle = '#f4eedc'; ctx.lineWidth = 4 * t; ctx.stroke();
+    // Soft 'egg' base at ground
+    ctx.beginPath();
+    ctx.ellipse(x, gy - 1, 5 * t, 3 * t, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#dcd0b8'; ctx.fill();
+    // Dark olive slimy cap
+    ctx.beginPath();
+    ctx.moveTo(x - 5 * t, gy - h);
+    ctx.quadraticCurveTo(x - 5 * t, gy - h - 6 * t, x, gy - h - 7 * t);
+    ctx.quadraticCurveTo(x + 5 * t, gy - h - 6 * t, x + 5 * t, gy - h);
+    ctx.quadraticCurveTo(x, gy - h + 1, x - 5 * t, gy - h);
+    ctx.closePath();
+    ctx.fillStyle = '#3a4a20'; ctx.fill();
+    // Honeycomb texture lines
+    ctx.strokeStyle = '#1a2810'; ctx.lineWidth = 0.5;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - 4 * t + i * 2.5 * t, gy - h - 2);
+      ctx.lineTo(x - 4 * t + i * 2.5 * t, gy - h - 5);
+      ctx.stroke();
+    }
+    // Shiny gleba droplet on tip
+    if (t > 0.7) {
+      drawCircle(ctx, x, gy - h - 7 * t, 1.2 * t, 'rgba(220,210,140,0.7)');
+    }
+  }
+});
+
 // ── LATE SUCCESSION ───────────────────────────────────────────────────────────
 
-defSpecies('oak', {
-  name: 'Pedunculate Oak', latin: 'Quercus robur',
+defSpecies('sugar_maple', {
+  name: 'Sugar Maple', latin: 'Acer saccharum',
   kingdom: 'plant', layer: 'canopy',
-  era: 'late', coverMin: 0, coverMax: 1.0,
-  maxAge: 1000, matureAge: 35, heightPx: 310,
-  spreadPerYear: 0.15, spreadRadius: 180,
-  edible: { part: 'acorns (processed)', restore: 0.20, poisonous: false, flavor: 'Bitter raw from tannins. Leached or roasted, they become nutty and rich — a staple food for thousands of years.' },
-  info: "A single mature oak supports over 2,300 species of insect, lichen, bird, and mammal — more than any other native tree. An oak forest is not a collection of trees. It is a nation.",
+  era: 'late', coverMin: 0.10, coverMax: 1.0,
+  maxAge: 400, matureAge: 30, heightPx: 300,
+  spreadPerYear: 0.15, spreadRadius: 160,
+  edible: { part: 'sap (spring)', restore: 0.25, poisonous: false, flavor: 'Clear as water from the tree. Boiled for hours, it becomes the syrup. Forty litres for one.' },
+  info: "The sugar maple is the defining tree of the Great Lakes-St. Lawrence forest. It is the most shade-tolerant hardwood — its seedlings wait for decades in near-darkness, then surge when a gap opens. The autumn colour needs no description.",
   draw(ctx, x, gy, t, season, phase, id) {
-    const h = 300*t;
-    const tw = 14+t*18;
-    // massive trunk
+    const h = 290*t;
+    const tw = 12+t*16;
+    // massive trunk — grey, furrowed
     ctx.beginPath();
     ctx.moveTo(x-tw/2,gy);
     ctx.quadraticCurveTo(x-tw/4,gy-h*0.4,x-tw/3,gy-h*0.6);
     ctx.quadraticCurveTo(x+tw/4,gy-h*0.5,x+tw/2,gy);
-    ctx.fillStyle='#6a5040'; ctx.fill();
+    ctx.fillStyle='#5a5a58'; ctx.fill();
     ctx.beginPath(); ctx.moveTo(x-tw/3,gy-h*0.55); ctx.lineTo(x,gy-h);
-    ctx.strokeStyle='#6a5040'; ctx.lineWidth=tw*0.5; ctx.stroke();
+    ctx.strokeStyle='#5a5a58'; ctx.lineWidth=tw*0.5; ctx.stroke();
     if (t<0.05) return;
-    const leafCol = season===0?'#a0d040': season===1?'#3a7020': season===2?'#c07820': null;
-    // spreading crown
-    const crownR = 88*t;
+    // brilliant autumn — orange to crimson
+    const leafCol = season===0?'#a0d840': season===1?'#2a6818': season===2?'#e06020': null;
+    const crownR = 80*t;
     const crownY = gy - h*0.8;
     if (season!==3 && leafCol) {
-      // multiple overlapping blobs
       for (let b=0;b<12;b++) {
         const a=(b/12)*Math.PI*2;
         const r=crownR*(0.5+prand(id,b)*0.6);
-        const cx2=x+Math.cos(a)*crownR*0.7;
-        const cy2=crownY+Math.sin(a)*crownR*0.4;
-        ctx.beginPath(); ctx.arc(cx2,cy2,r*0.7,0,Math.PI*2);
-        ctx.fillStyle=leafCol; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
+        const cx2=x+Math.cos(a)*crownR*0.65;
+        const cy2=crownY+Math.sin(a)*crownR*0.35;
+        ctx.beginPath(); ctx.arc(cx2,cy2,r*0.65,0,Math.PI*2);
+        // Vary autumn colours within the crown
+        let col = leafCol;
+        if (season===2) {
+          const hue = 10 + prand(id,b+50)*30; // 10-40: red through orange
+          col = `hsl(${hue},85%,48%)`;
+        }
+        ctx.fillStyle=col; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
       }
-      ctx.beginPath(); ctx.arc(x,crownY,crownR*0.8,0,Math.PI*2);
-      ctx.fillStyle=leafCol; ctx.globalAlpha=0.7; ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(x,crownY,crownR*0.75,0,Math.PI*2);
+      ctx.fillStyle=leafCol; ctx.globalAlpha=0.65; ctx.fill(); ctx.globalAlpha=1;
     } else if (season===3) {
-      // bare crown - sinuous branches
       for (let b=0;b<10;b++) {
         const a = (b/10)*Math.PI*2;
         const br = crownR*(0.3+prand(id,b)*0.7);
         ctx.beginPath();
         ctx.moveTo(x,crownY+crownR*0.2);
         ctx.quadraticCurveTo(x+Math.cos(a)*br*0.5,crownY+Math.sin(a)*br*0.3,x+Math.cos(a)*br,crownY+Math.sin(a)*br*0.6);
-        ctx.strokeStyle='#5a4030'; ctx.lineWidth=2; ctx.stroke();
+        ctx.strokeStyle='#4a4a48'; ctx.lineWidth=2; ctx.stroke();
       }
     }
-    // acorns in late summer/autumn
-    if ((season===1||season===2) && t>0.4) {
+    // samaras (helicopter seeds) in autumn
+    if (season===2 && t>0.4) {
       for (let i=0;i<8;i++) {
         const a=(i/8)*Math.PI*2;
-        const ax=x+Math.cos(a)*crownR*0.5;
-        const ay=crownY+Math.sin(a)*crownR*0.25;
-        drawCircle(ctx,ax,ay,5,'#a07030');
-        drawCircle(ctx,ax,ay-5,4,'#6a5020');
+        const sx2=x+Math.cos(a)*crownR*0.5;
+        const sy2=crownY+Math.sin(a)*crownR*0.25;
+        // paired samara — V shape
+        ctx.beginPath(); ctx.moveTo(sx2,sy2); ctx.lineTo(sx2-4,sy2+10);
+        ctx.moveTo(sx2,sy2); ctx.lineTo(sx2+4,sy2+10);
+        ctx.strokeStyle='#907040'; ctx.lineWidth=1.2; ctx.stroke();
       }
     }
   }
 });
 
-defSpecies('bluebell', {
-  name: 'Bluebell', latin: 'Hyacinthoides non-scripta',
+defSpecies('trillium', {
+  name: 'White Trillium', latin: 'Trillium grandiflorum',
   kingdom: 'plant', layer: 'ground',
   era: 'late', coverMin: 0.25, coverMax: 0.90,
-  maxAge: 50, matureAge: 5, heightPx: 30,
-  spreadPerYear: 0.8, spreadRadius: 60,
+  maxAge: 25, matureAge: 5, heightPx: 30,
+  spreadPerYear: 0.4, spreadRadius: 50,
   edible: null,
-  info: "Half the world's bluebells grow in Britain. They appear only in spring, before the leaf canopy closes and shuts out the light — living on stored energy for the rest of the year.",
+  info: "Ontario's provincial flower. A trillium takes seven years to first bloom from seed. Where they carpet the forest floor, the woods are old and undisturbed. It is illegal to pick them in Ontario.",
   draw(ctx, x, gy, t, season, phase) {
-    if (season !== 0) return; // spring only
+    if (season !== 0 && season !== 1) return; // spring and early summer
     const h = 25*t;
-    for (let s=0;s<3;s++) {
-      const ox=(s-1)*8;
-      // arching stem
+    // single stem
+    ctx.beginPath();
+    ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#4a7828'; ctx.lineWidth=2; ctx.stroke();
+    // three broad leaves in a whorl
+    for (let i=0;i<3;i++) {
+      const a = (i/3)*Math.PI*2 - Math.PI/2;
+      const lx = x+Math.cos(a)*14*t;
+      const ly = gy-h*0.55+Math.sin(a)*5*t;
       ctx.beginPath();
-      ctx.moveTo(x+ox,gy);
-      ctx.quadraticCurveTo(x+ox+4,gy-h*0.7,x+ox,gy-h);
-      ctx.strokeStyle='#5a8a30'; ctx.lineWidth=1.5; ctx.stroke();
-      // drooping bells
-      for (let b=0;b<3;b++) {
-        const bx=x+ox+Math.sin(b*1.5)*5;
-        const by=gy-h*(0.5+b*0.15);
+      ctx.moveTo(x,gy-h*0.5);
+      ctx.quadraticCurveTo((x+lx)/2,ly-4,lx,ly);
+      ctx.quadraticCurveTo((x+lx)/2,ly+4,x,gy-h*0.5);
+      ctx.fillStyle = season===0?'#4a8828':'#3a7020'; ctx.fill();
+    }
+    // three white petals above (turns pink as it ages — late spring)
+    if (t>0.4) {
+      const flowerY = gy-h-4;
+      const pinkShift = season===1 ? 30 : 0;
+      for (let i=0;i<3;i++) {
+        const a = (i/3)*Math.PI*2 - Math.PI/6;
         ctx.beginPath();
-        ctx.moveTo(bx,by);
-        ctx.bezierCurveTo(bx+6,by,bx+6,by+10,bx,by+12);
-        ctx.bezierCurveTo(bx-4,by+12,bx-4,by+4,bx,by);
-        ctx.fillStyle=`hsl(${240+b*10},65%,55%)`; ctx.fill();
+        ctx.ellipse(x+Math.cos(a)*7*t, flowerY+Math.sin(a)*5*t, 6*t, 3.5*t, a, 0, Math.PI*2);
+        ctx.fillStyle = pinkShift ? `hsl(340,50%,85%)` : '#f8f8f0'; ctx.fill();
+      }
+      // yellow centre
+      drawCircle(ctx,x,flowerY,2.5*t,'#e8c840');
+    }
+  }
+});
+
+defSpecies('garlic_mustard', {
+  name: 'Garlic Mustard', latin: 'Alliaria petiolata',
+  kingdom: 'plant', layer: 'ground',
+  era: 'late', coverMin: 0, coverMax: 1.0, soilMin: 0.06,
+  maxAge: 2, matureAge: 2, heightPx: 70,
+  spreadPerYear: .4, spreadRadius: 100,
+  edible: { part: 'leaves & flowers', restore: 0.10, poisonous: false, flavor: 'Mild garlic flavour, slightly bitter. Eating it is one way to fight it.' },
+  info: "Invasive. Garlic mustard was brought from Europe as a potherb. It releases chemicals that kill the mycorrhizal fungi native trees depend on. Where it spreads, tree seedlings fail. Eating it is a small act of resistance.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season===3) return;
+    const h = 60*t;
+    // basal rosette of heart-shaped leaves (first year)
+    for (let i=0;i<5;i++) {
+      const a=(i/5)*Math.PI*2;
+      const lx=x+Math.cos(a)*12*t;
+      const ly=gy-4+Math.sin(a)*5*t;
+      ctx.beginPath();
+      ctx.arc(lx,ly,6*t,0,Math.PI*2);
+      ctx.fillStyle='#5a8830'; ctx.fill();
+    }
+    // flowering stem (second year)
+    if (t>0.5) {
+      ctx.beginPath(); ctx.moveTo(x,gy-6); ctx.lineTo(x,gy-h);
+      ctx.strokeStyle='#5a8030'; ctx.lineWidth=2; ctx.stroke();
+      // small white four-petaled flowers at top
+      if (season===0 || season===1) {
+        for (let i=0;i<6;i++) {
+          const fy=gy-h+i*6*t;
+          for (let p=0;p<4;p++) {
+            const pa=(p/4)*Math.PI*2;
+            ctx.beginPath();
+            ctx.ellipse(x+Math.cos(pa)*3,fy+Math.sin(pa)*3,2,1.2,pa,0,Math.PI*2);
+            ctx.fillStyle='#f0f0e8'; ctx.fill();
+          }
+        }
+      }
+      // alternate leaves on stem
+      for (let i=1;i<4;i++) {
+        const side = i%2===0?1:-1;
+        const ly2=gy-h*i/5;
+        ctx.beginPath();
+        ctx.ellipse(x+side*10*t,ly2,7*t,4*t,side*0.3,0,Math.PI*2);
+        ctx.fillStyle='#5a8830'; ctx.fill();
       }
     }
   }
 });
 
-defSpecies('wild_garlic', {
-  name: 'Wild Garlic', latin: 'Allium ursinum',
+defSpecies('jack_in_pulpit', {
+  name: 'Jack-in-the-Pulpit', latin: 'Arisaema triphyllum',
   kingdom: 'plant', layer: 'ground',
-  era: 'late', coverMin: 0.25, coverMax: 0.90,
-  maxAge: 30, matureAge: 3, heightPx: 35,
-  spreadPerYear: 1.0, spreadRadius: 60,
-  edible: { part: 'leaves & flowers', restore: 0.18, poisonous: false, flavor: 'Intensely garlicky but not harsh. One of the great spring flavours.' },
-  info: "Wild garlic — or 'ramsons' — carpets ancient woodland floors in spring. Its scent is extraordinary. Bears seek it out after winter to cleanse their digestion.",
-  draw(ctx, x, gy, t, season, phase) {
-    if (season!==0 && season!==1) return; // spring/early summer only
-    const h = 30*t;
-    // broad elliptical leaves
-    for (let i=0;i<4;i++) {
-      const a=(i/4)*Math.PI*2;
-      ctx.beginPath();
-      ctx.ellipse(x+Math.cos(a)*8*t,gy-h*0.3+Math.sin(a)*4,10*t,5*t,a,0,Math.PI*2);
-      ctx.fillStyle='#60a030'; ctx.fill();
+  era: 'late', coverMin: 0.20, coverMax: 0.90, soilMin: 0.22,
+  maxAge: 25, matureAge: 4, heightPx: 50,
+  spreadPerYear: 0.12, spreadRadius: 55,
+  edible: { part: 'corm (processed)', restore: -0.15, poisonous: true, flavor: 'Raw corm contains calcium oxalate crystals — intensely painful. Dried and ground for months it becomes edible flour. That is a different kind of knowledge.' },
+  info: "The spathe arches over the spadix like a hood — green, striped with purple. In autumn the whole structure collapses and leaves a tight cluster of brilliant red berries. Jack-in-the-pulpit can change sex from year to year, producing male flowers when conditions are poor and female when it has stored enough energy.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    if (season === 3) return;
+    const h = 45 * t;
+    ctx.strokeStyle = '#4a6b2a'; ctx.lineWidth = 1.8 * t;
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h * 0.5); ctx.stroke();
+    // Two trifoliate leaf groups on petioles
+    for (let s = -1; s <= 1; s += 2) {
+      const px = x + s * 9 * t, py = gy - h * 0.85;
+      ctx.beginPath(); ctx.moveTo(x, gy - h * 0.6); ctx.lineTo(px, py);
+      ctx.strokeStyle = '#4a6b2a'; ctx.lineWidth = 1.2 * t; ctx.stroke();
+      ctx.fillStyle = '#3a6a20';
+      for (let i = -1; i <= 1; i++) {
+        ctx.save(); ctx.translate(px, py); ctx.rotate(i * 0.48 + s * 0.15);
+        ctx.beginPath(); ctx.ellipse(0, -11 * t, 5.5 * t, 13 * t, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.restore();
+      }
     }
-    // white star flowers in spring
-    if (season===0 && t>0.5) {
-      for (let s=0;s<3;s++) {
-        const sx=x+(s-1)*12*t;
-        const sy=gy-h;
-        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx,sy-8*t);
-        ctx.strokeStyle='#70b040'; ctx.lineWidth=1; ctx.stroke();
-        for (let p=0;p<6;p++) {
-          const pa=(p/6)*Math.PI*2;
-          ctx.beginPath(); ctx.ellipse(sx+Math.cos(pa)*4,sy-8*t+Math.sin(pa)*4,2,1,pa,0,Math.PI*2);
-          ctx.fillStyle='#f8f8f0'; ctx.fill();
+    if (season === 2) {
+      // Fall: red berry cluster
+      ctx.fillStyle = '#c02010';
+      for (let i = 0; i < 10; i++) {
+        const bx = x + Math.sin(i * 2.3 + prand(id,i)) * 7 * t;
+        const by = gy - h * 0.38 - Math.cos(i * 1.9) * 5 * t;
+        ctx.beginPath(); ctx.arc(bx, by, 3 * t, 0, Math.PI * 2); ctx.fill();
+      }
+      return;
+    }
+    // Spathe — green hood with purple-brown veins
+    ctx.save(); ctx.translate(x, gy - h * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(0, 3 * t);
+    ctx.bezierCurveTo(-8 * t, 1 * t, -9 * t, -14 * t, 0, -17 * t);
+    ctx.bezierCurveTo(9 * t, -14 * t, 8 * t, 1 * t, 0, 3 * t);
+    ctx.fillStyle = '#5a8a3a'; ctx.fill();
+    ctx.strokeStyle = 'rgba(70,15,90,0.45)'; ctx.lineWidth = 0.9;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.moveTo(i * 3.5 * t, 2 * t);
+      ctx.quadraticCurveTo(i * 2.5 * t, -7 * t, i * 1.5 * t, -16 * t); ctx.stroke();
+    }
+    // Spadix knob
+    ctx.fillStyle = '#8a5a28';
+    ctx.beginPath(); ctx.arc(0, -9 * t, 2.2 * t, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+});
+
+defSpecies('mayapple', {
+  name: 'Mayapple', latin: 'Podophyllum peltatum',
+  kingdom: 'plant', layer: 'ground',
+  era: 'late', coverMin: 0.15, coverMax: 0.85, soilMin: 0.20,
+  maxAge: 30, matureAge: 3, heightPx: 45,
+  spreadPerYear: 0.30, spreadRadius: 50,
+  edible: { part: 'ripe fruit', restore: 0.12, poisonous: false, flavor: 'Ripe fruit only — yellow and soft. Everything else is toxic. The difference between the two is the difference between a meal and a bad hour.' },
+  info: "Mayapple spreads by rhizome into large colonies, each shoot connected underground. A single-leafed shoot cannot flower; it takes two leaves and a fork in the stem to produce the single white bloom — and thus the fruit. Most of a Mayapple colony is in its second year of waiting.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    if (season === 3) return;
+    const h = 38 * t;
+    const twoLeaves = t > 0.55;
+    ctx.strokeStyle = '#5a7a2a'; ctx.lineWidth = 2 * t;
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h); ctx.stroke();
+    const drawUmbrella = (lx, ly, rot) => {
+      ctx.save(); ctx.translate(lx, ly); ctx.rotate(rot);
+      ctx.fillStyle = season === 2 ? '#7a8820' : '#4a7820';
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      const r = 20 * t;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const ri = r * (0.65 + 0.35 * Math.abs(Math.sin(a * 4)));
+        ctx.lineTo(Math.cos(a) * ri, Math.sin(a) * ri);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    };
+    if (twoLeaves) {
+      drawUmbrella(x - 9 * t, gy - h, -0.25);
+      drawUmbrella(x + 9 * t, gy - h, 0.25);
+      // Flower or fruit hangs below the fork
+      if (season === 1 || season === 2) {
+        // Yellow oval fruit
+        ctx.fillStyle = '#c8a800';
+        ctx.beginPath(); ctx.ellipse(x, gy - h + 10 * t, 6.5 * t, 8.5 * t, 0, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // White nodding flower
+        ctx.fillStyle = '#f0f0e8';
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.ellipse(x + Math.cos(a) * 5 * t, gy - h + 10 * t + Math.sin(a) * 5 * t, 2.5 * t, 5 * t, a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#e8d040';
+        ctx.beginPath(); ctx.arc(x, gy - h + 10 * t, 3 * t, 0, Math.PI * 2); ctx.fill();
+      }
+    } else {
+      drawUmbrella(x, gy - h, 0);
+    }
+  }
+});
+
+defSpecies('solomons_seal', {
+  name: "Solomon's Seal", latin: 'Polygonatum biflorum',
+  kingdom: 'plant', layer: 'ground',
+  era: 'climax', coverMin: 0.30, coverMax: 1.0, soilMin: 0.35,
+  maxAge: 40, matureAge: 5, heightPx: 60,
+  spreadPerYear: 0.14, spreadRadius: 45,
+  edible: { part: 'young shoots & rhizome', restore: 0.10, poisonous: false, flavor: 'Young shoots like asparagus in spring. Rhizome dried and ground — bland but substantial. The berries are for the birds.' },
+  info: "The arching stem bears paired oval leaves and, in spring, pairs of white tubular bells hanging from each leaf axil. In autumn these become blue-black berries taken by thrushes. The rhizome is marked with circular scars — one for each year's stem. Count them to find the age of the colony.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    if (season === 3) return;
+    const h = 55 * t;
+    const ex = x + 22 * t, ey = gy - h * 0.35;
+    // Arching stem
+    ctx.strokeStyle = '#5a7a30'; ctx.lineWidth = 1.8 * t;
+    ctx.beginPath(); ctx.moveTo(x, gy);
+    ctx.quadraticCurveTo(x - 4 * t, gy - h * 0.9, ex, ey);
+    ctx.stroke();
+    // Paired leaves and bells/berries along the arc
+    const steps = Math.round(3 + t * 2);
+    for (let i = 1; i <= steps; i++) {
+      const u = i / (steps + 1);
+      const bx = (1-u)*(1-u)*x + 2*(1-u)*u*(x - 4*t) + u*u*ex;
+      const by = (1-u)*(1-u)*gy + 2*(1-u)*u*(gy - h*0.9) + u*u*ey;
+      const leafCol = season === 2 ? '#9aaa30' : '#3a6a20';
+      ctx.fillStyle = leafCol;
+      for (let s = -1; s <= 1; s += 2) {
+        ctx.save(); ctx.translate(bx + s * 10 * t, by); ctx.rotate(s * 0.45);
+        ctx.beginPath(); ctx.ellipse(0, 0, 5.5 * t, 10 * t, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.restore();
+      }
+      if (season === 1 || season === 2) {
+        // Blue-black berries
+        ctx.fillStyle = '#1a1a50';
+        ctx.beginPath(); ctx.arc(bx, by + 7 * t, 3 * t, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(80,80,180,0.3)';
+        ctx.beginPath(); ctx.arc(bx - 1 * t, by + 6 * t, 1.5 * t, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // White pendant bells
+        ctx.fillStyle = 'rgba(240,238,218,0.92)';
+        ctx.beginPath();
+        ctx.arc(bx, by + 7 * t, 2.8 * t, 0, Math.PI);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(180,180,140,0.6)'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(bx, by + 4 * t); ctx.lineTo(bx, by + 7 * t); ctx.stroke();
+      }
+    }
+  }
+});
+
+defSpecies('basswood', {
+  name: 'American Basswood', latin: 'Tilia americana',
+  kingdom: 'plant', layer: 'canopy',
+  era: 'late', coverMin: 0.15, coverMax: 1.0,
+  maxAge: 200, matureAge: 25, heightPx: 260,
+  spreadPerYear: 0.15, spreadRadius: 130,
+  edible: { part: 'flowers (tea)', restore: 0.08, poisonous: false, flavor: 'The flowers make a honey-scented tea. Mild, calming. The inner bark is edible in a pinch — bland but filling.' },
+  info: "Basswood's summer flowers draw every pollinator for hundreds of metres — the humming is audible. Its soft, light wood was carved into masks, utensils, and decoys. The inner bark can be twisted into rope that holds.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 250*t;
+    const tw = 10+t*12;
+    // straight trunk, dark furrowed bark
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#5a4a3a'; ctx.lineWidth=tw; ctx.stroke();
+    if (t<0.12) return;
+    const leafCol = season===0?'#90d040': season===1?'#3a7818': season===2?'#c09020': null;
+    // dense rounded crown — heart-shaped leaves read as large blobs
+    const crownR = 65*t;
+    const crownY = gy-h*0.75;
+    if (season!==3 && leafCol) {
+      for (let b=0;b<10;b++) {
+        const a=(b/10)*Math.PI*2;
+        const r=crownR*(0.5+prand(id,b)*0.5);
+        const cx2=x+Math.cos(a)*crownR*0.6;
+        const cy2=crownY+Math.sin(a)*crownR*0.35;
+        ctx.beginPath(); ctx.arc(cx2,cy2,r*0.6,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
+      }
+      ctx.beginPath(); ctx.arc(x,crownY,crownR*0.7,0,Math.PI*2);
+      ctx.fillStyle=leafCol; ctx.globalAlpha=0.7; ctx.fill(); ctx.globalAlpha=1;
+    } else if (season===3) {
+      for (let b=0;b<8;b++) {
+        const a=(b/8)*Math.PI*2;
+        const br=crownR*(0.3+prand(id,b)*0.6);
+        ctx.beginPath(); ctx.moveTo(x,crownY+crownR*0.15);
+        ctx.quadraticCurveTo(x+Math.cos(a)*br*0.4,crownY+Math.sin(a)*br*0.3,x+Math.cos(a)*br,crownY+Math.sin(a)*br*0.5);
+        ctx.strokeStyle='#4a3a2a'; ctx.lineWidth=2; ctx.stroke();
+      }
+    }
+    // small pale-yellow flower clusters in summer (with bract)
+    if (season===1 && t>0.4) {
+      for (let i=0;i<6;i++) {
+        const fx=x+(prand(id,i+60)-0.5)*crownR*0.8;
+        const fy=crownY+(prand(id,i+70)-0.5)*crownR*0.4;
+        // leaf-like bract
+        ctx.beginPath(); ctx.ellipse(fx+4,fy,8*t,3*t,0.3,0,Math.PI*2);
+        ctx.fillStyle='rgba(180,210,120,0.6)'; ctx.fill();
+        // flower cluster
+        for (let f=0;f<4;f++) {
+          drawCircle(ctx,fx+f*2-3,fy-2,1.5,'#f0e870');
         }
       }
     }
@@ -908,6 +1494,97 @@ defSpecies('chanterelle', {
     ctx.quadraticCurveTo(x-6*t,gy-h-1,x-12*t,gy-h+3);
     ctx.fillStyle='#d4a020'; ctx.fill();
     ctx.strokeStyle='#b88010'; ctx.lineWidth=1; ctx.stroke();
+  }
+});
+
+defSpecies('white_pine', {
+  name: 'Eastern White Pine', latin: 'Pinus strobus',
+  kingdom: 'plant', layer: 'canopy',
+  era: 'climax', coverMin: 0.10, coverMax: 1.0, soilMin: 0.25,
+  maxAge: 450, matureAge: 30, heightPx: 320,
+  spreadPerYear: 0.10, spreadRadius: 150,
+  edible: { part: 'inner bark & needle tea', restore: 0.08, poisonous: false, flavor: 'Needle tea is sharp and vitamin-C rich. Inner bark is starchy — a famine food, but it kept people alive.' },
+  info: "The white pine once defined Ontario. Trees fifty metres tall, older than the European presence on this continent. Almost all were logged. The ones that remain are startling — you do not expect a tree that size. The Haudenosaunee Great Law of Peace uses the white pine as its central symbol.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 310*t;
+    const tw = 10+t*14;
+    // tall straight trunk — dark reddish-brown bark
+    ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#5a3828'; ctx.lineWidth=tw; ctx.stroke();
+    if (t<0.08) return;
+    // horizontal branches with soft needle clusters — distinctive silhouette
+    const tiers = 10;
+    for (let i=1;i<=tiers;i++) {
+      const p = i/(tiers+1);
+      const by = gy - h*p;
+      // wider at base, tapering more steeply toward the apex
+      const bw = (68 - i*5)*t * (0.8 + prand(id,i)*0.4);
+      for (let side=-1;side<=1;side+=2) {
+        // slightly upturned then drooping at tip
+        ctx.beginPath(); ctx.moveTo(x,by);
+        ctx.quadraticCurveTo(x+side*bw*0.5,by-4,x+side*bw,by+2);
+        ctx.strokeStyle='#4a3020'; ctx.lineWidth=2; ctx.stroke();
+        // dense overlapping needle clusters for a thick, full look
+        for (let c=0;c<5;c++) {
+          const cx2=x+side*(bw*0.08+c*bw*0.19);
+          const cy2=by-2+c*0.5;
+          ctx.beginPath(); ctx.ellipse(cx2,cy2,13*t,6*t,side*0.08,0,Math.PI*2);
+          ctx.fillStyle='#2a5a30'; ctx.globalAlpha=0.88; ctx.fill();
+        }
+        ctx.globalAlpha=1;
+      }
+    }
+    // crown tuft
+    ctx.beginPath(); ctx.arc(x,gy-h+8*t,14*t,0,Math.PI*2);
+    ctx.fillStyle='#2a5a30'; ctx.globalAlpha=0.7; ctx.fill(); ctx.globalAlpha=1;
+    // long cones
+    if (t>0.5) {
+      for (let i=0;i<3;i++) {
+        const cx2=x+(prand(id,i+40)-0.5)*25*t;
+        const cy2=gy-h*0.5-prand(id,i+50)*h*0.2;
+        ctx.beginPath(); ctx.ellipse(cx2,cy2,3*t,8*t,0.2,0,Math.PI*2);
+        ctx.fillStyle='#6a4a28'; ctx.fill();
+      }
+    }
+  }
+});
+
+defSpecies('foxglove', {
+  name: 'Foxglove', latin: 'Digitalis purpurea',
+  kingdom: 'plant', layer: 'ground',
+  era: 'mid', coverMin: 0.05, coverMax: 0.45, soilMin: 0.04,
+  maxAge: 2, matureAge: 2, heightPx: 130,
+  spreadPerYear: 0.8, spreadRadius: 70,
+  edible: { part: 'DO NOT EAT', restore: -0.3, poisonous: true, flavor: 'Toxic. The source of the heart drug digitalis. Beautiful but deadly.' },
+  info: "Non-native — a European garden escape now found in clearings and roadsides across Ontario. The foxglove contains cardiac glycosides that can stop a human heart. It grows where the ground has been disturbed, and it grows from graves.",
+  draw(ctx, x, gy, t, season, phase) {
+    const h = 120*t;
+    // basal rosette
+    for (let i=0;i<7;i++) {
+      const a=(i/7)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(x,gy);
+      ctx.quadraticCurveTo(x+Math.cos(a)*18*t,gy+Math.sin(a)*8-4,x+Math.cos(a)*28*t,gy+Math.sin(a)*12*t-3);
+      ctx.strokeStyle='#708040'; ctx.lineWidth=2; ctx.stroke();
+    }
+    // spike
+    ctx.beginPath(); ctx.moveTo(x,gy-5); ctx.lineTo(x,gy-h);
+    ctx.strokeStyle='#608030'; ctx.lineWidth=2.5; ctx.stroke();
+    // bells
+    if (t>0.5 && season!==3) {
+      for (let i=0;i<10;i++) {
+        const bh=gy-h*0.3-i*h*0.06;
+        const side=Math.sin(i)*3;
+        ctx.beginPath();
+        ctx.moveTo(x+side,bh);
+        ctx.bezierCurveTo(x+side+12,bh,x+side+12,bh+14,x+side,bh+16);
+        ctx.bezierCurveTo(x+side-4,bh+16,x+side-4,bh+8,x+side,bh);
+        ctx.fillStyle=`hsl(${300+i*4},60%,55%)`; ctx.fill();
+        for (let s=0;s<3;s++) {
+          drawCircle(ctx,x+side+4+s*2,bh+9,1,'rgba(255,255,255,0.4)');
+        }
+      }
+    }
   }
 });
 
@@ -944,13 +1621,13 @@ defSpecies('fly_agaric', {
 });
 
 defSpecies('bracket_fungus', {
-  name: 'Tinder Bracket', latin: 'Fomes fomentarius',
+  name: 'Artist\'s Bracket', latin: 'Ganoderma applanatum',
   kingdom: 'fungi', layer: 'fungal',
   era: 'mid', coverMin: 0.15, coverMax: 1.0,
   maxAge: 30, matureAge: 5, heightPx: 18,
   spreadPerYear: 0.4, spreadRadius: 80,
   edible: null,
-  info: "Bracket fungi are decomposers — they slowly consume the heartwood of standing and fallen trees, returning centuries of accumulated carbon to the soil. Dead wood is not dead.",
+  info: "Artist's bracket slowly consumes the heartwood of standing and fallen trees, returning centuries of accumulated carbon to the soil. Its flat white underside can be scratched to make drawings that last for years. Dead wood is not dead.",
   draw(ctx, x, gy, t, season, phase) {
     // hoof-shaped shelf on tree
     const w = 20*t;
@@ -968,86 +1645,488 @@ defSpecies('bracket_fungus', {
   }
 });
 
+defSpecies('honey_fungus', {
+  name: 'Honey Fungus', latin: 'Armillaria mellea',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'late', coverMin: 0.30, coverMax: 1.0,
+  maxAge: 0.2, matureAge: 0.08, heightPx: 22,
+  spreadPerYear: 2, spreadRadius: 80,
+  edible: { part: 'caps (must be cooked thoroughly)', restore: 0.15, poisonous: false, flavor: 'Bitter raw, mild and nutty cooked. Some people remain ill — try a small piece first.' },
+  info: "Clustered caps on the surface; underground, a single individual may stretch for kilometres of black bootlace strands, slowly killing the trees it has lived alongside for a century.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    if (season < 1 || season > 2) return;
+    const h = 18 * t;
+    // Tight cluster of 4 caps
+    const positions = [[-8, 0, 0.9], [0, -2, 1.0], [7, -1, 0.85], [-3, 3, 0.75]];
+    for (let k = 0; k < positions.length; k++) {
+      const [ox, oy, scale] = positions[k];
+      const cx = x + ox * t;
+      const stemH = h * scale;
+      // Pale honey stem
+      ctx.beginPath();
+      ctx.moveTo(cx, gy + oy);
+      ctx.lineTo(cx, gy + oy - stemH);
+      ctx.strokeStyle = '#d8c08c'; ctx.lineWidth = 2.2 * t * scale; ctx.stroke();
+      // Honey-coloured convex cap
+      ctx.beginPath();
+      ctx.ellipse(cx, gy + oy - stemH, 6 * t * scale, 3 * t * scale, 0, Math.PI, Math.PI * 2);
+      ctx.fillStyle = '#c08840'; ctx.fill();
+      // Darker scales
+      for (let i = 0; i < 3; i++) {
+        drawCircle(ctx, cx + (i - 1) * 1.8 * t * scale, gy + oy - stemH - 0.5, 0.7 * t * scale, '#7a4818');
+      }
+    }
+  }
+});
+
 // ── CLIMAX ────────────────────────────────────────────────────────────────────
 
-defSpecies('holly', {
-  name: 'Holly', latin: 'Ilex aquifolium',
-  kingdom: 'plant', layer: 'shrub',
+defSpecies('hemlock', {
+  name: 'Eastern Hemlock', latin: 'Tsuga canadensis',
+  kingdom: 'plant', layer: 'canopy',
   era: 'climax', coverMin: 0.30, coverMax: 1.0,
-  maxAge: 300, matureAge: 20, heightPx: 100,
-  spreadPerYear: 0.15, spreadRadius: 70,
-  edible: { part: 'berries (NEVER)', restore: -0.2, poisonous: true, flavor: 'Toxic to humans. Critical winter food for birds.' },
-  info: "Holly is one of the few broadleaved evergreens in British woodland. In winter, when all other berries are gone, its red berries feed thrushes, redwings, and fieldfares.",
-  draw(ctx, x, gy, t, season, phase) {
-    const h = 90*t;
+  maxAge: 800, matureAge: 40, heightPx: 220,
+  spreadPerYear: 0.10, spreadRadius: 100,
+  edible: { part: 'needle tea (mild)', restore: 0.05, poisonous: false, flavor: 'Mild, piney, vitamin-C rich. Not the poison hemlock — this is a tree, and it is safe.' },
+  info: "Eastern hemlock is the patience of the forest. It can wait two hundred years in shade, barely growing, then fill a canopy gap. A single tree may live eight centuries. Its dense shade creates a cool, dark world beneath — a microclimate for salamanders and ferns.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 210*t;
+    const tw = 6+t*6;
+    // trunk
     ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
-    ctx.strokeStyle='#3a3020'; ctx.lineWidth=5+t*4; ctx.stroke();
-    // dark evergreen crown
-    for (let b=0;b<7;b++) {
-      const a=(b/7)*Math.PI*2;
-      const r=22*t;
-      const cx2=x+Math.cos(a)*r;
-      const cy2=gy-h*0.55+Math.sin(a)*r*0.5;
-      ctx.beginPath(); ctx.arc(cx2,cy2,r*0.75,0,Math.PI*2);
-      ctx.fillStyle='#1a4020'; ctx.fill();
+    ctx.strokeStyle='#4a3828'; ctx.lineWidth=tw; ctx.stroke();
+    if (t<0.1) return;
+    // evergreen conical form with drooping branch tips
+    const tiers = 8;
+    for (let i=0;i<tiers;i++) {
+      const p = (i+1)/(tiers+1);
+      const by = gy - h*p;
+      const bw = (45 - i*4)*t;
+      for (let side=-1;side<=1;side+=2) {
+        ctx.beginPath();
+        ctx.moveTo(x,by);
+        ctx.quadraticCurveTo(x+side*bw*0.6,by+4,x+side*bw,by+8); // drooping tips
+        ctx.strokeStyle='#1a3a20'; ctx.lineWidth=1.5; ctx.stroke();
+        // needle mass
+        ctx.beginPath();
+        ctx.ellipse(x+side*bw*0.5,by+2,bw*0.4,5*t,side*0.15,0,Math.PI*2);
+        ctx.fillStyle='#1a4020'; ctx.fill();
+      }
     }
-    ctx.beginPath(); ctx.arc(x,gy-h*0.6,18*t,0,Math.PI*2);
-    ctx.fillStyle='#204828'; ctx.fill();
-    // spiky leaf highlight
-    for (let i=0;i<6;i++) {
-      const a=(i/6)*Math.PI*2;
-      ctx.beginPath();
-      ctx.moveTo(x+Math.cos(a)*8*t,gy-h*0.55+Math.sin(a)*6*t);
-      ctx.lineTo(x+Math.cos(a+0.4)*14*t,gy-h*0.55+Math.sin(a+0.4)*10*t);
-      ctx.strokeStyle='#2a5a30'; ctx.lineWidth=1.5; ctx.stroke();
-    }
-    // red berries
-    if (t>0.3) {
-      for (let i=0;i<8;i++) {
-        const a=(i/8)*Math.PI*2;
-        const br=12*t;
-        drawCircle(ctx,x+Math.cos(a)*br,gy-h*0.6+Math.sin(a)*br*0.5,3,'#cc1010');
+    // dense central mass
+    ctx.beginPath();
+    ctx.moveTo(x-35*t,gy-h*0.2);
+    ctx.lineTo(x,gy-h);
+    ctx.lineTo(x+35*t,gy-h*0.2);
+    ctx.closePath();
+    ctx.fillStyle='#1a3a1e'; ctx.globalAlpha=0.6; ctx.fill(); ctx.globalAlpha=1;
+    // tiny cones
+    if (t>0.5) {
+      for (let i=0;i<4;i++) {
+        const cx2=x+(prand(id,i)-0.5)*20*t;
+        const cy2=gy-h*0.4-prand(id,i+10)*h*0.3;
+        ctx.beginPath(); ctx.ellipse(cx2,cy2,2*t,3*t,0,0,Math.PI*2);
+        ctx.fillStyle='#5a3a20'; ctx.fill();
       }
     }
   }
 });
 
-defSpecies('ivy', {
-  name: 'Ivy', latin: 'Hedera helix',
-  kingdom: 'plant', layer: 'ground',
-  era: 'climax', coverMin: 0.20, coverMax: 1.0,
-  maxAge: 100, matureAge: 8, heightPx: 15,
-  spreadPerYear: 0.6, spreadRadius: 80,
-  edible: null,
-  info: "Ivy is neither parasite nor friend — it is opportunist. Its evergreen leaves provide winter cover for insects and its late flowers are the last nectar of the year, crucial for queen bumblebees preparing for winter.",
-  draw(ctx, x, gy, t, season, phase) {
-    // trailing stems
+defSpecies('buckthorn', {
+  name: 'Common Buckthorn', latin: 'Rhamnus cathartica',
+  kingdom: 'plant', layer: 'shrub',
+  era: 'climax', coverMin: 0, coverMax: 1.0, soilMin: 0.12,
+  maxAge: 60, matureAge: 6, heightPx: 90,
+  spreadPerYear: 0.4, spreadRadius: 100,
+  edible: { part: 'berries (DO NOT)', restore: -0.10, poisonous: true, flavor: 'Violently purgative. The Latin name means "cure" but there is no kindness in it.' },
+  info: "Invasive. Buckthorn was planted as hedgerow in Ontario and escaped. It leafs out early, drops leaves late, and shades out everything beneath it. Birds eat its berries and spread it further. Removing it is ongoing, exhausting work.",
+  draw(ctx, x, gy, t, season, phase, id) {
+    const h = 80*t;
+    // dense multi-stemmed shrub
     for (let s=0;s<4;s++) {
-      const ox=(s-1.5)*14*t;
-      ctx.beginPath();
-      ctx.moveTo(x,gy);
-      ctx.quadraticCurveTo(x+ox*0.6,gy-8*t,x+ox,gy-14*t);
-      ctx.strokeStyle='#2a5020'; ctx.lineWidth=1.2; ctx.stroke();
-      // 5-lobed leaves
-      const lx=x+ox, ly=gy-14*t;
-      ctx.beginPath();
-      ctx.moveTo(lx,ly-5*t);
-      for (let l=0;l<5;l++) {
-        const la=(l/5)*Math.PI*2-Math.PI/2;
-        ctx.lineTo(lx+Math.cos(la)*7*t,ly+Math.sin(la)*6*t);
-        ctx.lineTo(lx+Math.cos(la+Math.PI/5)*4*t,ly+Math.sin(la+Math.PI/5)*4*t);
-      }
-      ctx.closePath();
-      ctx.fillStyle='#2a5828'; ctx.fill();
+      const ox=(s-1.5)*8*t;
+      const lean=(s-1.5)*6;
+      ctx.beginPath(); ctx.moveTo(x+ox,gy);
+      ctx.quadraticCurveTo(x+ox+lean*0.4,gy-h*0.5,x+ox+lean,gy-h);
+      ctx.strokeStyle='#4a3a28'; ctx.lineWidth=2.5+t*1.5; ctx.stroke();
     }
-    // black berries in winter
-    if (season===3 && t>0.5) {
-      for (let i=0;i<4;i++) {
-        drawCircle(ctx,x+(i-1.5)*10*t,gy-10,3,'#1a1020');
+    if (t<0.2) return;
+    // dark green, dense — leafs early, drops late (present in all but deep winter)
+    const leafCol = season===3?null:'#2a5a18';
+    if (leafCol) {
+      for (let b=0;b<8;b++) {
+        const a=(b/8)*Math.PI*1.8-0.9;
+        const br=(18+b*3)*t;
+        const bx=x+Math.cos(a)*br;
+        const by=gy-h*0.5+Math.sin(a)*br*0.4;
+        ctx.beginPath(); ctx.arc(bx,by,10*t,0,Math.PI*2);
+        ctx.fillStyle=leafCol; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+      }
+    }
+    // dark berries in clusters — late summer through autumn
+    if ((season===1||season===2) && t>0.4) {
+      for (let i=0;i<10;i++) {
+        const bx=x+(prand(id,i)-0.5)*35*t;
+        const by=gy-h*0.4-prand(id,i+20)*h*0.3;
+        drawCircle(ctx,bx,by,3,'#1a1020');
       }
     }
   }
 });
+
+defSpecies('deathcap', {
+  name: 'Death Cap', latin: 'Amanita phalloides',
+  kingdom: 'fungi', layer: 'fungal',
+  era: 'climax', coverMin: 0.40, coverMax: 1.0,
+  maxAge: 0.18, matureAge: 0.08, heightPx: 28,
+  spreadPerYear: 1.5, spreadRadius: 70,
+  edible: { part: 'half a cap is lethal', restore: -0.95, poisonous: true, flavor: 'The taste is reportedly pleasant. The damage to the liver begins after the symptoms have passed, and is irreversible.' },
+  info: "The most dangerous mushroom in the world. Non-native to Ontario but spreading — found near mature oaks and imported European trees, exchanging minerals for sugars through a quiet underground partnership.",
+  draw(ctx, x, gy, t, season, phase) {
+    if (season < 1 || season > 2) return;
+    const h = 26 * t;
+    // Bulbous volva
+    ctx.beginPath();
+    ctx.ellipse(x, gy, 6 * t, 3 * t, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8e4d6'; ctx.fill();
+    // White stem
+    ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
+    ctx.strokeStyle = '#f4f0e2'; ctx.lineWidth = 4 * t; ctx.stroke();
+    // Skirt (annulus)
+    if (t > 0.5) {
+      ctx.beginPath();
+      ctx.ellipse(x, gy - h * 0.5, 6 * t, 1.8 * t, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(244,240,226,0.95)'; ctx.fill();
+    }
+    // Pale olive-green cap
+    ctx.beginPath();
+    ctx.arc(x, gy - h, 12 * t, Math.PI, Math.PI * 2);
+    ctx.quadraticCurveTo(x + 13 * t, gy - h, x, gy - h + 2);
+    ctx.quadraticCurveTo(x - 13 * t, gy - h, x - 12 * t, gy - h);
+    ctx.fillStyle = '#9bb070'; ctx.fill();
+    // Subtle radial streaks
+    ctx.strokeStyle = '#7a8a55'; ctx.lineWidth = 0.6;
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI + (i / 4) * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(x, gy - h + 1);
+      ctx.lineTo(x + Math.cos(a) * 11 * t, gy - h + Math.sin(a) * 6 * t);
+      ctx.stroke();
+    }
+  }
+});
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────────────
+// How each being carries itself through time. Reproduction is one answer among several.
+SPECIES.lichen.persistence = {
+  strategy: 'symbiotic',
+  note: "Not one organism. A fungus and an alga living as one body — a partnership older than land plants."
+};
+SPECIES.moss.persistence = {
+  strategy: 'spore',
+  note: "No flowers, no seeds. Releases spores from tiny capsules on slender stalks — a lineage 450 million years old."
+};
+SPECIES.dandelion.persistence = {
+  strategy: 'clonal',
+  note: "Most dandelions set seed without any pollination. Each puff is largely a clone of its parent."
+};
+SPECIES.fireweed.persistence = {
+  strategy: 'opportunist',
+  note: "Seeds drift on silk for kilometres. It also spreads from underground stems — first to arrive after fire or clearing, hard to remove."
+};
+SPECIES.grass.persistence = {
+  strategy: 'sexual',
+  note: "Wind-pollinated. Seed falls close or rides the breeze; the dense fibrous root mat is what actually holds the ground."
+};
+SPECIES.yarrow.persistence = {
+  strategy: 'clonal',
+  note: "Spreads by seed and by underground stems. A yarrow patch is often one slow wandering plant."
+};
+SPECIES.raspberry.persistence = {
+  strategy: 'clonal',
+  note: "Canes arch, tip-root, and rise again. The underground crown is the true plant; the visible canes are its fingers."
+};
+SPECIES.birch.persistence = {
+  strategy: 'sexual',
+  note: "Catkins, wind-blown seed. A pioneer that lives fast and dies relatively young — opening the canopy for what comes next."
+};
+SPECIES.red_maple.persistence = {
+  strategy: 'sexual',
+  note: "Red samaras spin down in late spring — the earliest tree seed of the year, germinating within days of landing."
+};
+SPECIES.shaggy_inkcap.persistence = {
+  strategy: 'spore',
+  note: "Autodigests. The ripening cap dissolves itself into black ink, dripping spores in slow drops over hours rather than releasing them all at once."
+};
+SPECIES.dogwood.persistence = {
+  strategy: 'sexual',
+  note: "Berries taken by birds; seeds pass through and land far from the parent. Also suckers slowly from the root crown."
+};
+SPECIES.witch_hazel.persistence = {
+  strategy: 'sexual',
+  note: "Seed capsules dry through the summer and then split explosively, flinging seeds up to ten metres. You may hear the snap."
+};
+SPECIES.serviceberry.persistence = {
+  strategy: 'sexual',
+  note: "Berries ripen just as migrating thrushes arrive — a coincidence that is not a coincidence. Also suckers from the base."
+};
+SPECIES.fern.persistence = {
+  strategy: 'spore',
+  note: "The tall fertile fronds stand through winter, releasing spores onto snow. The vase spreads slowly by rhizome beneath the litter."
+};
+SPECIES.baneberry.persistence = {
+  strategy: 'sexual',
+  note: "Birds eat the berries and spread the seeds. The roots are persistent; a clump can outlast the trees around it."
+};
+SPECIES.ash.persistence = {
+  strategy: 'sexual',
+  note: "Paired keys spiral on the wind. An individual may flower male, female, or both — and switch between years."
+};
+SPECIES.stinkhorn.persistence = {
+  strategy: 'spore',
+  note: "Sidesteps the wind. The smell summons flies; the flies do the dispersal. An unusual partnership for a mushroom."
+};
+SPECIES.bracket_fungus.persistence = {
+  strategy: 'spore',
+  note: "Decomposer. Shelf-shaped fruiting bodies release trillions of spores each year to find the next fallen tree."
+};
+SPECIES.sugar_maple.persistence = {
+  strategy: 'sexual',
+  note: "Paired samaras autorotate down. Seedlings are extraordinarily shade-tolerant — they wait, sometimes decades, for a gap."
+};
+SPECIES.trillium.persistence = {
+  strategy: 'sexual',
+  note: "Seeds have oily appendages that ants carry underground to their nests. A seed-grown trillium takes seven years to flower."
+};
+SPECIES.garlic_mustard.persistence = {
+  strategy: 'sexual',
+  note: "A single plant produces hundreds of seeds viable for five years. It also suppresses the mycorrhizal fungi its competitors depend on."
+};
+SPECIES.basswood.persistence = {
+  strategy: 'clonal',
+  note: "Sprouts vigorously from the stump after cutting. The root system is long-lived; a stand of basswood is often one old root."
+};
+SPECIES.chanterelle.persistence = {
+  strategy: 'symbiotic',
+  note: "The visible mushroom is the fruit. The rest is woven through tree roots, trading sugar for phosphorus."
+};
+SPECIES.honey_fungus.persistence = {
+  strategy: 'clonal',
+  note: "A single honey fungus can cover many acres of forest floor. The caps are merely the visible flowers of one underground body."
+};
+SPECIES.white_pine.persistence = {
+  strategy: 'sexual',
+  note: "Cones take two years to mature. Seeds are winged and wind-carried; seedlings require open mineral soil and light — they do not persist under their own shade."
+};
+SPECIES.foxglove.persistence = {
+  strategy: 'sexual',
+  note: "Biennial. The first year it waits low to the ground; the second it sends up a single spike and dies. A European garden escape."
+};
+SPECIES.hemlock.persistence = {
+  strategy: 'sexual',
+  note: "Tiny winged seeds. Seedlings establish best on the surface of decaying logs — the nurse log a gift from the generation before."
+};
+SPECIES.buckthorn.persistence = {
+  strategy: 'sexual',
+  note: "Birds eat the berries and spread the seeds widely. It leafs out earlier and drops later than native shrubs, stealing weeks of photosynthesis."
+};
+SPECIES.fly_agaric.persistence = {
+  strategy: 'symbiotic',
+  note: "The mushroom is brief. Its true body is a kilometres-wide network entangled with birch roots, trading sugar for minerals."
+};
+SPECIES.earthball.persistence = {
+  strategy: 'spore',
+  note: "Splits open at maturity, releasing a brown cloud of spores into the wind. No stem, no gills — just a sac that bursts."
+};
+SPECIES.deathcap.persistence = {
+  strategy: 'symbiotic',
+  note: "Mycorrhizal partner of mature trees. Non-native to North America — it arrived with European plantings and is spreading. The lethality is incidental."
+};
+SPECIES.jack_in_pulpit.persistence = {
+  strategy: 'sexual',
+  note: "Berries taken by wood thrushes and chipmunks. A plant can switch from male to female between years, depending on how well it stored energy. Female plants are the well-fed ones."
+};
+SPECIES.mayapple.persistence = {
+  strategy: 'clonal',
+  note: "Spreads primarily by rhizome into connected colonies. Most shoots are sterile — only the forked ones can flower. A colony may be one plant exploring its territory."
+};
+SPECIES.solomons_seal.persistence = {
+  strategy: 'clonal',
+  note: "Spreads slowly by rhizome. Each year's stem leaves a circular scar — count them to find the age of the underground plant. Berries dispersed by thrushes."
+};
+
+// ── LISTEN LINES ──────────────────────────────────────────────────────────────
+// Per-species fragments, first-person, picked at random when the player listens.
+SPECIES.lichen.listen = [
+  "I am two things. Neither alone could live here.",
+  "The rock under me is my food. It will be soil in a thousand years.",
+  "I was here before the trees. I will be here after."
+];
+SPECIES.moss.listen = [
+  "I am the skin of the stone, thickening.",
+  "Step lightly. You are walking on years of me.",
+  "Every raindrop I hold is water that doesn't run away."
+];
+SPECIES.dandelion.listen = [
+  "I break pavement. I am not trying to.",
+  "Every part of me is food. People forgot that recently.",
+  "My taproot reaches where the grasses cannot."
+];
+SPECIES.fireweed.listen = [
+  "Where the ground burned, I came first.",
+  "I do not stay long. Others grow where I softened the earth.",
+  "My seeds travel kilometres. I go where I am needed."
+];
+SPECIES.grass.listen = [
+  "The deer depend on me. You depend on the deer.",
+  "My roots hold what the rain would carry away.",
+  "I grow from the base. You can cut me and I don't care."
+];
+SPECIES.yarrow.listen = [
+  "You have pressed me onto wounds since before you had words for it.",
+  "Seventy species of insect find something here. I don't count them."
+];
+SPECIES.raspberry.listen = [
+  "Reach in. The thorns are not personal.",
+  "My cane dies after two years. The root underneath is older than you'd guess.",
+  "Where I grow thick, young trees grow safe inside me."
+];
+SPECIES.birch.listen = [
+  "I go first. I don't stay long.",
+  "Others root in my shade and then outgrow me. That's fine.",
+  "My bark peels in sheets. I am not falling apart — that is just how I am built."
+];
+SPECIES.red_maple.listen = [
+  "I turn red before the others. I colour last too, in spring.",
+  "My seeds are the first to fall. They germinate in days.",
+  "I grow in the wet places the other maples avoid."
+];
+SPECIES.shaggy_inkcap.listen = [
+  "By tomorrow I will be a puddle of ink. Look while you can.",
+  "I undo myself to release what I carry.",
+  "I push through gravel and asphalt. Softness is not weakness."
+];
+SPECIES.dogwood.listen = [
+  "My branches reach out in layers, one above the next.",
+  "The birds take my berries in September. I am ready for them.",
+  "In winter my twigs are red. I am still here."
+];
+SPECIES.witch_hazel.listen = [
+  "I flower in November. I chose the emptiest season.",
+  "My seed capsules spend the whole summer tightening. Then they let go.",
+  "I bloom when nothing else does. The few insects still flying find me."
+];
+SPECIES.serviceberry.listen = [
+  "My berries ripen just as the migrating birds arrive. That is not a coincidence.",
+  "I flower before the leaves. The bees remember where I am.",
+  "People here have been eating my fruit for a long time. Longer than the name on the map."
+];
+SPECIES.fern.listen = [
+  "My family was here before the flowers. We are older than bees.",
+  "The fertile frond stands through winter. In spring the spores fall on snow.",
+  "Fiddleheads in May. After that, do not touch me."
+];
+SPECIES.baneberry.listen = [
+  "The berries look edible. They are not.",
+  "The birds know which berries are for them. This is for the birds.",
+  "I grow in the deep shade of old trees. I am patient."
+];
+SPECIES.ash.listen = [
+  "Something is killing us. You may see fewer of us than your parents did.",
+  "The beetle came with wood that crossed an ocean. It did not know what it was carrying.",
+  "My keys spiral. The wind carries them farther than I can imagine."
+];
+SPECIES.stinkhorn.listen = [
+  "I do not call to bees. I call to flies.",
+  "I grow inches in a single hour.",
+  "Beauty is not the only way to be found."
+];
+SPECIES.bracket_fungus.listen = [
+  "I am how the dead tree becomes soil.",
+  "This is slow work. Centuries of it.",
+  "The tree is gone. What I am doing here is not gone."
+];
+SPECIES.sugar_maple.listen = [
+  "I am slower than you. You will not see what I become.",
+  "My seedlings wait in the shade for decades. They are not failing.",
+  "In October I spend everything I have. Then I rest.",
+  "The sap runs when nights are cold and days are warm. A narrow window."
+];
+SPECIES.trillium.listen = [
+  "An ant carried my seed underground. I owe the ant.",
+  "It will be seven years before I flower from a seed. I am in no rush.",
+  "Pick me and I take years to recover. I am not asking you not to. Just saying."
+];
+SPECIES.garlic_mustard.listen = [
+  "I produce hundreds of seeds. They last five years in the soil.",
+  "The fungi my neighbours need — I suppress them. I did not plan this.",
+  "I smell like garlic when you crush me. Some people eat me. I keep coming anyway."
+];
+SPECIES.basswood.listen = [
+  "In July I flower and the whole forest smells like honey.",
+  "Cut me to the stump. I will send up a dozen new stems.",
+  "The bees find me before they find anything else."
+];
+SPECIES.chanterelle.listen = [
+  "I live with the trees. Neither of us tells the other what to do.",
+  "What you pick is a fruit. The rest of me is still here.",
+  "I cannot be farmed. I only grow where I want to grow."
+];
+SPECIES.honey_fungus.listen = [
+  "What you see is a hundred caps. I am one thing.",
+  "The trees I live beside, I will outlast. Slowly.",
+  "My rhizomorphs travel in the dark. The trees feel me before they see any sign."
+];
+SPECIES.white_pine.listen = [
+  "I was here before the survey lines.",
+  "My needles fall and acidify the soil. I make the ground I want.",
+  "I grow tall enough to navigate by. People have."
+];
+SPECIES.foxglove.listen = [
+  "I grow from where something ended.",
+  "Do not eat me. This is not a lecture, only a fact.",
+  "I came from a garden in Europe. I found the disturbed ground and stayed."
+];
+SPECIES.hemlock.listen = [
+  "I grow best on a nurse log. The old tree's body is how I begin.",
+  "My canopy keeps the stream cold. The trout are downstream.",
+  "I am slow. I can wait."
+];
+SPECIES.buckthorn.listen = [
+  "The birds spread my seeds. They don't know what I do to a forest floor.",
+  "I leaf out in April and hold my leaves until November. I take the light.",
+  "I have been here since the settlers planted me for hedges. I have not left."
+];
+SPECIES.fly_agaric.listen = [
+  "What you see is the fruit. I am under your feet, everywhere.",
+  "The birch and I have been doing this for a long time.",
+  "I am in the fairy tales. I was real before the stories."
+];
+SPECIES.earthball.listen = [
+  "I am skin and dust. When I split, I am gone.",
+  "Where nothing else grew, I came first.",
+  "I look edible. I am not."
+];
+SPECIES.deathcap.listen = [
+  "I am beautiful. I will kill you. Both are true.",
+  "I never meant to. The toxin was for something much smaller than you.",
+  "I am not from here. I came with the European oaks."
+];
+SPECIES.jack_in_pulpit.listen = [
+  "Last year I was male. This year I had enough stored. Now I make seeds.",
+  "The red berries are not for you. They are for the thrush.",
+  "The corm will burn your mouth for hours. It takes months of drying to make it safe. Someone learned that."
+];
+SPECIES.mayapple.listen = [
+  "Most of me cannot flower. Only the forked ones can.",
+  "The fruit is edible — when it is yellow and soft and ready. Not before.",
+  "We are connected underground. What you see is not the whole colony."
+];
+SPECIES.solomons_seal.listen = [
+  "Count the scars on my stem. That is how many years I have been here.",
+  "The bells are for the bumblebee. The berries are for the thrush.",
+  "I lean toward the light. By the end of summer I am a different shape than I started."
+];
 
 // ── PLANT INSTANCES ───────────────────────────────────────────────────────────
 let plants = [];
@@ -1085,15 +2164,72 @@ const colonizeRates = {
 };
 const nutrientBoostMap = {}; // wx -> bonus multiplier
 
-// Canopy cover: fraction of "full" canopy (12 mature canopy trees = cover 1.0).
-// Drives which species can establish — replaces the old year-gate system.
+// Canopy cover: fraction of "full" canopy.  Drives which species can
+// establish — replaces the old year-gate system.
+// Each mature canopy tree contributes 1.0; saplings ramp from 0 at 30%
+// maturity to 1.0 at 100%.  Large shrubs (witch_hazel, serviceberry) contribute
+// 0.35 each — they provide real shade in a Great Lakes woodland.
+// Denominator is 8 (a realistic closed-canopy count for this world width).
 function getCanopyCover() {
-  let mature = 0;
+  let cover = 0;
   for (const p of plants) {
     const sp = SPECIES[p.speciesId];
-    if (sp && sp.layer === 'canopy' && p.age >= sp.matureAge * 0.7) mature++;
+    if (!sp) continue;
+    if (sp.layer === 'canopy') {
+      const maturity = Math.min(1, p.age / sp.matureAge);
+      if (maturity < 0.3) continue; // tiny saplings don't shade
+      cover += 0.3 + 0.7 * maturity; // ramp from 0.3 at 30% to 1.0 at full
+    } else if (sp.layer === 'shrub') {
+      const maturity = Math.min(1, p.age / sp.matureAge);
+      if (maturity < 0.4) continue;
+      cover += 0.15 * maturity;
+    }
   }
-  return Math.min(1, mature / 12);
+  return Math.min(1, cover / 64);
+}
+
+// ── SOIL SCORE ────────────────────────────────────────────────────────────────
+// Accumulated organic richness (0–1). Driven by pioneer biomass, fungal
+// decomposers, and the matter of every plant that dies naturally.
+// Never decreases — soil, once built, persists across succession.
+let soilScore = 0;
+
+function getSoilRate() {
+  let rate = 0;
+  for (const p of plants) {
+    const sp = SPECIES[p.speciesId];
+    if (!sp) continue;
+    const mat = Math.min(1, p.age / sp.matureAge);
+    if (sp.era === 'pioneer')         rate += 0.00010 * mat; // break rock → mineral soil
+    else if (sp.layer === 'fungal')   rate += 0.00017 * mat; // decomposers + mycorrhizae
+    else if (sp.layer === 'ground')   rate += 0.000040 * mat; // leaf litter, organic layer
+    else                              rate += 0.000020 * mat; // shrub/canopy leaf fall
+  }
+  return rate;
+}
+
+// Soil requirement by succession era. Override per-species with sp.soilMin.
+const soilByEra = { pioneer: 0, early: 0.07, mid: 0.3, late: 0.60, climax: 0.8 };
+function soilReqFor(sp) {
+  return sp.soilMin !== undefined ? sp.soilMin : (soilByEra[sp.era] || 0);
+}
+
+// Local canopy cover around a world-x: used for sowing decisions so that
+// a clearing under a climax forest still reads as "open" to a seedling.
+// Falls off with distance; two nearby mature canopies saturate.
+function getLocalCover(wx) {
+  const R = 220;
+  let shade = 0;
+  for (const p of plants) {
+    const sp = SPECIES[p.speciesId];
+    if (!sp || sp.layer !== 'canopy') continue;
+    const maturity = Math.min(1, p.age / sp.matureAge);
+    if (maturity < 0.3) continue; // saplings don't really shade
+    const d = Math.abs(p.x - wx);
+    if (d > R) continue;
+    shade += maturity * (1 - d / R);
+  }
+  return Math.min(1, shade / 2);
 }
 
 function updatePlants(dt) {
@@ -1102,22 +2238,37 @@ function updatePlants(dt) {
 
   const cover = getCanopyCover();
 
-  // Age and kill — all plants die at natural maxAge
+  // Age and kill — all plants die at natural maxAge.
+  // E1 — plants within 150px of an active grave age 10% faster.
   for (let i = plants.length-1; i >= 0; i--) {
     const p = plants[i];
     const sp = SPECIES[p.speciesId];
-    p.age += yearDelta;
+    let ageBonus = 1;
+    for (const g of graves) {
+      if (g.nutrientT < 20 && Math.abs(p.x - g.x) < 150) { ageBonus = 1.1; break; }
+    }
+    p.age += yearDelta * ageBonus;
     if (p.age > sp.maxAge) {
+      // Natural death deposits organic matter proportional to plant size.
+      soilScore = Math.min(1, soilScore + 0.00020 * Math.min(1, sp.heightPx / 200));
       plants.splice(i, 1);
     }
   }
 
-  // Spread — only within the species' cover window
+  // Soil accumulates from living pioneer/fungal/ground biomass each frame.
+  soilScore = Math.min(1, soilScore + getSoilRate() * yearDelta);
+
+  // Spread — only within the species' cover window.
+  // E1 — plants near active graves spread at ×1.5.
   const toAdd = [];
   for (const p of plants) {
     const sp = SPECIES[p.speciesId];
-    if (cover < sp.coverMin || cover > sp.coverMax) continue;
-    const spr = (sp.spreadPerYear||0.2) * yearDelta;
+    if (cover < sp.coverMin || cover > sp.coverMax || soilScore < soilReqFor(sp)) continue;
+    let graveBoost = 1;
+    for (const g of graves) {
+      if (g.nutrientT < 20 && Math.abs(p.x - g.x) < 150) { graveBoost = 1.5; break; }
+    }
+    const spr = (sp.spreadPerYear||0.2) * yearDelta * graveBoost;
     if (Math.random() < spr) {
       const nx = p.x + (Math.random()-0.5)*2*(sp.spreadRadius||80);
       const crowded = plants.filter(q => q.speciesId === sp.id && Math.abs(q.x - nx) < (sp.spreadRadius||80) * 0.6).length >= 4;
@@ -1125,10 +2276,13 @@ function updatePlants(dt) {
     }
   }
 
-  // Global colonization — cover-gated
+  // Global colonization — cover-gated.
+  // When the forest is near-empty, boost colonisation so recovery doesn't
+  // stall for centuries (seeds blow in from beyond the sim's edges).
+  const recoveryBoost = plants.length < 30 ? 3 : plants.length < 100 ? 1.5 : 1;
   for (const [id, sp] of Object.entries(SPECIES)) {
-    if (cover < sp.coverMin || cover > sp.coverMax) continue;
-    const rate = (colonizeRates[sp.era] || 0.15) * (sp.layer === 'canopy' ? 0.2 : 1);
+    if (cover < sp.coverMin || cover > sp.coverMax || soilScore < soilReqFor(sp)) continue;
+    const rate = (colonizeRates[sp.era] || 0.15) * (sp.layer === 'canopy' ? 0.2 : 1) * recoveryBoost;
     if (Math.random() < rate * yearDelta) {
       const wx = Math.random() * WORLD_W;
       if (sp.layer === 'fungal' && Math.floor((year%1)*4) !== 2 && Math.floor((year%1)*4) !== 1) continue;
@@ -1138,16 +2292,134 @@ function updatePlants(dt) {
 
   for (const [id,wx] of toAdd) addPlant(id, wx);
 
-  // Cap at 150 — succession-priority eviction (pioneer first, climax canopy last)
-  if (plants.length > 150) {
-    const eraOrd = { pioneer: 0, early: 1, mid: 2, late: 3, climax: 4 };
-    plants.sort((a, b) => {
-      const spa = SPECIES[a.speciesId], spb = SPECIES[b.speciesId];
-      const pa = eraOrd[spa.era] * 2 + (spa.layer === 'canopy' ? 1 : 0);
-      const pb = eraOrd[spb.era] * 2 + (spb.layer === 'canopy' ? 1 : 0);
-      return pa !== pb ? pa - pb : a.id - b.id;
+  // Per-layer carrying capacities — each layer competes only within itself,
+  // so canopy trees cannot crowd out understory and ground cover.
+  // Within each layer, pioneer species are evicted before climax; ties are random.
+  const LAYER_CAPS = { canopy: 50, shrub: 60, ground: 150, fungal: 40 };
+  const eraOrd = { pioneer: 0, early: 1, mid: 2, late: 3, climax: 4 };
+  for (const [layer, cap] of Object.entries(LAYER_CAPS)) {
+    const inLayer = plants.filter(p => SPECIES[p.speciesId] && SPECIES[p.speciesId].layer === layer);
+    if (inLayer.length <= cap) continue;
+    for (const p of inLayer) p._evictRand = Math.random();
+    inLayer.sort((a, b) => {
+      const ea = eraOrd[SPECIES[a.speciesId].era] || 0;
+      const eb = eraOrd[SPECIES[b.speciesId].era] || 0;
+      return ea !== eb ? ea - eb : a._evictRand - b._evictRand;
     });
-    plants.splice(0, plants.length - 150);
+    const toEvict = new Set(inLayer.slice(0, inLayer.length - cap).map(p => p.id));
+    for (let i = plants.length - 1; i >= 0; i--) {
+      if (toEvict.has(plants[i].id)) plants.splice(i, 1);
+    }
+  }
+}
+
+// ── MYCELIAL NETWORK ─────────────────────────────────────────────────────────
+// Nodes are canopy trees + fungal plants. Edges are tree↔fungus (ecto),
+// tree↔tree (root), and downward "shoot" stubs that trace each tree's
+// implied root system into the soil. Recomputed on a short timer while the
+// view is visible — cheap (n^2 across at most ~150 plants), and lets the
+// network breathe as trees mature and saplings die.
+const MYC_NEIGHBOURS  = 6;     // fan-out per node
+const MYC_ECTO_RANGE  = 520;   // px — fungus reach to canopy
+const MYC_ROOT_RANGE  = 480;   // px — canopy-to-canopy reach
+function computeMycelium() {
+  myceliumEdges = [];
+  const canopies = [], fungi = [];
+  for (const p of plants) {
+    const sp = SPECIES[p.speciesId];
+    if (!sp) continue;
+    if (sp.layer === 'canopy') canopies.push(p);
+    else if (sp.layer === 'fungal') fungi.push(p);
+  }
+  // Each fungus reaches to its 6 nearest canopies within range.
+  for (const f of fungi) {
+    const near = [];
+    for (const c of canopies) {
+      const d = Math.abs(c.x - f.x);
+      if (d <= MYC_ECTO_RANGE) near.push({ c, d });
+    }
+    near.sort((a, b) => a.d - b.d);
+    for (let i = 0; i < Math.min(MYC_NEIGHBOURS, near.length); i++) {
+      const c = near[i].c;
+      const csp = SPECIES[c.speciesId];
+      const maturity = Math.min(1, c.age / csp.matureAge);
+      myceliumEdges.push({
+        ax: f.x, ay: groundY(f.x) + 14,
+        bx: c.x, by: groundY(c.x) + 26,
+        // Closer/younger neighbours read a touch fainter so the brightest
+        // strands are still the principal partnerships.
+        strength: 0.30 + 0.55 * maturity * (1 - i * 0.08),
+        type: 'ecto',
+      });
+    }
+  }
+  // Each canopy reaches to its 6 nearest other canopies within range.
+  // Dedup by id-pair so each connection is drawn once.
+  const seenPairs = new Set();
+  for (let i = 0; i < canopies.length; i++) {
+    const a = canopies[i];
+    const near = [];
+    for (let j = 0; j < canopies.length; j++) {
+      if (i === j) continue;
+      const d = Math.abs(canopies[j].x - a.x);
+      if (d <= MYC_ROOT_RANGE) near.push({ c: canopies[j], d });
+    }
+    near.sort((x, y) => x.d - y.d);
+    for (let k = 0; k < Math.min(MYC_NEIGHBOURS, near.length); k++) {
+      const b = near[k].c;
+      const key = a.id < b.id ? a.id + '-' + b.id : b.id + '-' + a.id;
+      if (seenPairs.has(key)) continue;
+      seenPairs.add(key);
+      const asp = SPECIES[a.speciesId], bsp = SPECIES[b.speciesId];
+      const ma = Math.min(1, a.age / asp.matureAge);
+      const mb = Math.min(1, b.age / bsp.matureAge);
+      myceliumEdges.push({
+        ax: a.x, ay: groundY(a.x) + 26,
+        bx: b.x, by: groundY(b.x) + 26,
+        strength: 0.25 + 0.55 * Math.min(ma, mb) * (1 - k * 0.08),
+        type: 'root',
+      });
+    }
+  }
+  // Downward root shoots — each mature canopy sends 4–6 stubs into the soil,
+  // fanning out from the trunk. Seeded by plant id so they stay stable.
+  for (const c of canopies) {
+    const csp = SPECIES[c.speciesId];
+    const maturity = Math.min(1, c.age / csp.matureAge);
+    if (maturity < 0.2) continue;
+    const baseY = groundY(c.x) + 6;
+    const numShoots = 4 + Math.floor(prand(c.id, 1) * 3); // 4..6
+    for (let s = 0; s < numShoots; s++) {
+      // Spread the shoots across a 130° downward fan, jittered per shoot.
+      const spread = (s / Math.max(1, numShoots - 1) - 0.5) * 2.3;
+      const jitter = (prand(c.id, s + 10) - 0.5) * 0.45;
+      const angle  = spread + jitter; // angle from straight-down
+      const len = 28 + prand(c.id, s + 20) * 60 * (0.5 + maturity * 0.5);
+      myceliumEdges.push({
+        ax: c.x,
+        ay: baseY,
+        bx: c.x + Math.sin(angle) * len,
+        by: baseY + Math.cos(angle) * len * 0.85 + 6,
+        strength: 0.30 + 0.55 * maturity,
+        type: 'shoot',
+        seed: c.id * 17 + s,
+      });
+      // A few of the longest shoots get a forked sub-tip.
+      if (prand(c.id, s + 30) < 0.45 && len > 50) {
+        const fAngle = angle + (prand(c.id, s + 40) - 0.5) * 0.9;
+        const fLen   = len * (0.35 + prand(c.id, s + 50) * 0.35);
+        const tipX = c.x + Math.sin(angle) * len;
+        const tipY = baseY + Math.cos(angle) * len * 0.85 + 6;
+        myceliumEdges.push({
+          ax: tipX, ay: tipY,
+          bx: tipX + Math.sin(fAngle) * fLen,
+          by: tipY + Math.cos(fAngle) * fLen * 0.85,
+          strength: 0.20 + 0.40 * maturity,
+          type: 'shoot',
+          seed: c.id * 17 + s + 100,
+        });
+      }
+    }
   }
 }
 
@@ -1374,7 +2646,27 @@ const player = {
   reborn: false,
   camFreeze: 0,
   deathMsgT: 0,
+  seeds: {},         // { speciesId: count } — gut-carried seeds
+  selectedSeed: null, // speciesId currently selected for sowing, or null
+  ledger: {
+    took: 0,       // plants eaten or removed (per life)
+    gave: 0,       // plants sown or tended (per life)
+    listened: 0,   // Listen actions (per life)
+    died: 0,       // deaths — persists across rebirths
+    lifeStart: 0,  // year this life began
+    // Session-wide totals (never reset) — used by D3 reflection.
+    totalTook: 0,
+    totalGave: 0,
+    totalListened: 0,
+  },
 };
+
+const SEED_CAP = 12; // total seeds carried across all species — a gut, not a warehouse
+function totalSeeds() {
+  let n = 0;
+  for (const k in player.seeds) n += player.seeds[k];
+  return n;
+}
 
 const graves = []; // persists across deaths
 
@@ -1406,23 +2698,50 @@ function drawPlayer() {
   ctx.restore();
 }
 
+// E2 — old graves drawn as mossed lumps. Called every frame (alive or dead)
+// so graves remain visible when the player walks past them.
+function drawOldGraves() {
+  for (const g of graves) {
+    if (g.sinkT < 2) continue; // only settled graves
+    const dist = Math.abs(player.x - g.x);
+    if (dist > 200) continue;
+    const sx = g.x - camX;
+    if (sx < -60 || sx > canvas.width + 60) continue;
+    const gY = groundY(g.x);
+    const alpha = Math.max(0, 1 - (dist - 120) / 80); // fade in from 200→120px
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.7;
+    // Mossed earth lump
+    ctx.fillStyle = '#3a4a2e';
+    ctx.beginPath();
+    ctx.ellipse(sx, gY, 12, 4, 0, Math.PI, 0);
+    ctx.fill();
+    // Tiny moss tufts
+    ctx.fillStyle = '#5a7a4a';
+    ctx.fillRect(sx - 6, gY - 5, 2, 5);
+    ctx.fillRect(sx + 2, gY - 7, 2, 7);
+    ctx.fillRect(sx - 2, gY - 4, 2, 4);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+
 function drawDeadPlayer() {
   for (const g of graves) {
+    if (g.sinkT >= 2) continue; // old graves handled by drawOldGraves
     const sx = g.x - camX;
+    if (sx < -60 || sx > canvas.width + 60) continue;
     const gY = groundY(g.x);
+    // Active death animation — sinking body
     const sinkY = Math.min(g.sinkT * 20, 20);
     ctx.save(); ctx.translate(sx, gY + sinkY);
     ctx.globalAlpha = Math.max(0, 1 - g.sinkT);
     ctx.rotate(Math.PI/2);
     ctx.fillStyle = '#2d3748';
-    // head
     ctx.beginPath(); ctx.arc(0, -25, 7, 0, Math.PI*2); ctx.fill();
-    // body
     ctx.fillRect(-4, -18, 8, 12);
-    // legs
     ctx.fillRect(-5, -6, 4, 10);
     ctx.fillRect(1, -6, 4, 10);
-    // arms
     ctx.fillRect(-8, -16, 3, 8);
     ctx.fillRect(5, -16, 3, 8);
     ctx.globalAlpha = 1;
@@ -1441,6 +2760,8 @@ function addParticle(type, x, y) {
   if (type === 'autumn_leaf') { p.vx=(Math.random()-0.5)*60; p.vy=5+Math.random()*30; p.rot=Math.random()*Math.PI*2; p.rotV=(Math.random()-0.5)*4; p.size=5; p.color=`hsl(${20+Math.random()*30},80%,50%)`; }
   if (type === 'snow')        { p.vx=-15-Math.random()*20; p.vy=30+Math.random()*20; p.size=2.5; }
   if (type === 'float_text')  { p.vx=0; p.vy=-40; p.text=p.text||''; p.life=1.5; }
+  if (type === 'sow_spark')   { p.vx=(Math.random()-0.5)*30; p.vy=-25-Math.random()*15; p.size=2; p.life=1.0; }
+  if (type === 'tend_ring')   { p.vx=0; p.vy=0; p.r=4; p.life=1.0; }
   particles.push(p);
   return p;
 }
@@ -1481,6 +2802,13 @@ function updateParticles(dt) {
     const p = particles[i];
     if (p.type==='float_text') {
       p.y += p.vy*dt; p.life -= dt*0.7;
+    } else if (p.type==='sow_spark') {
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      p.vy += 80*dt; // mild gravity
+      p.life -= dt*1.3;
+    } else if (p.type==='tend_ring') {
+      p.r += 40*dt;
+      p.life -= dt*0.9;
     } else {
       p.x += p.vx*dt; p.y += p.vy*dt;
       p.life -= dt*0.3;
@@ -1491,9 +2819,10 @@ function updateParticles(dt) {
 }
 
 function drawParticles(layer) {
+  const frontTypes = { autumn_leaf:1, snow:1, float_text:1, sow_spark:1, tend_ring:1 };
   for (const p of particles) {
-    if (layer==='back' && (p.type==='autumn_leaf'||p.type==='snow'||p.type==='float_text')) continue;
-    if (layer==='front' && p.type!=='autumn_leaf' && p.type!=='snow' && p.type!=='float_text') continue;
+    if (layer==='back'  &&  frontTypes[p.type]) continue;
+    if (layer==='front' && !frontTypes[p.type]) continue;
     ctx.globalAlpha = Math.min(p.life, 1);
     if (p.type==='pollen') {
       ctx.beginPath(); ctx.arc(p.x-camX,p.y,p.size,0,Math.PI*2);
@@ -1519,6 +2848,16 @@ function drawParticles(layer) {
       ctx.fillStyle = p.color||'#f0f0f0';
       ctx.textAlign = 'center';
       ctx.fillText(p.text||'', p.x, p.y);
+      ctx.textAlign = 'left';
+    } else if (p.type==='sow_spark') {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fillStyle = '#a7f3d0'; ctx.fill();
+    } else if (p.type==='tend_ring') {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(253,230,138,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.lineWidth = 1;
     }
     ctx.globalAlpha = 1;
   }
@@ -1649,6 +2988,314 @@ function drawGround() {
   ctx.strokeStyle = surfColor; ctx.lineWidth = 3; ctx.stroke();
 }
 
+// E1 — warm haze in the soil around active graves (nutrientT < 20).
+function drawGraveNutrient() {
+  for (const g of graves) {
+    if (g.nutrientT >= 20) continue;
+    const sx = g.x - camX;
+    if (sx < -200 || sx > canvas.width + 200) continue;
+    const gY = groundY(g.x);
+    const fade = 1 - g.nutrientT / 20; // strongest right after death, fades over 20 years
+    const grad = ctx.createRadialGradient(sx, gY + 10, 0, sx, gY + 10, 150);
+    grad.addColorStop(0, `rgba(200,140,60,${0.3 * fade})`);
+    grad.addColorStop(0.5, `rgba(160,100,40,${0.14 * fade})`);
+    grad.addColorStop(1, 'rgba(140,90,40,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(sx - 150, gY - 30, 300, 90);
+  }
+}
+
+// Soft-glow network drawn into the soil layer. Sits on top of the ground
+// fill but reads as underground because the mycelial overlay has already
+// darkened the soil to near-black. Lines pulse subtly with sin(t).
+function drawMycelium() {
+  if (mycelialT <= 0 || myceliumEdges.length === 0) return;
+  const pulse = 0.75 + 0.25 * Math.sin(performance.now() * 0.002);
+  ctx.save();
+  for (const e of myceliumEdges) {
+    const axS = e.ax - camX, bxS = e.bx - camX;
+    if ((axS < -240 && bxS < -240) ||
+        (axS > canvas.width + 240 && bxS > canvas.width + 240)) continue;
+    const a = mycelialT * pulse;
+    if (e.type === 'ecto') {
+      ctx.strokeStyle = `rgba(220,180,80,${0.35 * a})`;
+      ctx.shadowColor = 'rgba(220,180,80,0.55)';
+      ctx.shadowBlur  = 6;
+    } else if (e.type === 'shoot') {
+      // Root tendrils — warmer, earthier copper.
+      ctx.strokeStyle = `rgba(190,140,90,${0.40 * a})`;
+      ctx.shadowColor = 'rgba(190,140,90,0.50)';
+      ctx.shadowBlur  = 3;
+    } else {
+      ctx.strokeStyle = `rgba(120,160,220,${0.25 * a})`;
+      ctx.shadowColor = 'rgba(120,160,220,0.45)';
+      ctx.shadowBlur  = 4;
+    }
+    ctx.lineWidth = 0.7 + 2.0 * e.strength;
+    ctx.beginPath();
+    ctx.moveTo(axS, e.ay);
+    if (e.type === 'shoot') {
+      // Slight organic kink, perpendicular to the shoot's own axis so
+      // near-vertical roots don't loop the way a pure y-sag would.
+      const dx = bxS - axS, dy = e.by - e.ay;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len; // perpendicular unit
+      const wobble = (prand(e.seed | 0, 7) - 0.5) * Math.min(14, len * 0.25);
+      const midX = (axS + bxS) / 2 + nx * wobble;
+      const midY = (e.ay + e.by) / 2 + ny * wobble;
+      ctx.quadraticCurveTo(midX, midY, bxS, e.by);
+    } else {
+      // Gentle downward arc — long edges sag deeper into the soil.
+      const midX = (axS + bxS) / 2;
+      const midY = (e.ay + e.by) / 2 + 18 + Math.abs(e.ax - e.bx) * 0.08;
+      ctx.quadraticCurveTo(midX, midY, bxS, e.by);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// C4 — the walking figure becomes a soft glowing node + fading trail
+// while the mycelial view is active. Drawn at full alpha *over* the
+// dimmed body so the player crossfades from human to node as mycelialT
+// rises. Movement controls are unchanged.
+function drawPlayerMycelial() {
+  if (mycelialT <= 0.01) return;
+  const a = mycelialT;
+  // Trailing threads — fade with each sample's age.
+  for (let i = 1; i < playerTrail.length; i++) {
+    const p0 = playerTrail[i - 1], p1 = playerTrail[i];
+    const fade = 1 - (p1.age / TRAIL_LIFE);
+    if (fade <= 0) continue;
+    ctx.strokeStyle = `rgba(220,180,80,${0.45 * fade * a})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(p0.x - camX, p0.y);
+    ctx.lineTo(p1.x - camX, p1.y);
+    ctx.stroke();
+  }
+  // Glowing node where the body is.
+  const sx = (player.dead ? player.deathX : player.x) - camX;
+  const sy = (player.dead ? player.deathY : groundY(player.x)) - 14;
+  const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 26);
+  grad.addColorStop(0,   `rgba(255,235,180,${0.75 * a})`);
+  grad.addColorStop(0.4, `rgba(220,180,80,${0.32 * a})`);
+  grad.addColorStop(1,   'rgba(220,180,80,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(sx - 30, sy - 30, 60, 60);
+  // Bright core
+  ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(255,250,235,${a})`;
+  ctx.fill();
+}
+
+// ── F1 — BEHAVIOUR SIGNATURE ──────────────────────────────────────────────────
+// Reads the ledger and returns a profile of the player's stance toward the
+// forest. Never displayed. Used only to tint the reflection lines.
+function behaviourSig() {
+  const { took, gave, listened, lifeStart } = player.ledger;
+  const total = took + gave + listened;
+  const lifeTime = Math.max(1, year - lifeStart); // avoid /0
+  // Time alive without any action → indifference.
+  const actionTime = total;  // rough proxy: one action ≈ one unit of engagement
+  const indifference = Math.max(0, 1 - actionTime / (lifeTime * 0.15));
+  if (total < 3) return { dominion: 0, stewardship: 0, participation: 0, indifference, mode: 'novice' };
+  const dominion      = took / total;
+  const stewardship   = gave / total;
+  const participation = listened / total;
+  // Dominant mode is whichever ratio is highest (ties break in cascade order).
+  let mode = 'novice';
+  const hi = Math.max(dominion, stewardship, participation, indifference);
+  if      (hi === dominion)      mode = 'dominion';
+  else if (hi === stewardship)   mode = 'stewardship';
+  else if (hi === participation) mode = 'participation';
+  else                           mode = 'indifference';
+  return { dominion, stewardship, participation, indifference, mode };
+}
+
+// ── D2 — REFLECTION LINES ────────────────────────────────────────────────────
+// Every ~60 real-time seconds, the sim may emit a single passing observation
+// about the player's behaviour. At most one per minute. Not compliments, not
+// accusations. Tone: an old person noticing weather.
+const REFLECT_INTERVAL  = 30;    // real-time seconds between checks
+const REFLECT_DURATION  = 6;     // fade-in / hold / fade-out total
+const REFLECT_CHANCE    = 0.30;  // probability of emitting when a rule matches
+const SIG_CHANCE        = 0.15;  // signature lines fire more rarely
+let _reflectTimer       = REFLECT_INTERVAL;
+let _reflectText        = '';
+let _reflectT           = 0;     // seconds remaining in the 6-s cycle
+// Canopy-stability tracker for the "forest does not need you" line.
+let _coverStableYears   = 0;
+let _prevCover          = 0;
+
+function checkReflection(dt) {
+  // Track canopy-cover stability (considered stable if change < 0.03/year).
+  const cover = getCanopyCover();
+  const coverDelta = Math.abs(cover - _prevCover);
+  const yearDelta = dt * speed;
+  if (yearDelta > 0 && coverDelta / yearDelta < 0.03) {
+    _coverStableYears += yearDelta;
+  } else {
+    _coverStableYears = 0;
+  }
+  _prevCover = cover;
+
+  // Only check while alive — dead players don't need pep talks.
+  if (player.dead) return;
+  _reflectTimer -= dt;
+  if (_reflectTimer > 0 || _reflectT > 0) return;
+  _reflectTimer = REFLECT_INTERVAL;
+
+  const { took, gave, listened, died, lifeStart } = player.ledger;
+  const lifeDuration = year - lifeStart;
+
+  // First-match cascade. Each rule rolls the 30% chance independently.
+  let line = null;
+  if (lifeDuration > 20 && took === 0 && gave === 0) {
+    line = 'you have walked without taking. the forest notices nothing.';
+  } else if (took >= 10 && gave === 0) {
+    line = 'the forest feels your hunger.';
+  } else if (gave >= 5 && took <= gave) {
+    line = 'the forest is becoming what you hoped for.';
+  } else if (listened >= 5) {
+    line = 'you have been quiet. the trees are louder than they were.';
+  } else if (died >= 3) {
+    line = 'you have returned before. the soil remembers you.';
+  } else if (_coverStableYears >= 30) {
+    line = 'the forest does not need you to continue.';
+  }
+
+  if (line) {
+    if (Math.random() < REFLECT_CHANCE) {
+      _reflectText = line;
+      _reflectT = REFLECT_DURATION;
+    }
+    return; // D2 matched — skip F2 this cycle whether or not we emitted
+  }
+
+  // F2 — Signature-tinted lines. A second, rarer pool keyed to the player's
+  // dominant stance. One at a time. Never labelled. The player notices the
+  // tone and does not know why.
+  const sig = behaviourSig();
+  if (sig.mode === 'novice') return; // too early to reflect
+  let sigLine = null;
+  if (sig.dominion > 0.5) {
+    sigLine = 'the forest does not fight you. it does not fight anything.';
+  } else if (sig.stewardship > 0.5) {
+    sigLine = 'you are shaping. the forest is also shaping itself.';
+  } else if (sig.participation > 0.5) {
+    sigLine = 'your edges are quieter than they were.';
+  } else if (sig.indifference > 0.6) {
+    sigLine = 'something is here without you. you have not asked what.';
+  }
+  if (sigLine && Math.random() < SIG_CHANCE) {
+    _reflectText = sigLine;
+    _reflectT = REFLECT_DURATION;
+  } else if (!sigLine) {
+    // No rule matched at all — re-check sooner instead of waiting a full 60 s.
+    _reflectTimer = 15;
+  }
+}
+
+function drawReflection() {
+  if (_reflectT <= 0 || !_reflectText) return;
+  const elapsed = REFLECT_DURATION - _reflectT;
+  let alpha;
+  if (elapsed < 1.0)      alpha = elapsed;            // 1 s fade in
+  else if (elapsed < 5.0) alpha = 1;                  // 4 s hold
+  else                    alpha = REFLECT_DURATION - elapsed; // 1 s fade out
+  alpha = Math.max(0, Math.min(1, alpha));
+  if (alpha <= 0.01) return;
+  ctx.font = 'italic 18px Georgia, "Times New Roman", serif';
+  ctx.fillStyle = `rgba(203,213,225,${alpha * 0.85})`;
+  ctx.textAlign = 'center';
+  ctx.fillText(_reflectText, canvas.width / 2, canvas.height - 70);
+  ctx.textAlign = 'left';
+}
+
+// ── D3 — END-OF-AGE REFLECTION ───────────────────────────────────────────────
+// Once per browser session, after the forest reaches climax (cover ≥ 0.8 for
+// 20 consecutive in-game years) OR after 5 deaths, the screen fades to
+// near-black and a quiet modal appears. No score. No judgement.
+let _endReflected = localStorage.getItem('forest_reflected') === '0';
+let _climaxYears  = 0;
+
+function numberWord(n) {
+  const w = ['zero','once','twice','three','four','five','six','seven',
+             'eight','nine','ten','eleven','twelve'];
+  return n <= 12 ? w[n] : String(n);
+}
+function timesWord(n) {
+  if (n === 0) return 'never';
+  if (n === 1) return 'once';
+  if (n === 2) return 'twice';
+  return numberWord(n) + ' times';
+}
+
+function checkEndReflection(dt) {
+  if (_endReflected) return;
+  if (player.dead) return;
+
+  // Track climax duration: cover ≥ 0.8.
+  const cover = getCanopyCover();
+  const yearDelta = dt * speed;
+  if (cover >= 0.8 && yearDelta > 0) _climaxYears += yearDelta;
+  else if (cover < 0.75) _climaxYears = 0;  // small hysteresis
+
+  const trigger = _climaxYears >= 20 || player.ledger.died >= 5;
+  if (!trigger) return;
+
+  _endReflected = true;
+  try { localStorage.setItem('forest_reflected', '1'); } catch(e) {}
+
+  // Build prose summary from session-wide totals (not per-life counters).
+  const totalYears = Math.floor(year);
+  const { totalTook, totalGave, totalListened, died } = player.ledger;
+
+  let summary = `You walked here for ${totalYears} year${totalYears !== 1 ? 's' : ''}.`;
+  if (totalTook > 0)     summary += ` You ate ${timesWord(totalTook)}.`;
+  if (totalGave > 0)     summary += ` You planted or tended ${timesWord(totalGave)}.`;
+  if (totalListened > 0) summary += ` You listened ${timesWord(totalListened)}.`;
+  if (died > 0)          summary += ` You died ${timesWord(died)} and came back ${timesWord(died)}.`;
+
+  const overlay = document.getElementById('reflect-overlay');
+  overlay.querySelector('.reflect-summary').textContent = summary;
+  overlay.querySelector('.reflect-question').textContent =
+    'What is your relationship to this place?';
+  overlay.querySelector('.reflect-dismiss').textContent =
+    '(no answer required. the forest does not keep a record.)';
+
+  // Fade in.
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  // Dismiss only via the explicit button (or Enter/Space on it).
+  const btn = overlay.querySelector('.reflect-continue');
+  const dismiss = () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => { overlay.style.display = 'none'; }, 1800);
+    btn.removeEventListener('click', dismiss);
+  };
+  btn.addEventListener('click', dismiss);
+}
+
+// C5 — single contextual line that fades in/out across the top centre,
+// shown once per entry into the mycelial view (manual or by death).
+function drawMycelialText() {
+  if (mycelialLineT <= 0 || !mycelialLineText) return;
+  const elapsed = MYCELIAL_LINE_DURATION - mycelialLineT;
+  let alpha;
+  if (elapsed < 1.0)      alpha = elapsed;            // 1 s fade in
+  else if (elapsed < 5.0) alpha = 1;                  // 4 s hold
+  else                    alpha = (MYCELIAL_LINE_DURATION - elapsed); // 1 s fade out
+  alpha = Math.max(0, Math.min(1, alpha)) * Math.min(1, mycelialT * 1.2);
+  if (alpha <= 0.01) return;
+  ctx.font = 'italic 22px Georgia, "Times New Roman", serif';
+  ctx.fillStyle = `rgba(220,210,255,${alpha})`;
+  ctx.textAlign = 'center';
+  ctx.fillText(mycelialLineText, canvas.width / 2, 80);
+  ctx.textAlign = 'left';
+}
+
 // ── INFO CARD ─────────────────────────────────────────────────────────────────
 const infoCard = document.getElementById('info-card');
 let infoOpen = false;
@@ -1670,9 +3317,29 @@ function showInfoCard(species, plantObj) {
   } else {
     edDiv.style.display='none';
   }
+  // Persistence line — how this being carries itself through time.
+  const pDiv = document.getElementById('info-persistence');
+  if (species.persistence) {
+    const pill = pDiv.querySelector('.pill');
+    const note = pDiv.querySelector('.pnote');
+    pill.className = 'pill ' + species.persistence.strategy;
+    pill.textContent = species.persistence.strategy;
+    note.textContent = species.persistence.note;
+    pDiv.style.display = 'block';
+  } else {
+    pDiv.style.display = 'none';
+  }
   // Harvest button — all plants are interactable
   const harvestBtn  = document.getElementById('info-harvest');
   const cutdownBtn  = document.getElementById('info-cutdown');
+  const tendBtn     = document.getElementById('info-tend');
+  const listenBtn   = document.getElementById('info-listen');
+  if (plantObj && species.listen && species.listen.length > 0) {
+    listenBtn.style.display = 'block';
+    listenBtn.onclick = () => { startListening(species, plantObj); };
+  } else {
+    listenBtn.style.display = 'none';
+  }
   if (plantObj) {
     if (species.edible) {
       harvestBtn.textContent = species.edible.poisonous ? 'Eat anyway' : 'Harvest & eat';
@@ -1696,6 +3363,7 @@ function showInfoCard(species, plantObj) {
       cutdownBtn.onclick = () => {
         const idx = plants.indexOf(plantObj);
         if (idx !== -1) plants.splice(idx, 1);
+        player.ledger.took++; player.ledger.totalTook++;
         const sx2 = plantObj.x - camX, sy2 = groundY(plantObj.x);
         showFloatText(species.layer === 'canopy' ? 'Felled!' : 'Removed', sx2, sy2-30, '#94a3b8');
         hideInfoCard();
@@ -1703,9 +3371,34 @@ function showInfoCard(species, plantObj) {
     } else {
       cutdownBtn.style.display = 'none';
     }
+    // Tend — only while the plant is a seedling (< 30% of mature age).
+    const isSeedling = species.matureAge && plantObj.age < species.matureAge * 0.3;
+    if (isSeedling) {
+      tendBtn.style.display = 'block';
+      tendBtn.onclick = () => {
+        const sx2 = plantObj.x - camX, sy2 = groundY(plantObj.x);
+        const lastTend = plantObj.lastTendYear;
+        if (lastTend !== undefined && (year - lastTend) < 1) {
+          showFloatText('not yet — give it a year', sx2, sy2-30, '#cbd5e1');
+          hideInfoCard();
+          return;
+        }
+        plantObj.age += 0.5;
+        plantObj.lastTendYear = year;
+        player.ledger.gave++; player.ledger.totalGave++;
+        // Ring of light around the seedling.
+        const ring = addParticle('tend_ring', 0, 0);
+        ring.x = sx2; ring.y = sy2 - 8;
+        showFloatText('tended', sx2, sy2-30, '#5eead4');
+        hideInfoCard();
+      };
+    } else {
+      tendBtn.style.display = 'none';
+    }
   } else {
     harvestBtn.style.display  = 'none';
     cutdownBtn.style.display  = 'none';
+    tendBtn.style.display     = 'none';
   }
   infoCard.classList.add('visible');
   infoOpen = true;
@@ -1714,6 +3407,32 @@ function showInfoCard(species, plantObj) {
 function hideInfoCard() {
   infoCard.classList.remove('visible');
   infoOpen = false;
+}
+
+// E2 — grave info card: a small reflection on how you lived.
+function graveStatement(g) {
+  const { took, gave, listened } = g.ledger;
+  const total = took + gave + listened;
+  if (total === 0) return 'you did nothing here. the ground took you anyway.';
+  if (listened > took && listened > gave) return 'you listened to the trees more than you took from them.';
+  if (gave > took) return 'you gave more than you took.';
+  if (took > 0 && gave === 0 && listened === 0) return 'you were hungry. the forest fed you.';
+  if (took > gave && listened > 0) return 'you took, and sometimes you listened.';
+  return 'you were here for a while.';
+}
+
+function showGraveCard(g) {
+  document.getElementById('info-name').textContent = 'A grave';
+  document.getElementById('info-latin').textContent = `year ${g.year}`;
+  document.getElementById('info-desc').textContent = 'you died here. ' + graveStatement(g);
+  document.getElementById('info-edible').style.display = 'none';
+  document.getElementById('info-persistence').style.display = 'none';
+  document.getElementById('info-listen').style.display = 'none';
+  document.getElementById('info-harvest').style.display = 'none';
+  document.getElementById('info-cutdown').style.display = 'none';
+  document.getElementById('info-tend').style.display = 'none';
+  infoCard.classList.add('visible');
+  infoOpen = true;
 }
 
 // ── UI DRAWING ────────────────────────────────────────────────────────────────
@@ -1747,6 +3466,60 @@ function drawUI() {
   ctx.fillStyle = `hsl(${hue},80%,45%)`;
   roundRect(ctx, hx, hy+14, hw*player.hunger, hh, 5);
 
+  // Seed pouch (only if carrying at least one seed)
+  pouchBtnBounds = [];
+  const pouchEntries = Object.entries(player.seeds).filter(([,n]) => n > 0);
+  if (pouchEntries.length > 0) {
+    const iconSize = 24, gap = 4, pad = 6;
+    const px = hx - 8;
+    const py = hy + 36;
+    const pw = pad*2 + pouchEntries.length * iconSize + (pouchEntries.length-1) * gap;
+    const ph = pad*2 + iconSize;
+    ctx.fillStyle = 'rgba(15,23,42,0.75)';
+    roundRect(ctx, px, py, pw, ph, 8);
+    ctx.font = '10px Segoe UI, system-ui, sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Seeds', px + pad, py - 3);
+    for (let i = 0; i < pouchEntries.length; i++) {
+      const [sid, count] = pouchEntries[i];
+      const sp = SPECIES[sid];
+      if (!sp) continue;
+      const ix = px + pad + i * (iconSize + gap);
+      const iy = py + pad;
+      const selected = player.selectedSeed === sid;
+      // slot background
+      ctx.fillStyle = selected ? 'rgba(94,234,212,0.18)' : 'rgba(30,41,59,0.8)';
+      roundRect(ctx, ix-2, iy-2, iconSize+4, iconSize+4, 5);
+      // icon
+      ctx.drawImage(getSeedIcon(sp), ix, iy);
+      // selection ring
+      if (selected) {
+        ctx.strokeStyle = '#5eead4';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(ix-2, iy-2, iconSize+4, iconSize+4, 5) : ctx.rect(ix-2, iy-2, iconSize+4, iconSize+4);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+      // count badge
+      {
+        const bx = ix + iconSize - 7, by = iy + iconSize - 7;
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.arc(bx, by, 7, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 10px Segoe UI, system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(count), bx, by+0.5);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      }
+      pouchBtnBounds.push({ x: ix-2, y: iy-2, w: iconSize+4, h: iconSize+4, seedId: sid });
+    }
+  } else if (player.selectedSeed) {
+    // Pouch emptied — clear stale selection.
+    player.selectedSeed = null;
+  }
+  updateSeedCursor();
+
   // Speed controls — [⏸/▶ Realtime] [1×] [16×] [64×]
   uiBtnBounds = [];
   ctx.font = '13px Segoe UI, system-ui, sans-serif';
@@ -1776,6 +3549,20 @@ function drawUI() {
   ctx.fillText(pauseLbl, bxr + 10, ctrlY + 19);
   uiBtnBounds.push({ x: bxr, y: ctrlY, w: pw, h: ctrlH, action: 'pause' });
 
+  // Mycelial-view (moon) button — sits to the left of pause.
+  const moonLbl = '☾';
+  ctx.font = '15px Segoe UI, system-ui, sans-serif';
+  const mw = ctx.measureText(moonLbl).width + 20;
+  ctx.font = '13px Segoe UI, system-ui, sans-serif';
+  bxr -= mw + 6;
+  ctx.fillStyle = mycelialView ? 'rgba(196,181,253,0.20)' : 'rgba(15,23,42,0.75)';
+  roundRect(ctx, bxr, ctrlY, mw, ctrlH, 7);
+  ctx.font = '15px Segoe UI, system-ui, sans-serif';
+  ctx.fillStyle = mycelialView ? '#c4b5fd' : '#94a3b8';
+  ctx.fillText(moonLbl, bxr + 10, ctrlY + 20);
+  ctx.font = '13px Segoe UI, system-ui, sans-serif';
+  uiBtnBounds.push({ x: bxr, y: ctrlY, w: mw, h: ctrlH, action: 'mycelium' });
+
   // Hint text
   ctx.font='11px Segoe UI, system-ui, sans-serif';
   ctx.fillStyle='rgba(148,163,184,0.7)';
@@ -1792,17 +3579,150 @@ function drawUI() {
     ctx.globalAlpha=1;
   }
 
-  // Rebirth hint
+  // E3 — memorial species choice + rebirth hint
+  memorialBtnBounds = [];
   if (player.dead && player.decomposed >= 1) {
-    ctx.font='14px Segoe UI, system-ui, sans-serif';
-    ctx.fillStyle='rgba(148,163,184,0.8)';
-    ctx.textAlign='center';
-    ctx.fillText('Press any key to be reborn…', canvas.width/2, canvas.height/2+40);
-    ctx.textAlign='left';
+    const lastGrave = graves[graves.length - 1];
+    const choices = ['trillium', 'fern', 'lichen'];
+    const labels  = ['become trillium', 'become fern', 'become lichen'];
+    ctx.font = '13px Segoe UI, system-ui, sans-serif';
+    const totalW = labels.reduce((s, l) => s + ctx.measureText(l).width + 24, 0) - 24;
+    let bx = (canvas.width - totalW) / 2;
+    const by = canvas.height / 2 + 10;
+    for (let i = 0; i < choices.length; i++) {
+      const w = ctx.measureText(labels[i]).width + 16;
+      const selected = lastGrave && lastGrave.memorial === choices[i];
+      ctx.fillStyle = selected
+        ? 'rgba(148,163,184,0.25)'
+        : 'rgba(148,163,184,0.08)';
+      roundRect(ctx, bx, by - 12, w, 22, 6);
+      ctx.fillStyle = selected ? '#e2e8f0' : 'rgba(148,163,184,0.6)';
+      ctx.textAlign = 'left';
+      ctx.fillText(labels[i], bx + 8, by + 4);
+      memorialBtnBounds.push({ x: bx, y: by - 12, w, h: 22, species: choices[i] });
+      bx += w + 8;
+    }
+    ctx.font = '14px Segoe UI, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(148,163,184,0.8)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press any key to be reborn…', canvas.width / 2, canvas.height / 2 + 50);
+    ctx.textAlign = 'left';
   }
 }
 
+function drawDebug() {
+  if (!showDebug) return;
+  const cover = getCanopyCover();
+  const localCov = getLocalCover(player.x);
+  const { took, gave, listened, died, lifeStart, totalTook, totalGave, totalListened } = player.ledger;
+  const lifeDur = year - lifeStart;
+  const plantsN = plants.length;
+  const fungiN  = plants.filter(p => SPECIES[p.speciesId] && SPECIES[p.speciesId].layer === 'fungal').length;
+  const canopyN = plants.filter(p => SPECIES[p.speciesId] && SPECIES[p.speciesId].layer === 'canopy').length;
+
+  const era = coverToEra(cover);
+
+  const lines = [
+    `── Debug ── (backtick to hide)`,
+    ``,
+    `Cover: ${(cover*100).toFixed(1)}%  soil: ${(soilScore*100).toFixed(1)}%  local: ${(localCov*100).toFixed(1)}%  era: ${era}`,
+    `Plants: ${plantsN}  canopy: ${canopyN}  fungi: ${fungiN}  edges: ${myceliumEdges.length}`,
+    ``,
+    `── Ledger (life) ──`,
+    `took: ${took}  gave: ${gave}  listened: ${listened}`,
+    `life: ${lifeDur.toFixed(1)} yr  hunger: ${(player.hunger*100).toFixed(0)}%`,
+    ``,
+    `── Ledger (session) ──`,
+    `took: ${totalTook}  gave: ${totalGave}  listened: ${totalListened}  died: ${died}`,
+    ``,
+    `── Triggers ──`,
+    `D2 coverStable: ${_coverStableYears.toFixed(1)} yr  reflectTimer: ${_reflectTimer.toFixed(0)}s`,
+    `D3 climaxYears: ${_climaxYears.toFixed(1)}  reflected: ${_endReflected}`,
+    `mycelial: ${mycelialView} (t=${mycelialT.toFixed(2)})  paused: ${paused}  speed: ${speed}`,
+  ];
+
+  const lh = 15;
+  const px = canvas.width - 12;
+  const py = canvas.height - 56 - lines.length * lh;
+  const pw = 340;
+  const ph = lines.length * lh + 12;
+
+  ctx.fillStyle = 'rgba(10,12,20,0.82)';
+  roundRect(ctx, px - pw, py, pw, ph, 8);
+  ctx.font = '11px "SF Mono", "Fira Code", Menlo, monospace';
+  ctx.fillStyle = '#94a3b8';
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith('──')) ctx.fillStyle = '#64748b';
+    else ctx.fillStyle = '#94a3b8';
+    ctx.fillText(l, px - pw + 10, py + 14 + i * lh);
+  }
+}
+
+// ── Biodiversity log — press `b` to dump per-species population to console ───
+let _bioLog = []; // array of { year, counts: { speciesId: n } }
+
+function coverToEra(cover) {
+  if (cover >= 0.6)      return 'climax';
+  if (cover >= 0.35)     return 'late';
+  if (cover >= 0.15)     return 'mid';
+  if (cover >= 0.05)     return 'early';
+  return plants.length > 0 ? 'pioneer' : 'bare';
+}
+
+function sampleBiodiversity() {
+  const counts = {};
+  for (const id in SPECIES) counts[id] = 0;
+  for (const p of plants) counts[p.speciesId] = (counts[p.speciesId] || 0) + 1;
+  const cover = getCanopyCover();
+  _bioLog.push({ year: Math.round(year), cover, era: coverToEra(cover), soil: soilScore, counts });
+}
+
+function logBiodiversity() {
+  // Take a fresh sample first.
+  sampleBiodiversity();
+  // Output as CSV — console.table truncates wide tables in most browsers.
+  const ids = Object.keys(SPECIES);
+  const header = ['year', 'cover', 'era', 'soil', ...ids].join('\t');
+  const lines = _bioLog.map(s =>
+    [s.year, s.cover.toFixed(3), s.era, s.soil.toFixed(3), ...ids.map(id => s.counts[id] || 0)].join('\t')
+  );
+  console.log(`── Biodiversity log (${_bioLog.length} samples) — copy and paste into a spreadsheet ──\n${header}\n${lines.join('\n')}`);
+}
+
 let uiBtnBounds = [];
+let pouchBtnBounds = [];
+let memorialBtnBounds = [];
+
+// Seed-in-hand cursor (small green pip). Set reactively when selection changes.
+const SEED_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22'><ellipse cx='11' cy='11' rx='5' ry='7' fill='%23a7f3d0' stroke='%23166534' stroke-width='1.2'/></svg>\") 11 11, crosshair";
+let _lastCursorSeed = null;
+function updateSeedCursor() {
+  if (player.selectedSeed !== _lastCursorSeed) {
+    _lastCursorSeed = player.selectedSeed;
+    canvas.style.cursor = player.selectedSeed ? SEED_CURSOR : 'default';
+  }
+}
+
+// Cached 24x24 species icons for the seed pouch.
+const seedIconCache = new Map();
+function getSeedIcon(sp) {
+  if (seedIconCache.has(sp.id)) return seedIconCache.get(sp.id);
+  const size = 24;
+  const off = document.createElement('canvas');
+  off.width = size; off.height = size;
+  const ic = off.getContext('2d');
+  // Fit the species' mature-ish silhouette inside 24x24.
+  const approxH = Math.max(8, (sp.heightPx || 20) * 0.3);
+  const scale = Math.min(1.0, 18 / approxH);
+  ic.save();
+  ic.translate(size/2, size - 3);
+  ic.scale(scale, scale);
+  try { sp.draw(ic, 0, 0, 0.3, 0, 0, 1); } catch(e) {}
+  ic.restore();
+  seedIconCache.set(sp.id, off);
+  return off;
+}
 
 function roundRect(ctx, x,y,w,h,r) {
   ctx.beginPath();
@@ -1822,6 +3742,18 @@ function roundRect(ctx, x,y,w,h,r) {
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.key] = true;
+  if (e.key === 'm' || e.key === 'M') {
+    mycelialView = !mycelialView;
+    return;
+  }
+  if (e.key === '`') {
+    showDebug = !showDebug;
+    return;
+  }
+  if (e.key === 'b' || e.key === 'B') {
+    logBiodiversity();
+    return;
+  }
   if (player.dead && player.decomposed >= 1) {
     rebornPlayer();
   }
@@ -1832,6 +3764,15 @@ window.addEventListener('keyup', e => { keys[e.key] = false; });
 
 function findClickTarget(cx, cy) {
   let best = null, bestDist = 48;
+  // E2 — old graves are clickable when player is within 200px.
+  for (const g of graves) {
+    if (g.sinkT < 2) continue; // only settled graves
+    if (Math.abs(player.x - g.x) > 200) continue;
+    const sx = g.x - camX;
+    const gY = groundY(g.x);
+    const dist = Math.hypot(cx - sx, cy - gY);
+    if (dist < 24 && dist < bestDist) { bestDist = dist; best = { kind: 'grave', obj: g }; }
+  }
   for (const p of plants) {
     const sp = SPECIES[p.speciesId];
     const sx = p.x - camX;
@@ -1849,7 +3790,16 @@ function findClickTarget(cx, cy) {
 }
 
 canvas.addEventListener('click', e => {
-  // Speed/pause buttons (always immediate)
+  // E3 — memorial species choice (during death screen).
+  for (const btn of memorialBtnBounds) {
+    if (e.clientX >= btn.x && e.clientX <= btn.x + btn.w &&
+        e.clientY >= btn.y && e.clientY <= btn.y + btn.h) {
+      const lastGrave = graves[graves.length - 1];
+      if (lastGrave) lastGrave.memorial = btn.species;
+      return;
+    }
+  }
+  // Speed/pause buttons (always immediate; also deselect any held seed).
   for (const btn of uiBtnBounds) {
     if (e.clientX >= btn.x && e.clientX <= btn.x + btn.w &&
         e.clientY >= btn.y && e.clientY <= btn.y + btn.h) {
@@ -1859,10 +3809,38 @@ canvas.addEventListener('click', e => {
         speedIdx = btn.idx;
         speed = SPEEDS[speedIdx];
         paused = false;
+      } else if (btn.action === 'mycelium') {
+        mycelialView = !mycelialView;
       }
+      if (player.selectedSeed) player.selectedSeed = null;
       return;
     }
   }
+  // Seed pouch — click an icon to select/deselect that seed for sowing.
+  for (const btn of pouchBtnBounds) {
+    if (e.clientX >= btn.x && e.clientX <= btn.x + btn.w &&
+        e.clientY >= btn.y && e.clientY <= btn.y + btn.h) {
+      player.selectedSeed = (player.selectedSeed === btn.seedId) ? null : btn.seedId;
+      return;
+    }
+  }
+
+  // Seed-in-hand flow takes precedence: click empty ground to sow, click plant to cancel.
+  if (player.selectedSeed) {
+    const target = findClickTarget(e.clientX, e.clientY);
+    if (target) {
+      // Clicking a plant or animal with a seed selected just deselects — no info card, no sow.
+      player.selectedSeed = null;
+      if (infoOpen) hideInfoCard();
+      return;
+    }
+    const sp = SPECIES[player.selectedSeed];
+    const wx = e.clientX + camX;
+    sow(sp, wx, e.clientX, e.clientY);
+    if (infoOpen) hideInfoCard();
+    return;
+  }
+
   // Click-away closes info card
   if (infoOpen) { hideInfoCard(); return; }
 
@@ -1871,6 +3849,8 @@ canvas.addEventListener('click', e => {
 
   if (target.kind === 'plant') {
     showInfoCard(SPECIES[target.obj.speciesId], target.obj);
+  } else if (target.kind === 'grave') {
+    showGraveCard(target.obj);
   } else {
     const t = target.obj;
     showInfoCard({
@@ -1883,14 +3863,15 @@ canvas.addEventListener('click', e => {
 });
 
 const animalInfo = {
-  butterfly: "Butterflies are indicators of ecosystem health. They pollinate flowers and are prey for birds and spiders. Their larvae feed on specific plant species.",
-  rabbit: "Rabbits are keystone grazers — their constant nibbling keeps grass short and creates the diverse sward that many other species need.",
-  fox: "The fox is one of Britain's most adaptable predators. It controls rabbit and rodent populations and disperses seeds in its scat.",
-  deer: "Deer are powerful shapers of woodland. By browsing young saplings, they can prevent regeneration — or, in the right numbers, create glades and diversity.",
-  owl: "Owls are apex predators of the night. A single tawny owl may catch 1000 voles and mice per year, regulating populations across its territory.",
+  butterfly: "The monarch passes through here on its way to Mexico — a journey of thousands of kilometres, navigated by an animal weighing less than a paperclip. Its larvae eat only milkweed.",
+  rabbit: "The eastern cottontail grazes close to cover and rarely ventures far into the open. Its constant nibbling keeps clearings diverse and creates the low vegetation many ground-nesting birds need.",
+  fox: "The red fox is one of the most adaptable predators on the continent. It eats rabbits, voles, berries, and insects, and carries seeds in its scat wherever it travels.",
+  deer: "White-tailed deer are powerful shapers of forest structure. Too many and they browse the understorey to nothing; the right number creates openings and diversity. Their relationship with this land is older than ours.",
+  owl: "The barred owl hunts from dusk to dawn, taking voles, mice, frogs, and occasionally other birds. Its call — 'who cooks for you, who cooks for you-all' — carries far on still nights.",
 };
 
 function eatPlant(plant, sp, sx2, sy2) {
+  player.ledger.took++; player.ledger.totalTook++;
   const idx = plants.indexOf(plant);
   if (sp.edible) {
     if (sp.edible.poisonous) {
@@ -1900,6 +3881,17 @@ function eatPlant(plant, sp, sx2, sy2) {
       player.hunger = Math.min(1, player.hunger + sp.edible.restore);
       const pct = Math.round(sp.edible.restore*100);
       showFloatText(`+${pct}%`, sx2, sy2-30, '#4ade80');
+      // Seed credit — berries, nuts, seeds, keys, acorns pass through the gut.
+      // Mature plants yield up to 3 seeds; young plants yield 1.
+      if (sp.edible.part && /berries|nuts|seeds|keys|acorns/i.test(sp.edible.part)) {
+        const maturity = sp.matureAge ? Math.min(1, plant.age / sp.matureAge) : 1;
+        const yield_ = maturity >= 1 ? 3 : 1;
+        const gained = Math.min(yield_, SEED_CAP - totalSeeds());
+        if (gained > 0) {
+          player.seeds[sp.id] = (player.seeds[sp.id] || 0) + gained;
+          showFloatText(`+${gained} seed${gained > 1 ? 's' : ''}`, sx2, sy2-48, '#a7f3d0');
+        }
+      }
       if (idx !== -1) {
         plants.splice(idx, 1);
         if (sp.layer === 'fungal') setTimeout(() => addPlant(sp.id, plant.x), 3000);
@@ -1918,6 +3910,117 @@ function showFloatText(text, x, y, color) {
   p.vx = 0; p.vy = -40; p.life = 1.5;
 }
 
+// ── LISTEN ────────────────────────────────────────────────────────────────────
+// Pause-like attentive state: 5 seconds of slowed time, a vignette,
+// and a single line of per-species text fading in over the plant.
+const LISTEN_DURATION = 5.0;
+let listenT = 0;         // seconds remaining
+let listenPlant = null;  // which plant we're listening to
+let listenText = '';     // the chosen line
+
+function startListening(sp, plantObj) {
+  if (!sp || !plantObj) return;
+  if (!sp.listen || sp.listen.length === 0) return;
+  listenT = LISTEN_DURATION;
+  listenPlant = plantObj;
+  listenText = sp.listen[Math.floor(Math.random() * sp.listen.length)];
+  player.ledger.listened++; player.ledger.totalListened++;
+  hideInfoCard();
+}
+
+function cancelListening() {
+  listenT = 0;
+  listenPlant = null;
+  listenText = '';
+}
+
+function wrapText(text, maxWidth) {
+  const words = text.split(' ');
+  const out = [];
+  let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width > maxWidth && cur) {
+      out.push(cur); cur = w;
+    } else {
+      cur = t;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function drawListening() {
+  if (listenT <= 0 || !listenPlant) return;
+  const elapsed = LISTEN_DURATION - listenT;
+  const fadeIn = Math.min(1, elapsed / 0.5);
+  const fadeOut = Math.min(1, listenT / 0.5);
+  const alpha = Math.min(fadeIn, fadeOut);
+
+  // Vignette
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const innerR = Math.min(canvas.width, canvas.height) * 0.18;
+  const outerR = Math.hypot(canvas.width, canvas.height) * 0.6;
+  const g = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, `rgba(0,0,0,${0.55 * alpha})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Letter-by-letter reveal of the line, anchored above the plant.
+  const charsPerSec = 28;
+  const revealChars = Math.min(listenText.length, Math.floor(elapsed * charsPerSec));
+  const shown = listenText.substring(0, revealChars);
+
+  const sx = listenPlant.x - camX;
+  const sp = SPECIES[listenPlant.speciesId];
+  const maturity = sp ? Math.min(1, listenPlant.age / sp.matureAge) : 1;
+  const plantTop = groundY(listenPlant.x) - (sp ? sp.heightPx : 40) * maturity;
+  const anchorY = Math.max(80, plantTop - 28);
+
+  ctx.font = '600 18px Georgia, "Times New Roman", serif';
+  ctx.fillStyle = `rgba(241,245,249,${alpha})`;
+  ctx.textAlign = 'center';
+  const lines = wrapText(shown, 360);
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], sx, anchorY + i * 24 - (lines.length - 1) * 12);
+  }
+  ctx.textAlign = 'left';
+}
+
+// Sow a seed at world-x. sx,sy are screen-space for feedback particles.
+// Returns true if a plant was placed (seed consumed).
+function sow(sp, wx, sx, sy) {
+  if (!sp) return false;
+  if ((player.seeds[sp.id] || 0) <= 0) return false;
+  const cover = getLocalCover(wx);
+  const buffer = 0.05;
+  if (cover > sp.coverMax + buffer) {
+    showFloatText('the light here is wrong for this one', sx, sy-18, '#cbd5e1');
+    return false;
+  }
+  if (cover < sp.coverMin - buffer) {
+    showFloatText('the soil is not yet ready', sx, sy-18, '#cbd5e1');
+    return false;
+  }
+  const p = addPlant(sp.id, wx);
+  if (!p) return false;
+  p.age = 0; // sown plants start small, even canopy trees
+  player.ledger.gave++; player.ledger.totalGave++;
+  player.seeds[sp.id]--;
+  if (player.seeds[sp.id] <= 0) {
+    delete player.seeds[sp.id];
+    if (player.selectedSeed === sp.id) player.selectedSeed = null;
+  }
+  // Two tiny green sparks at the sow point.
+  for (let i = 0; i < 2; i++) {
+    const sp2 = addParticle('sow_spark', 0, 0);
+    sp2.x = sx + (Math.random()-0.5)*6;
+    sp2.y = sy + (Math.random()-0.5)*4;
+  }
+  return true;
+}
+
 // ── PLAYER DEATH & REBIRTH ────────────────────────────────────────────────────
 function killPlayer() {
   if (player.dead) return;
@@ -1926,7 +4029,17 @@ function killPlayer() {
   player.deathY = groundY(player.x);
   player.deathMsgT = 4.0;
   player.decomposed = 0;
-  graves.push({ x: player.x, y: player.deathY, sinkT: 0 });
+  graves.push({
+    x: player.x, y: player.deathY, sinkT: 0, nutrientT: 0,
+    year: Math.floor(year),
+    ledger: { took: player.ledger.took, gave: player.ledger.gave, listened: player.ledger.listened },
+    memorial: 'trillium',
+  });
+  player.ledger.died++;
+  cancelListening();
+  // C6 — sink seamlessly into the mycelial view. Decomposition *is* the
+  // underground perspective; the existing easing handles the crossfade.
+  mycelialView = true;
 }
 
 function rebornPlayer() {
@@ -1936,10 +4049,17 @@ function rebornPlayer() {
   player.y = 0;
   player.dyingT = 0;
   player.decomposed = 0;
-  // Spawn foxglove at grave
+  // Reset per-life ledger counters (died persists across lives).
+  player.ledger.took = 0;
+  player.ledger.gave = 0;
+  player.ledger.listened = 0;
+  player.ledger.lifeStart = year;
+  // Surface back into the walking world. mycelialT eases out over ~0.8 s.
+  mycelialView = false;
+  // E3 — spawn the chosen memorial species (default trillium) at grave.
   const lastGrave = graves[graves.length-1];
   if (lastGrave) {
-    addPlant('foxglove', lastGrave.x);
+    addPlant(lastGrave.memorial || 'trillium', lastGrave.x);
     lastGrave.sinkT = 2; // already sunk
   }
 }
@@ -1952,11 +4072,18 @@ function frame(ts) {
   const dt = Math.min((ts - lastTime)/1000, 0.05);
   lastTime = ts;
 
+  // Listening tick — slows time to 0.25× for its duration.
+  if (listenT > 0) {
+    listenT = Math.max(0, listenT - dt);
+    if (listenT === 0) cancelListening();
+  }
+  const effSpeed = (listenT > 0) ? 0.25 : speed;
+
   // Update time
   if (!paused && !player.dead) {
-    year += dt * speed;
+    year += dt * effSpeed;
   } else if (player.dead) {
-    year += dt * speed * 0.5; // time keeps passing during death
+    year += dt * effSpeed * 0.5; // time keeps passing during death
   }
 
   // Player movement
@@ -1967,8 +4094,8 @@ function frame(ts) {
     player.x = Math.max(0, Math.min(WORLD_W, player.x));
     player.y = groundY(player.x);
 
-    // Hunger
-    player.hunger -= 0.012 * dt * speed;
+    // Hunger — follows effective speed so listening doesn't starve you faster than it feels.
+    player.hunger -= 0.012 * dt * effSpeed;
     if (player.hunger <= 0) { player.hunger=0; killPlayer(); }
 
     // Camera follows player
@@ -1990,8 +4117,25 @@ function frame(ts) {
   }
   camX = Math.max(0, Math.min(WORLD_W - canvas.width, camX));
 
+  // E1 — age grave nutrient plumes (in game-years).
+  const yearDeltaGrave = dt * effSpeed;
+  for (const g of graves) {
+    if (g.nutrientT < 20) g.nutrientT += yearDeltaGrave;
+  }
+
   // Update plants
   updatePlants(dt);
+
+  // Biodiversity auto-sample every in-game year.
+  if (Math.floor(year) > Math.floor(year - dt * effSpeed)) {
+    sampleBiodiversity();
+  }
+
+  // D2 — reflection line check (runs every frame, cheap; timer gates emission).
+  checkReflection(dt);
+  if (_reflectT > 0) _reflectT = Math.max(0, _reflectT - dt);
+  // D3 — one-time end-of-age reflection modal.
+  checkEndReflection(dt);
 
   // Update animals
   updateAnimals(dt);
@@ -2000,6 +4144,40 @@ function frame(ts) {
   updateParticles(dt);
   spawnAtmosphericParticles(dt);
 
+  // Mycelial-view easing — full crossfade in ~0.8 s, in or out.
+  const mTarget = mycelialView ? 1 : 0;
+  const mRate   = dt / 0.8;
+  if (mycelialT < mTarget)      mycelialT = Math.min(mTarget, mycelialT + mRate);
+  else if (mycelialT > mTarget) mycelialT = Math.max(mTarget, mycelialT - mRate);
+
+  // C5 — on each false→true transition, fade in the next contextual line.
+  // Suppress when triggered by death (C6) — the death message owns the screen.
+  if (mycelialView && !_prevMycelialView && !player.dead) {
+    mycelialLineText = myceliumLines[_mycelialLineIdx % myceliumLines.length];
+    _mycelialLineIdx++;
+    mycelialLineT = MYCELIAL_LINE_DURATION;
+  }
+  _prevMycelialView = mycelialView;
+  if (mycelialLineT > 0) mycelialLineT = Math.max(0, mycelialLineT - dt);
+
+  // C4 — trail sampling. Age existing samples and append a new one
+  // every ~50 ms while the view is engaged and the player is alive.
+  for (const tp of playerTrail) tp.age += dt;
+  while (playerTrail.length > 0 && playerTrail[0].age > TRAIL_LIFE) playerTrail.shift();
+  _trailSampleTimer -= dt;
+  if (mycelialT > 0.05 && !player.dead && _trailSampleTimer <= 0) {
+    playerTrail.push({ x: player.x, y: groundY(player.x) - 14, age: 0 });
+    _trailSampleTimer = 0.05;
+  }
+  if (mycelialT <= 0.01) playerTrail.length = 0;
+
+  // Recompute the network periodically while it's actually visible.
+  _myceliumRecomputeTimer -= dt;
+  if (mycelialT > 0.01 && _myceliumRecomputeTimer <= 0) {
+    computeMycelium();
+    _myceliumRecomputeTimer = 0.35;
+  }
+
   // ── RENDER ──
   drawSky();
   drawMountains();
@@ -2007,6 +4185,24 @@ function frame(ts) {
   drawBgTrees();
   drawParticles('back');
   drawGround();
+  drawGraveNutrient();
+
+  // Mycelial tint: deep indigo over the sky, warm-black over the soil.
+  // Applied after the ground so the soil reads as the dark medium the
+  // glowing network threads through; applied before plants so above-ground
+  // life sits faintly atop the underground view.
+  if (mycelialT > 0) {
+    const og = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    og.addColorStop(0, `rgba(26,16,48,${0.92 * mycelialT})`);
+    og.addColorStop(1, `rgba(10,10,18,${0.95 * mycelialT})`);
+    ctx.fillStyle = og;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  drawMycelium();
+
+  // Above-ground life dims to ~30% during full mycelial view.
+  const worldAlpha = 1 - 0.7 * mycelialT;
+  ctx.globalAlpha = worldAlpha;
 
   // Draw plants sorted by layer
   const layerOrder = { fungal:0, ground:1, shrub:2, canopy:3 };
@@ -2038,7 +4234,8 @@ function frame(ts) {
     }
   }
 
-  // Draw player
+  // Draw player and graves
+  drawOldGraves();
   if (!player.dead) drawPlayer();
   else drawDeadPlayer();
 
@@ -2053,8 +4250,14 @@ function frame(ts) {
     try { sp.draw(ctx, sx2, gY, t, season, phase, p.id); } catch(e2){}
   }
 
+  ctx.globalAlpha = 1;
+  drawPlayerMycelial();
   drawParticles('front');
+  drawMycelialText();
+  drawReflection();
   drawUI();
+  drawDebug();
+  drawListening();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
