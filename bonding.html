@@ -105,7 +105,13 @@
       height: auto;
     }
 
-    /* ── Info panel ── */
+    /* ── Info panel + 3D toggle wrapper ── */
+    .info-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
     .info-panel {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -172,6 +178,30 @@
       color: #fbbf24;
       margin-top: 0.1rem;
       line-height: 1.45;
+    }
+
+    /* ── Toggle 3D Shape button ── */
+    .toggle-3d-btn {
+      align-self: flex-start;
+      margin-top: 0.6rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .toggle-3d-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .toggle-3d-btn.active {
+      border-color: var(--accent);
+      background: rgba(56,189,248,.12);
+      color: var(--accent);
     }
 
     /* ── ΔEN bar ── */
@@ -339,8 +369,11 @@
     <canvas id="sim"></canvas>
   </div>
 
-  <div class="info-panel" id="info-panel">
-    <p class="info-hint">Select two elements from the periodic table above to see their bond.</p>
+  <div class="info-wrap">
+    <div class="info-panel" id="info-panel">
+      <p class="info-hint">Select two elements from the periodic table above to see their bond.</p>
+    </div>
+    <button id="toggle-3d" class="toggle-3d-btn" style="display:none">Toggle 3D Shape</button>
   </div>
 </div>
 
@@ -843,6 +876,212 @@ function classifyBond(a, b) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// VSEPR GEOMETRY
+// ═══════════════════════════════════════════════════════════════════════
+
+// Keyed by "stericNumber_lonePairs".
+// positions: unit vectors for each bonding partner in the canonical textbook view.
+// lonePairPositions: unit vectors for lone pair lobes (used in Step 5).
+// bondStyles: 'plain' | 'wedge' | 'dash' for each bonding position (same order as positions).
+const VSEPR_SHAPES = {
+  '2_0': {
+    name: 'linear',
+    electronGeometry: 'linear',
+    bondAngle: '180°',
+    positions: [{ x: -1, y: 0 }, { x: 1, y: 0 }],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain'],
+  },
+  '3_0': {
+    name: 'trigonal planar',
+    electronGeometry: 'trigonal planar',
+    bondAngle: '120°',
+    positions: [{ x: 0, y: -1 }, { x: -0.866, y: 0.5 }, { x: 0.866, y: 0.5 }],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain', 'plain'],
+  },
+  '3_1': {
+    name: 'bent',
+    electronGeometry: 'trigonal planar',
+    bondAngle: '~117°',
+    // Lone pair at top; two bonds below at ~117° apart (58.5° each from vertical down)
+    positions: [{ x: -0.852, y: 0.524 }, { x: 0.852, y: 0.524 }],
+    lonePairPositions: [{ x: 0, y: -1 }],
+    bondStyles: ['plain', 'plain'],
+  },
+  '4_0': {
+    name: 'tetrahedral',
+    electronGeometry: 'tetrahedral',
+    bondAngle: '109.5°',
+    positions: [
+      { x: -0.7,   y: -0.2  },   // left        — plain
+      { x:  0.7,   y: -0.2  },   // right       — plain
+      { x: -0.35,  y:  0.55 },   // front-left  — wedge
+      { x:  0.35,  y:  0.55 },   // back-right  — dash
+    ],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain', 'wedge', 'dash'],
+  },
+  '4_1': {
+    name: 'trigonal pyramidal',
+    electronGeometry: 'tetrahedral',
+    bondAngle: '~107°',
+    positions: [
+      { x: -0.7, y:  0.15 },   // left        — plain
+      { x:  0.7, y:  0.15 },   // right       — plain
+      { x:  0,   y:  0.65 },   // front       — wedge
+    ],
+    lonePairPositions: [{ x: 0, y: -0.7 }],
+    bondStyles: ['plain', 'plain', 'wedge'],
+  },
+  '4_2': {
+    name: 'bent',
+    electronGeometry: 'tetrahedral',
+    bondAngle: '~104.5°',
+    // Two bonds at 104.5° apart, lone pairs occupy the top two tetrahedral positions.
+    positions: [{ x: -0.791, y: 0.612 }, { x: 0.791, y: 0.612 }],
+    lonePairPositions: [{ x: -0.35, y: -0.55 }, { x: 0.35, y: -0.55 }],
+    bondStyles: ['plain', 'plain'],
+  },
+  '5_0': {
+    name: 'trigonal bipyramidal',
+    electronGeometry: 'trigonal bipyramidal',
+    bondAngle: '90°/120°',
+    // 3 equatorial (in-plane, 120° apart) + 2 axial (wedge/dash for perspective).
+    positions: [
+      { x: -1,    y:  0     },   // equatorial left        — plain
+      { x:  0.5,  y:  0.866 },   // equatorial lower-right — plain
+      { x:  0.5,  y: -0.866 },   // equatorial upper-right — plain
+      { x:  0,    y: -1     },   // axial "top"            — wedge
+      { x:  0,    y:  1     },   // axial "bottom"         — dash
+    ],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain', 'plain', 'wedge', 'dash'],
+  },
+  '5_1': {
+    name: 'seesaw',
+    electronGeometry: 'trigonal bipyramidal',
+    bondAngle: '~90°/120°',
+    // Lone pair occupies one equatorial position (left). Remaining: 2 equatorial + 2 axial.
+    positions: [
+      { x:  0.5,  y: -0.866 },   // equatorial upper-right — plain
+      { x:  0.5,  y:  0.866 },   // equatorial lower-right — plain
+      { x:  0,    y: -1     },   // axial top              — wedge
+      { x:  0,    y:  1     },   // axial bottom           — dash
+    ],
+    lonePairPositions: [{ x: -1, y: 0 }],
+    bondStyles: ['plain', 'plain', 'wedge', 'dash'],
+  },
+  '5_2': {
+    name: 'T-shaped',
+    electronGeometry: 'trigonal bipyramidal',
+    bondAngle: '~90°',
+    // Two equatorial lone pairs; bonds: 1 equatorial (right) + 2 axial.
+    positions: [
+      { x:  1, y:  0 },   // equatorial right — plain
+      { x:  0, y: -1 },   // axial top        — plain
+      { x:  0, y:  1 },   // axial bottom     — plain
+    ],
+    lonePairPositions: [{ x: -1, y: 0 }, { x: 0.5, y: 0.866 }],
+    bondStyles: ['plain', 'plain', 'plain'],
+  },
+  '5_3': {
+    name: 'linear',
+    electronGeometry: 'trigonal bipyramidal',
+    bondAngle: '180°',
+    // Three equatorial lone pairs; only 2 axial bonds remain.
+    positions: [{ x: 0, y: -1 }, { x: 0, y: 1 }],
+    lonePairPositions: [{ x: -1, y: 0 }, { x: 0.5, y: 0.866 }, { x: 0.5, y: -0.866 }],
+    bondStyles: ['plain', 'plain'],
+  },
+  '6_0': {
+    name: 'octahedral',
+    electronGeometry: 'octahedral',
+    bondAngle: '90°',
+    // 4 in-plane bonds (plain) + 2 perspective bonds (wedge/dash).
+    positions: [
+      { x: -1,   y:  0   },   // left         — plain
+      { x:  1,   y:  0   },   // right         — plain
+      { x:  0,   y: -1   },   // top           — plain
+      { x:  0,   y:  1   },   // bottom        — plain
+      { x: -0.4, y:  0.4 },   // front (toward viewer) — wedge
+      { x:  0.4, y: -0.4 },   // back (away from viewer) — dash
+    ],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain', 'plain', 'plain', 'wedge', 'dash'],
+  },
+  '6_1': {
+    name: 'square pyramidal',
+    electronGeometry: 'octahedral',
+    bondAngle: '~90°',
+    // Lone pair in axial-bottom position; 4 equatorial + 1 axial top.
+    positions: [
+      { x: -1, y:  0 },   // equatorial left   — plain
+      { x:  1, y:  0 },   // equatorial right  — plain
+      { x:  0, y: -1 },   // equatorial top    — plain
+      { x:  0, y:  1 },   // equatorial bottom — plain
+      { x:  0, y:  0.5 }, // axial top (apex)  — wedge
+    ],
+    lonePairPositions: [{ x: 0, y: -0.5 }],
+    bondStyles: ['plain', 'plain', 'plain', 'plain', 'wedge'],
+  },
+  '6_2': {
+    name: 'square planar',
+    electronGeometry: 'octahedral',
+    bondAngle: '90°',
+    // Two axial lone pairs; 4 equatorial bonds all in-plane.
+    positions: [
+      { x: -1, y:  0 },
+      { x:  1, y:  0 },
+      { x:  0, y: -1 },
+      { x:  0, y:  1 },
+    ],
+    lonePairPositions: [{ x: 0, y: -0.5 }, { x: 0, y: 0.5 }],
+    bondStyles: ['plain', 'plain', 'plain', 'plain'],
+  },
+};
+
+// Returns the VSEPR shape descriptor for a given atom, or null if not applicable.
+// Uses atom.bonds (array of bond IDs) and the global stageBonds/getBondById.
+function classifyVSEPR(atom) {
+  // Only consider covalent bonds that have fully formed.
+  const covalentBonds = atom.bonds
+    .map(id => getBondById(id))
+    .filter(b => b && b.phase === 'formed' && b.result && b.result.type !== 'ionic');
+
+  if (covalentBonds.length === 0) return null;
+
+  // Count unique bonding partners (each partner counts once regardless of bond order).
+  const partnerIds = new Set();
+  for (const bond of covalentBonds) {
+    const partnerId = bond.idA === atom.id ? bond.idB : bond.idA;
+    partnerIds.add(partnerId);
+  }
+  const bondingPartners = partnerIds.size;
+
+  // Total bonding electrons used by this atom across all covalent bonds.
+  const totalBondingE = covalentBonds.reduce((sum, b) => sum + (b.result.bondOrder || 1), 0);
+
+  // Lone pairs from first principles: (valence − bonding electrons used) / 2.
+  // Clamp to 0 — expanded octets on period-3+ atoms can formally exceed valence.
+  const lonePairs = Math.max(0, Math.floor((atom.elem.valence - totalBondingE) / 2));
+
+  const stericNumber = bondingPartners + lonePairs;
+  const key = `${stericNumber}_${lonePairs}`;
+  const shape = VSEPR_SHAPES[key] || null;
+
+  if (!shape) return null;
+
+  // Return shape descriptor plus the ordered list of partner atom IDs.
+  return {
+    ...shape,
+    stericNumber,
+    lonePairs,
+    partnerIds: [...partnerIds],
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // CANVAS + LAYOUT
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1044,6 +1283,15 @@ let dragGroup  = null;   // PolyatomicGroup currently being dragged
 
 // Step 9: per-component info panel
 let selectedAtom    = null;  // atom whose component is shown in info panel
+
+// Plan D — 3D Shape toggle state
+let show3DShape       = false;               // is 3D mode currently active?
+let drag3DCompAtoms   = null;                // Atom[] | null — rigid-body drag of the 3D component
+const savedPositions  = new Map();           // atomId → { x, y } (original positions)
+const bondStyleOverrides = new Map();        // bondId → { style: 'plain'|'wedge'|'dash', centralId }
+const shape3DRotations   = new Map();        // atomId → { vspr, rotAngle } for lone pair lobe drawing
+let shape3DLabel      = null;                // e.g. 'tetrahedral', for the info panel (Step 6)
+
 let dragStartX      = 0;
 let dragStartY      = 0;
 let dragAtomWasNew  = false; // true when drag began from the periodic table (not a stage pick-up)
@@ -1071,12 +1319,25 @@ function startLoop() {
   rafId  = requestAnimationFrame(gameLoop);
 }
 
+function updateSnapAnimations(dt) {
+  for (const atom of stageAtoms) {
+    if (atom._snapT === undefined || atom._snapT >= 1) continue;
+    atom._snapT = Math.min(1, atom._snapT + dt / 0.4);  // 400 ms total
+    // easeInOutQuad
+    const t    = atom._snapT;
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    atom.x = atom._snapFromX + (atom._snapToX - atom._snapFromX) * ease;
+    atom.y = atom._snapFromY + (atom._snapToY - atom._snapFromY) * ease;
+  }
+}
+
 function gameLoop(ts) {
   const dt = Math.min((ts - lastTs) / 1000, 0.05);
   lastTs = ts;
   updateElectrons(dt);
   updateBonds(dt);
   updateGlow(dt);
+  updateSnapAnimations(dt);
   drawAll();
   rafId = requestAnimationFrame(gameLoop);
 }
@@ -2296,6 +2557,9 @@ function drawStage() {
     drawBond(bond);
   }
 
+  // Draw VSEPR lone pair lobes (in front of bonds, behind atom circles)
+  drawLonePairLobes();
+
   // Draw transfer particles
   for (const bond of stageBonds) {
     if (bond.result.type === 'ionic' && bond.phase === 'forming') {
@@ -2382,6 +2646,98 @@ function nearestGroupAtom(group, refX, refY) {
   return best;
 }
 
+// 5A: Draw translucent lone pair lobes for all VSEPR centre atoms in the 3D component.
+// Called after bonds, before atoms, so atom circles render on top.
+function drawLonePairLobes() {
+  if (!show3DShape || shape3DRotations.size === 0) return;
+
+  for (const [atomId, { vspr, rotAngle }] of shape3DRotations) {
+    if (!vspr.lonePairPositions || vspr.lonePairPositions.length === 0) continue;
+    const atom = getAtomById(atomId);
+    if (!atom) continue;
+
+    // Fade lobes in during the second half of the snap animation (same gate as wedge/dash).
+    const snapT   = atom._snapT ?? 1;
+    if (snapT < 0.5) continue;
+    const lobeAlpha = Math.min(1, (snapT - 0.5) * 2);  // 0 → 1 over the second 200 ms
+
+    const eColor = electronColor(atom);   // match the atom's orbiting electron colour
+
+    for (const lp of vspr.lonePairPositions) {
+      // Rotate canonical lobe direction by the shape's computed rotation.
+      const rotP     = rotateVec(lp, rotAngle);
+      const lobeAngle = Math.atan2(rotP.y, rotP.x);
+
+      // Lobe centre: 52 % of bond length from atom centre (shorter than bonds).
+      const LOBE_DIST = VSEPR_BOND_LENGTH * 0.52;
+      const lobeX = atom.x + rotP.x * LOBE_DIST;
+      const lobeY = atom.y + rotP.y * LOBE_DIST;
+
+      // Radial gradient: denser near the atom end of the lobe, fading at the tip.
+      const gradCX = lobeX - rotP.x * 10;
+      const gradCY = lobeY - rotP.y * 10;
+      const grad = ctx.createRadialGradient(gradCX, gradCY, 0, gradCX, gradCY, 28);
+      grad.addColorStop(0,   eColor + 'aa');   // ~67 % opacity core
+      grad.addColorStop(0.5, eColor + '44');   // ~27 % opacity mid
+      grad.addColorStop(1,   eColor + '00');   // transparent tip
+
+      ctx.save();
+      ctx.globalAlpha = lobeAlpha * 0.85;
+      ctx.beginPath();
+      // Elongated ellipse: 11 px wide, 22 px long, oriented along the lobe direction.
+      ctx.ellipse(lobeX, lobeY, 11, 22, lobeAngle, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+// 3B: Wedge bond — solid filled trapezoid, narrow at (x1,y1), wide at (x2,y2).
+function drawWedgeBond(bo, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;   // perpendicular unit vector
+
+  const offsets = bo === 1 ? [0] : bo === 2 ? [-3.5, 3.5] : [-6, 0, 6];
+
+  for (const off of offsets) {
+    const ox = nx * off, oy = ny * off;
+    const narrowH = 1.5, wideH = 7;
+    ctx.beginPath();
+    ctx.moveTo(x1 + ox + nx * narrowH, y1 + oy + ny * narrowH);   // near-left
+    ctx.lineTo(x1 + ox - nx * narrowH, y1 + oy - ny * narrowH);   // near-right
+    ctx.lineTo(x2 + ox - nx * wideH,   y2 + oy - ny * wideH);     // far-right
+    ctx.lineTo(x2 + ox + nx * wideH,   y2 + oy + ny * wideH);     // far-left
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// 3C: Dash bond — N evenly-spaced cross-lines inside a widening triangular envelope.
+function drawDashBond(bo, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  const N = 14;
+
+  const offsets = bo === 1 ? [0] : bo === 2 ? [-3.5, 3.5] : [-6, 0, 6];
+
+  ctx.lineWidth = 1.5;
+  for (const off of offsets) {
+    const ox = nx * off, oy = ny * off;
+    for (let i = 0; i < N; i++) {
+      const t = (i + 0.5) / N;
+      const cx2 = x1 + dx * t + ox, cy2 = y1 + dy * t + oy;
+      const halfW = 1.5 + (7 - 1.5) * t;   // widens from narrow to wide
+      ctx.beginPath();
+      ctx.moveTo(cx2 + nx * halfW, cy2 + ny * halfW);
+      ctx.lineTo(cx2 - nx * halfW, cy2 - ny * halfW);
+      ctx.stroke();
+    }
+  }
+}
+
 function drawBond(bond) {
   const atomA = getAtomById(bond.idA);
   const atomB = getAtomById(bond.idB);
@@ -2428,6 +2784,27 @@ function drawBond(bond) {
   } else {
     // Solid covalent bond line(s)
     const bo = bond.result.bondOrder || 1;
+
+    // 3A: wedge/dash dispatch for 3D mode.
+    // Bond style switches from plain → wedge/dash once both atoms are ≥50% through their snap.
+    if (show3DShape && bondStyleOverrides.has(bond.id)) {
+      const snapProgress = Math.min(atomA._snapT ?? 1, atomB._snapT ?? 1);
+      if (snapProgress >= 0.5) {
+        const { style, centralId } = bondStyleOverrides.get(bond.id);
+        if (style !== 'plain') {
+          const [x1, y1, x2, y2] = centralId === bond.idA
+            ? [atomA.x, atomA.y, atomB.x, atomB.y]
+            : [atomB.x, atomB.y, atomA.x, atomA.y];
+          const bondColor = bond.stoichComplete ? '#34d399' : cv('--muted');
+          ctx.fillStyle   = bondColor;
+          ctx.strokeStyle = bondColor;
+          if (style === 'wedge') { drawWedgeBond(bo, x1, y1, x2, y2); ctx.globalAlpha = 1; return; }
+          if (style === 'dash')  { drawDashBond(bo, x1, y1, x2, y2);  ctx.globalAlpha = 1; return; }
+        }
+      }
+      // 'plain' style, or snapProgress < 0.5: fall through to standard line code
+    }
+
     const dx = atomB.x - atomA.x, dy = atomB.y - atomA.y;
     const d  = Math.hypot(dx, dy) || 1;
     const nx = -dy / d, ny = dx / d;  // normal
@@ -2649,6 +3026,51 @@ function drawAtomElectrons(atom, color) {
       }
     } else {
       // Free or settled lone-pair electron
+      // In 3D shape mode, reposition lone pairs into their lobe ellipses
+      if (show3DShape && shape3DRotations.has(atom.id)) {
+        const { vspr, rotAngle } = shape3DRotations.get(atom.id);
+        const snapT = atom._snapT ?? 1;
+        if (snapT >= 0.5 && vspr.lonePairPositions.length > 0) {
+          // Collect all free electrons on this atom to assign them to lobes
+          const freeEs = atom.electrons.filter(
+            fe => !fe.transferred && !fe.shared && fe.transferTarget === null
+          );
+          const myIdx = freeEs.indexOf(e);
+          if (myIdx >= 0) {
+            // Assign 2 electrons per lobe: [0,1]→lobe0, [2,3]→lobe1, etc.
+            const lobeIdx = Math.floor(myIdx / 2);
+            const slotInLobe = myIdx % 2; // 0 or 1
+            const lp = vspr.lonePairPositions[lobeIdx % vspr.lonePairPositions.length];
+            const rotP = rotateVec(lp, rotAngle);
+            const LOBE_DIST = VSEPR_BOND_LENGTH * 0.52;
+            const lobeX = cx + rotP.x * LOBE_DIST;
+            const lobeY = cy + rotP.y * LOBE_DIST;
+            // Lobe axis: direction from atom to lobe centre
+            const lobeAngle = Math.atan2(rotP.y, rotP.x);
+            // Perpendicular to lobe axis for side-by-side positioning and wiggle
+            const perpX = -Math.sin(lobeAngle), perpY = Math.cos(lobeAngle);
+            // Side-by-side offset so the pair doesn't overlap
+            const sideOffset = slotInLobe === 0 ? -3 : 3;
+            // Wiggle: small sinusoidal oscillation using e.angle as phase (still advancing)
+            const wiggle = Math.sin(e.angle * 3) * 2.5;
+            x = lobeX + perpX * (sideOffset + wiggle);
+            y = lobeY + perpY * (sideOffset + wiggle);
+          } else {
+            x = cx + Math.cos(e.angle) * e.radius;
+            y = cy + Math.sin(e.angle) * e.radius;
+          }
+          // Draw and skip the default path below
+          ctx.beginPath();
+          ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = color + '44';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          continue;
+        }
+      }
       const bx = cx + Math.cos(e.angle) * e.radius;
       const by = cy + Math.sin(e.angle) * e.radius;
       const po = e.pairOffset || 0;
@@ -3085,6 +3507,315 @@ function groupBondSummary(group) {
   return parts.join(', ') + (hasResonance ? ' — ↔ resonance' : '');
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// VSEPR GEOMETRY LAYOUT ENGINE  (Step 2)
+// ═══════════════════════════════════════════════════════════════════════
+
+const VSEPR_BOND_LENGTH = 120; // px — uniform bond length in 3D mode
+
+// Rotate a unit vector by `angle` radians.
+function rotateVec(vec, angle) {
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  return { x: vec.x * cos - vec.y * sin, y: vec.x * sin + vec.y * cos };
+}
+
+// Return the index of the shape position whose canonical angle is closest to `targetAngle`.
+function findClosestSlot(positions, targetAngle) {
+  let best = 0, bestCos = -Infinity;
+  for (let i = 0; i < positions.length; i++) {
+    const a = Math.atan2(positions[i].y, positions[i].x);
+    const c = Math.cos(a - targetAngle);
+    if (c > bestCos) { bestCos = c; best = i; }
+  }
+  return best;
+}
+
+// Build adjacency map: atomId → [partnerId, …] (covalent bonds only, within comp).
+function buildCovAdj(comp, covBonds) {
+  const adj = new Map(comp.map(a => [a.id, []]));
+  for (const b of covBonds) {
+    if (adj.has(b.idA)) adj.get(b.idA).push(b.idB);
+    if (adj.has(b.idB)) adj.get(b.idB).push(b.idA);
+  }
+  return adj;
+}
+
+// 2A: Find the root atom for the VSEPR layout BFS.
+function findCentralAtom(comp, covBonds) {
+  const adj = buildCovAdj(comp, covBonds);
+  const degree = new Map(comp.map(a => [a.id, (adj.get(a.id) || []).length]));
+  const maxDeg = Math.max(...degree.values());
+
+  // Chain (all degrees ≤ 2): walk from one end to pick the middle node.
+  if (maxDeg <= 2) {
+    const ends = comp.filter(a => degree.get(a.id) === 1);
+    const start = ends.length ? ends[0] : comp[0];
+    const dist = new Map([[start.id, 0]]);
+    const q = [start.id];
+    while (q.length) {
+      const cur = q.shift();
+      for (const nb of (adj.get(cur) || [])) {
+        if (!dist.has(nb)) { dist.set(nb, dist.get(cur) + 1); q.push(nb); }
+      }
+    }
+    const maxD = Math.max(...dist.values());
+    return comp.reduce((best, a) => {
+      return Math.abs((dist.get(a.id) ?? 0) - maxD / 2) <
+             Math.abs((dist.get(best.id) ?? 0) - maxD / 2) ? a : best;
+    });
+  }
+
+  // Otherwise: highest degree wins; tie-break by lowest EN (more metallic = more central).
+  return comp.reduce((best, a) => {
+    const da = degree.get(a.id) || 0, db = degree.get(best.id) || 0;
+    if (da > db) return a;
+    if (da === db && (a.elem.EN ?? 999) < (best.elem.EN ?? 999)) return a;
+    return best;
+  });
+}
+
+// Sort a list of atom IDs: non-H / more-bonded / higher-Z partners first, H last.
+// This ensures heavier atoms get the in-plane (plain) slots; H gets wedge/dash slots.
+function sortPartners(ids, adj) {
+  return [...ids].sort((idA, idB) => {
+    const a = getAtomById(idA), b = getAtomById(idB);
+    if (!a || !b) return 0;
+    if (a.elem.sym === 'H' && b.elem.sym !== 'H') return 1;
+    if (b.elem.sym === 'H' && a.elem.sym !== 'H') return -1;
+    const da = (adj.get(idA) || []).length, db2 = (adj.get(idB) || []).length;
+    if (db2 !== da) return db2 - da;
+    return (b.elem.Z || 0) - (a.elem.Z || 0);
+  });
+}
+
+// 2C: Push non-bonded positions apart if closer than 2.5 × R_ATOM.
+// Operates on the `placed` Map (atomId → {x,y}) so atom.x/y are not touched yet.
+function nudgeOverlaps(placed, orderedIds, bondedPairs, iters) {
+  const minDist = R_ATOM * 2.5;
+  for (let k = 0; k < iters; k++) {
+    for (let i = 0; i < orderedIds.length; i++) {
+      for (let j = i + 1; j < orderedIds.length; j++) {
+        const idA = orderedIds[i], idB = orderedIds[j];
+        const a = placed.get(idA), b = placed.get(idB);
+        if (!a || !b) continue;
+        if (bondedPairs.has([idA, idB].sort().join('_'))) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d < minDist && d > 0.01) {
+          const push = (minDist - d) / 2;
+          a.x -= (dx / d) * push; a.y -= (dy / d) * push;
+          b.x += (dx / d) * push; b.y += (dy / d) * push;
+        }
+      }
+    }
+  }
+}
+
+// 2B + 2C: BFS from root, assigning VSEPR-correct target positions to every atom
+// in the component and writing them directly to atom.x / atom.y.
+// Also populates bondStyleOverrides.
+function computeVSEPRLayout(comp) {
+  if (comp.length < 2) return;
+
+  const atomIds = new Set(comp.map(a => a.id));
+  const covBonds = stageBonds.filter(b =>
+    b.phase === 'formed' &&
+    b.result && b.result.type !== 'ionic' &&
+    atomIds.has(b.idA) && atomIds.has(b.idB)
+  );
+  if (covBonds.length === 0) return;
+
+  const bondFor = new Map();
+  const bondedPairs = new Set();
+  for (const b of covBonds) {
+    const key = [b.idA, b.idB].sort().join('_');
+    bondFor.set(key, b);
+    bondedPairs.add(key);
+  }
+
+  const adj = buildCovAdj(comp, covBonds);
+  const root = findCentralAtom(comp, covBonds);
+
+  // Place root at centroid of current positions.
+  const cx = comp.reduce((s, a) => s + a.x, 0) / comp.length;
+  const cy = comp.reduce((s, a) => s + a.y, 0) / comp.length;
+
+  const placed = new Map();      // atomId → { x, y }
+  placed.set(root.id, { x: cx, y: cy });
+
+  // Queue entries: { atomId, parentId, parentDir }
+  // parentDir = angle FROM parent TO this atom (radians).
+  const queue = [{ atomId: root.id, parentId: null, parentDir: null }];
+
+  while (queue.length) {
+    const { atomId, parentId, parentDir } = queue.shift();
+    const atom = getAtomById(atomId);
+    if (!atom) continue;
+
+    const pos = placed.get(atomId);
+    const unplaced = (adj.get(atomId) || []).filter(id => !placed.has(id));
+    if (unplaced.length === 0) continue;
+
+    // Classify this atom's VSEPR geometry.
+    const vspr = classifyVSEPR(atom);
+
+    // Fallback for atoms with no matching VSEPR shape (e.g. terminal, stericN=1).
+    if (!vspr || vspr.positions.length === 0) {
+      const n = unplaced.length;
+      const baseAngle = parentDir ?? 0;
+      for (let i = 0; i < n; i++) {
+        const a = baseAngle + (Math.PI * 2 * i) / n;
+        placed.set(unplaced[i], {
+          x: pos.x + Math.cos(a) * VSEPR_BOND_LENGTH,
+          y: pos.y + Math.sin(a) * VSEPR_BOND_LENGTH,
+        });
+        queue.push({ atomId: unplaced[i], parentId: atomId, parentDir: a });
+      }
+      continue;
+    }
+
+    const shapePos  = vspr.positions;
+    const shapeStyle = vspr.bondStyles;
+    const sorted = sortPartners(unplaced, adj);
+
+    let rotAngle = 0;
+    let slots; // [{ idx, p, style }] — ordered slots for unplaced partners
+
+    if (parentId !== null && parentDir !== null) {
+      // This atom was placed by its parent.  A is at angle parentDir from parent, so
+      // parent is at angle parentDir + π from this atom.  Rotate the canonical shape
+      // so that one slot aligns with that back-direction.
+      const backAngle = parentDir + Math.PI;
+      const parentSlot = findClosestSlot(shapePos, backAngle);
+      rotAngle = backAngle - Math.atan2(shapePos[parentSlot].y, shapePos[parentSlot].x);
+      slots = shapePos
+        .map((p, i) => ({ idx: i, p, style: shapeStyle[i] }))
+        .filter(s => s.idx !== parentSlot);
+    } else {
+      // Root atom: orient canonical shape so slot[0] points toward current position
+      // of the first (heaviest) sorted partner.
+      if (sorted.length > 0) {
+        const fp = getAtomById(sorted[0]);
+        if (fp) {
+          const curAng = Math.atan2(fp.y - pos.y, fp.x - pos.x);
+          rotAngle = curAng - Math.atan2(shapePos[0].y, shapePos[0].x);
+        }
+      }
+      slots = shapePos.map((p, i) => ({ idx: i, p, style: shapeStyle[i] }));
+    }
+
+    // 5A: store rotation for lone pair lobe rendering (atoms with ≥1 lone pair position).
+    if (vspr.lonePairPositions.length > 0) {
+      shape3DRotations.set(atomId, { vspr, rotAngle });
+    }
+
+    // Assign slots to sorted partners.
+    for (let j = 0; j < Math.min(sorted.length, slots.length); j++) {
+      const partnerId = sorted[j];
+      const slot = slots[j];
+      const rotP = rotateVec(slot.p, rotAngle);
+      const target = {
+        x: pos.x + rotP.x * VSEPR_BOND_LENGTH,
+        y: pos.y + rotP.y * VSEPR_BOND_LENGTH,
+      };
+      placed.set(partnerId, target);
+
+      // Assign bond style (store centralId so drawBond knows which end is narrow).
+      const bond = bondFor.get([atomId, partnerId].sort().join('_'));
+      if (bond) bondStyleOverrides.set(bond.id, { style: slot.style, centralId: atomId });
+
+      queue.push({
+        atomId:    partnerId,
+        parentId:  atomId,
+        parentDir: Math.atan2(rotP.y, rotP.x),
+      });
+    }
+  }
+
+  // 2C: nudge non-bonded positions apart in the placed map (before writing to atoms).
+  nudgeOverlaps(placed, comp.map(a => a.id), bondedPairs, 8);
+
+  // Set up snap animation: record from/to for each atom and start at t=0.
+  // The game loop lerps atom.x/y toward _snapToX/Y over 400 ms.
+  for (const atom of comp) {
+    const t = placed.get(atom.id);
+    if (t) {
+      atom._snapFromX = atom.x;  atom._snapFromY = atom.y;
+      atom._snapToX   = t.x;     atom._snapToY   = t.y;
+      atom._snapT     = 0;
+    }
+  }
+}
+
+// ── 3D Shape toggle helpers ──────────────────────────────────────────────
+
+// Turn off 3D mode for the current component and restore saved positions.
+function reset3DShape() {
+  if (!show3DShape) return;
+  // Start reverse snap: each atom animates back to its original position.
+  for (const [id, savedPos] of savedPositions) {
+    const atom = getAtomById(id);
+    if (atom) {
+      atom._snapFromX = atom.x;  atom._snapFromY = atom.y;
+      atom._snapToX   = savedPos.x; atom._snapToY = savedPos.y;
+      atom._snapT     = 0;
+    }
+  }
+  savedPositions.clear();
+  bondStyleOverrides.clear();
+  shape3DRotations.clear();
+  show3DShape  = false;
+  shape3DLabel = null;
+}
+
+// Toggle 3D mode on/off for the selected component.
+// Steps 2 and 4 will plug VSEPR layout + animation into the ON branch.
+function toggle3DShape() {
+  if (!selectedAtom) return;
+  const comp = connectedComponent(selectedAtom);
+
+  if (!show3DShape) {
+    // Save current positions for all atoms in this component.
+    for (const atom of comp) {
+      savedPositions.set(atom.id, { x: atom.x, y: atom.y });
+    }
+    show3DShape = true;
+    // Compute VSEPR layout and snap atoms to canonical positions.
+    computeVSEPRLayout(comp);
+    // Step 4 will replace the direct write above with a smooth animation.
+  } else {
+    reset3DShape();
+  }
+
+  const btn = document.getElementById('toggle-3d');
+  if (btn) btn.classList.toggle('active', show3DShape);
+  updateInfo();
+}
+
+// Update the visibility and active state of the Toggle 3D button.
+// Called at the end of updateInfo() for covalent molecules.
+function update3DButton(comp, compBonds, bondType) {
+  const btn = document.getElementById('toggle-3d');
+  if (!btn) return;
+
+  // Only show for covalent molecules with ≥1 hub atom (≥2 cov. bonds)
+  // where all bonds are fully formed.
+  const eligible = bondType !== 'ionic'
+    && comp && comp.length >= 2
+    && compBonds.every(b => b.phase === 'formed')
+    && comp.some(a => {
+        const cov = a.bonds.filter(id => {
+          const b = getBondById(id);
+          return b && b.phase === 'formed' && b.result && b.result.type !== 'ionic';
+        });
+        return cov.length >= 2;
+      });
+
+  btn.style.display = eligible ? 'inline-block' : 'none';
+  if (!eligible && show3DShape) reset3DShape();
+  btn.classList.toggle('active', show3DShape);
+}
+
 function updateInfo() {
   const panel = document.getElementById('info-panel');
 
@@ -3135,6 +3866,7 @@ function updateInfo() {
         <div class="info-grid">${rows}</div>
         <div class="info-hint" style="font-size:0.8rem;margin-top:0.5rem;">${hint}</div>
       `;
+      update3DButton([], [], 'ionic');
       return;
     }
   }
@@ -3142,6 +3874,7 @@ function updateInfo() {
   const formedBonds = stageBonds.filter(b => b.phase === 'formed');
   if (formedBonds.length === 0) {
     panel.innerHTML = '<p class="info-hint">Drag atoms together to see their bond.</p>';
+    update3DButton([], [], 'ionic');
     return;
   }
 
@@ -3236,6 +3969,7 @@ function updateInfo() {
       <div class="info-name">${stageName}</div>
       <div class="info-grid">${rows}</div>
     `;
+    update3DButton([], [], 'ionic');
     return;
   }
 
@@ -3317,6 +4051,35 @@ function updateInfo() {
         <span class="info-val" style="color:var(--muted)">Incomplete — add more atoms</span></div>`;
     }
   } else {
+    // 6A: VSEPR geometry rows — visible only when 3D mode is active.
+    if (show3DShape) {
+      const centre = findCentralAtom(component, componentBonds);
+      const vGeom  = centre ? classifyVSEPR(centre) : null;
+      if (vGeom) {
+        shape3DLabel = vGeom.name;
+        // Molecular geometry ≠ electron geometry when lone pairs are present.
+        const sameGeom = vGeom.name === vGeom.electronGeometry;
+        rows += `
+        <div class="info-row" style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid var(--border)">
+          <span class="info-key">Mol. geometry:</span>
+          <span class="info-val" style="color:#38bdf8">${vGeom.name}</span></div>`;
+        if (!sameGeom) {
+          rows += `
+        <div class="info-row"><span class="info-key">e⁻ geometry:</span>
+          <span class="info-val">${vGeom.electronGeometry}</span></div>`;
+        }
+        rows += `
+        <div class="info-row"><span class="info-key">Bond angle:</span>
+          <span class="info-val">${vGeom.bondAngle}</span></div>`;
+        if (vGeom.lonePairs > 0) {
+          const lpLabel = vGeom.lonePairs === 1 ? '1 lone pair' : `${vGeom.lonePairs} lone pairs`;
+          rows += `
+        <div class="info-row"><span class="info-key">Lone pairs:</span>
+          <span class="info-val">${lpLabel} on ${centre.elem.sym}</span></div>`;
+        }
+      }
+    }
+
     const orderWords = ['','single','double','triple'];
     if (componentBonds.length <= 1) {
       // Diatomic or single bond: show per-bond ΔEN and order
@@ -3396,6 +4159,7 @@ function updateInfo() {
     ${warnings}
     ${noteHtml}
   `;
+  update3DButton(component, componentBonds, r.type);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -3486,7 +4250,13 @@ canvas.addEventListener('mousemove', e => {
   else      hideTooltip();
 
   // Drag
-  if (dragGroup) {
+  if (drag3DCompAtoms) {
+    for (const a of drag3DCompAtoms) {
+      a.x = Math.max(SX_MIN, Math.min(SX_MAX, x - a.dragOffX));
+      a.y = Math.max(SY_MIN, Math.min(SY_MAX, y - a.dragOffY));
+    }
+    canvas.style.cursor = 'grabbing';
+  } else if (dragGroup) {
     for (const a of dragGroup.atoms) {
       a.x = Math.max(SX_MIN, Math.min(SX_MAX, x - a.dragOffX));
       a.y = Math.max(SY_MIN, Math.min(SY_MAX, y - a.dragOffY));
@@ -3562,6 +4332,26 @@ canvas.addEventListener('mousedown', e => {
   // Hit test stage atoms
   const atom = hitTestStage(x, y);
   if (atom) {
+    // 4B: if 3D mode is active and this atom belongs to the 3D component,
+    // drag the entire component as a rigid body.
+    if (show3DShape && savedPositions.has(atom.id)) {
+      for (const id of savedPositions.keys()) {
+        const a = getAtomById(id);
+        if (a && a._snapT !== undefined && a._snapT < 1) {
+          a.x = a._snapToX; a.y = a._snapToY; a._snapT = 1;
+        }
+      }
+      drag3DCompAtoms = [...savedPositions.keys()]
+        .map(id => getAtomById(id)).filter(Boolean);
+      for (const a of drag3DCompAtoms) {
+        a.dragging = true;
+        a.dragOffX = x - a.x;
+        a.dragOffY = y - a.y;
+      }
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+
     // If atom is part of a group, drag the whole group
     const group = atom.groupId != null
       ? stageGroups.find(g => g.id === atom.groupId) : null;
@@ -3593,6 +4383,13 @@ canvas.addEventListener('mousedown', e => {
 
 canvas.addEventListener('mouseup', e => {
   const { x, y } = canvasXY(e);
+
+  // 4B: release rigid-body 3D drag — no bonding snap.
+  if (drag3DCompAtoms) {
+    for (const a of drag3DCompAtoms) a.dragging = false;
+    drag3DCompAtoms = null;
+    return;
+  }
 
   if (dragGroup) {
     for (const a of dragGroup.atoms) a.dragging = false;
@@ -3672,6 +4469,11 @@ canvas.addEventListener('mouseup', e => {
   // Click-to-select: tiny drag on an existing stage atom with no bond triggered
   // → show that atom's component in the info panel.
   if (!didBond && !bondedToGroup && !clickedWasNew && dragDist < 5) {
+    // If user selects a different component while 3D is active, reset 3D mode.
+    if (show3DShape && clickedAtom && selectedAtom) {
+      const oldComp = connectedComponent(selectedAtom).map(a => a.id);
+      if (!oldComp.includes(clickedAtom.id)) reset3DShape();
+    }
     selectedAtom = clickedAtom;
     updateInfo();
   }
@@ -3732,6 +4534,24 @@ canvas.addEventListener('touchstart', e => {
   // Hit test stage atoms
   const atom = hitTestStage(x, y);
   if (atom) {
+    // 4B: rigid-body drag for 3D component (touch)
+    if (show3DShape && savedPositions.has(atom.id)) {
+      for (const id of savedPositions.keys()) {
+        const a = getAtomById(id);
+        if (a && a._snapT !== undefined && a._snapT < 1) {
+          a.x = a._snapToX; a.y = a._snapToY; a._snapT = 1;
+        }
+      }
+      drag3DCompAtoms = [...savedPositions.keys()]
+        .map(id => getAtomById(id)).filter(Boolean);
+      for (const a of drag3DCompAtoms) {
+        a.dragging = true;
+        a.dragOffX = x - a.x;
+        a.dragOffY = y - a.y;
+      }
+      return;
+    }
+
     // If atom is part of a group, drag the whole group
     const group = atom.groupId != null
       ? stageGroups.find(g => g.id === atom.groupId) : null;
@@ -3767,7 +4587,12 @@ canvas.addEventListener('touchmove', e => {
   const { x, y } = canvasXY(e);
 
   // Drag
-  if (dragGroup) {
+  if (drag3DCompAtoms) {
+    for (const a of drag3DCompAtoms) {
+      a.x = Math.max(SX_MIN, Math.min(SX_MAX, x - a.dragOffX));
+      a.y = Math.max(SY_MIN, Math.min(SY_MAX, y - a.dragOffY));
+    }
+  } else if (dragGroup) {
     for (const a of dragGroup.atoms) {
       a.x = Math.max(SX_MIN, Math.min(SX_MAX, x - a.dragOffX));
       a.y = Math.max(SY_MIN, Math.min(SY_MAX, y - a.dragOffY));
@@ -3781,6 +4606,13 @@ canvas.addEventListener('touchmove', e => {
 canvas.addEventListener('touchend', e => {
   const lastTouch = e.changedTouches[0];
   const { x, y } = lastTouch ? canvasXY({ clientX: lastTouch.clientX, clientY: lastTouch.clientY }) : { x: dragStartX, y: dragStartY };
+
+  // 4B: release rigid-body 3D drag (touch)
+  if (drag3DCompAtoms) {
+    for (const a of drag3DCompAtoms) a.dragging = false;
+    drag3DCompAtoms = null;
+    return;
+  }
 
   if (dragGroup) {
     for (const a of dragGroup.atoms) a.dragging = false;
@@ -3877,6 +4709,18 @@ canvas.addEventListener('contextmenu', e => {
   const { x, y } = canvasXY(e);
   const atom = hitTestStage(x, y);
   if (!atom) return;
+
+  // 4B: right-clicking an atom in the 3D component exits 3D mode first,
+  // restoring all atoms to their pre-snap positions before removal.
+  if (show3DShape && savedPositions.has(atom.id)) {
+    reset3DShape();
+    // Snap back instantly (don't animate — user is about to delete)
+    for (const a of stageAtoms) {
+      if (a._snapT !== undefined && a._snapT < 1) {
+        a.x = a._snapToX; a.y = a._snapToY; a._snapT = 1;
+      }
+    }
+  }
 
   // Remove any bonds involving this atom
   for (let i = stageBonds.length - 1; i >= 0; i--) {
@@ -4080,6 +4924,7 @@ function groupAsIon() {
 }
 
 document.getElementById('group-btn').addEventListener('click', groupAsIon);
+document.getElementById('toggle-3d').addEventListener('click', toggle3DShape);
 
 document.getElementById('clear-btn').addEventListener('click', () => {
   stageAtoms.length = 0;
@@ -4090,6 +4935,11 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   Bond._nextId = 0;
   PolyatomicGroup._nextId = 0;
   selectedAtom = null;
+  show3DShape = false;
+  savedPositions.clear();
+  bondStyleOverrides.clear();
+  shape3DRotations.clear();
+  shape3DLabel = null;
   refreshGroupBtn();
   updateInfo();
 });
