@@ -402,6 +402,8 @@ const CELL_R = 600;
 let mobileZoom = 1;
 const MOBILE_ZOOM_MIN = 1;
 const MOBILE_ZOOM_MAX = 2.6;
+let cameraOffsetX = 0;
+let cameraOffsetY = 0;
 function baseCellScale() {
   const pad = 56;
   return Math.min(
@@ -606,7 +608,11 @@ let suppressCanvasClick = false;
 let pinchZooming = false;
 let pinchStartDistance = 0;
 let pinchStartZoom = 1;
-const SORTING_GUIDES = true;
+let pinchStartMidX = 0;
+let pinchStartMidY = 0;
+let pinchStartOffsetX = 0;
+let pinchStartOffsetY = 0;
+const SORTING_GUIDES = false;
 const SORTING_CENTER = { x: -95, y: 20 };
 const SORTING_ORIGINAL_TARGETS = {
   golgi: { x: -315, y: 80 },
@@ -766,13 +772,34 @@ function screenToWorld(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   const scale = cellScale();
   return {
-    x: (clientX - rect.left - canvas.width / 2) / scale,
-    y: (clientY - rect.top - canvas.height / 2) / scale,
+    x: (clientX - rect.left - canvas.width / 2 - cameraOffsetX) / scale,
+    y: (clientY - rect.top - canvas.height / 2 - cameraOffsetY) / scale,
   };
 }
 
 function touchDistance(t1, t2) {
   return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+}
+
+function isMobileUI() {
+  return window.matchMedia('(max-width: 760px)').matches;
+}
+
+function touchMidpoint(t1, t2) {
+  return {
+    x: (t1.clientX + t2.clientX) * 0.5,
+    y: (t1.clientY + t2.clientY) * 0.5,
+  };
+}
+
+function clampCameraOffset() {
+  const scale = cellScale();
+  const worldW = CELL_R * 2 * scale;
+  const worldH = CELL_R * 2 * scale;
+  const extraX = Math.max(0, (worldW - canvas.width) * 0.5 + 48);
+  const extraY = Math.max(0, (worldH - canvas.height) * 0.5 + 48);
+  cameraOffsetX = Math.max(-extraX, Math.min(extraX, cameraOffsetX));
+  cameraOffsetY = Math.max(-extraY, Math.min(extraY, cameraOffsetY));
 }
 
 function sortMotion(base, staging, target, p) {
@@ -1351,10 +1378,11 @@ function activateOrganelle(org, openDetails = true) {
 }
 
 function harvestATP(mito, openDetails = true) {
+  const showDetails = openDetails && !isMobileUI();
   if (metabolism.glucoseFuel <= 0) {
     mito.pulse = 0.45;
     spawnBurst(mito.x, mito.y, '#f87171', 8);
-    if (openDetails) openCard(mitoInfo);
+    if (showDetails) openCard(mitoInfo);
     setCellyOverride("I'm hungry! Click the glowing pocket at the top membrane to bring glucose inside the cell!");
     updatePhaseStatus();
     return false;
@@ -1370,7 +1398,7 @@ function harvestATP(mito, openDetails = true) {
   }
   mito.pulse = 0.8;
   spawnBurst(mito.x, mito.y, '#fbbf24', 14);
-  if (openDetails) openCard(mitoInfo);
+  if (showDetails) openCard(mitoInfo);
   updatePhaseStatus();
   return true;
 }
@@ -1683,7 +1711,12 @@ canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     pinchZooming = true;
     pinchStartDistance = touchDistance(e.touches[0], e.touches[1]);
+    const mid = touchMidpoint(e.touches[0], e.touches[1]);
+    pinchStartMidX = mid.x;
+    pinchStartMidY = mid.y;
     pinchStartZoom = mobileZoom;
+    pinchStartOffsetX = cameraOffsetX;
+    pinchStartOffsetY = cameraOffsetY;
     if (dragPointer === 'touch') endTokenDrag();
     return;
   }
@@ -1702,9 +1735,13 @@ canvas.addEventListener('touchmove', e => {
   if (pinchZooming && e.touches.length >= 2) {
     e.preventDefault();
     const dist = touchDistance(e.touches[0], e.touches[1]);
+    const mid = touchMidpoint(e.touches[0], e.touches[1]);
     if (pinchStartDistance > 0) {
       mobileZoom = Math.max(MOBILE_ZOOM_MIN, Math.min(MOBILE_ZOOM_MAX, pinchStartZoom * (dist / pinchStartDistance)));
     }
+    cameraOffsetX = pinchStartOffsetX + (mid.x - pinchStartMidX);
+    cameraOffsetY = pinchStartOffsetY + (mid.y - pinchStartMidY);
+    clampCameraOffset();
     return;
   }
   if (!dragToken || dragPointer !== 'touch' || !e.touches.length) return;
@@ -1715,9 +1752,13 @@ window.addEventListener('touchmove', e => {
   if (pinchZooming && e.touches.length >= 2) {
     e.preventDefault();
     const dist = touchDistance(e.touches[0], e.touches[1]);
+    const mid = touchMidpoint(e.touches[0], e.touches[1]);
     if (pinchStartDistance > 0) {
       mobileZoom = Math.max(MOBILE_ZOOM_MIN, Math.min(MOBILE_ZOOM_MAX, pinchStartZoom * (dist / pinchStartDistance)));
     }
+    cameraOffsetX = pinchStartOffsetX + (mid.x - pinchStartMidX);
+    cameraOffsetY = pinchStartOffsetY + (mid.y - pinchStartMidY);
+    clampCameraOffset();
     return;
   }
   if (!dragToken || dragPointer !== 'touch' || !e.touches.length) return;
@@ -1729,7 +1770,12 @@ window.addEventListener('touchend', e => {
     e.preventDefault();
     if (e.touches.length >= 2) {
       pinchStartDistance = touchDistance(e.touches[0], e.touches[1]);
+      const mid = touchMidpoint(e.touches[0], e.touches[1]);
+      pinchStartMidX = mid.x;
+      pinchStartMidY = mid.y;
       pinchStartZoom = mobileZoom;
+      pinchStartOffsetX = cameraOffsetX;
+      pinchStartOffsetY = cameraOffsetY;
     } else {
       pinchZooming = false;
       pinchStartDistance = 0;
@@ -2813,11 +2859,6 @@ function drawProphaseSpindleGuides() {
         ctx.restore();
       }
     }
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(226,232,240,0.8)';
-    ctx.font = '10px Segoe UI, sans-serif';
-    ctx.textAlign = align;
-    ctx.fillText('spindle pole', pole.x, pole.y - 18);
     ctx.restore();
   };
   drawPole(leftPole, 'left');
@@ -2875,7 +2916,8 @@ function drawSortingDebugOverlay() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
-  ctx.translate(canvas.width / 2, canvas.height / 2);
+  clampCameraOffset();
+  ctx.translate(canvas.width / 2 + cameraOffsetX, canvas.height / 2 + cameraOffsetY);
   ctx.scale(cellScale(), cellScale());
 
   drawCell();
