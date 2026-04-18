@@ -147,10 +147,94 @@
     border-color: #64748b;
     color: #e2e8f0;
   }
+
+  /* ── Field Notes panel ───────────────────────────────────────────────────── */
+  #notes-panel {
+    position: fixed; top: 0; right: -420px; width: 400px; height: 100vh;
+    background: #111827; border-left: 1px solid #1e293b;
+    display: flex; flex-direction: column;
+    transition: right 0.32s cubic-bezier(.4,0,.2,1);
+    z-index: 200; font-family: 'Georgia', serif;
+  }
+  #notes-panel.open { right: 0; }
+  #notes-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 12px; border-bottom: 1px solid #1e293b;
+    flex-shrink: 0;
+  }
+  #notes-title {
+    font-size: 0.80rem; font-family: 'Segoe UI', system-ui, sans-serif;
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #64748b;
+  }
+  #notes-close {
+    background: none; border: none; color: #475569; cursor: pointer;
+    font-size: 1.1rem; line-height: 1; padding: 2px 4px;
+  }
+  #notes-close:hover { color: #94a3b8; }
+  #notes-list {
+    flex: 1; overflow-y: auto; padding: 12px 16px 24px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  #notes-empty {
+    color: #374151; font-size: 0.82rem; font-style: italic;
+    text-align: center; padding: 60px 16px 0; line-height: 1.8;
+    flex-shrink: 0;
+  }
+  .note-entry {
+    border-top: 1px solid #1e293b; padding-top: 14px;
+  }
+  .note-entry:first-child { border-top: none; padding-top: 0; }
+  .note-stamp {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #374151; margin-bottom: 6px;
+  }
+  .note-observation {
+    font-size: 0.78rem; color: #4b5563; line-height: 1.55;
+    margin-bottom: 8px; font-style: italic;
+  }
+  .note-prompt {
+    font-size: 0.82rem; color: #94a3b8; line-height: 1.55; margin-bottom: 6px;
+  }
+  .note-response {
+    width: 100%; background: #0f172a; border: 1px solid #1e293b;
+    color: #e2e8f0; font-family: 'Georgia', serif; font-size: 0.82rem;
+    line-height: 1.55; padding: 7px 9px; resize: vertical;
+    min-height: 64px; border-radius: 4px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .note-response:focus { border-color: #334155; }
+  .note-response::placeholder { color: #374151; font-style: italic; }
+  #notes-footer {
+    flex-shrink: 0; padding: 12px 16px;
+    border-top: 1px solid #1e293b;
+  }
+  #notes-close-bottom {
+    width: 100%; padding: 9px 0;
+    background: none; border: 1px solid #1e293b;
+    border-radius: 6px; color: #475569;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.80rem; cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #notes-close-bottom:hover { border-color: #334155; color: #94a3b8; }
 </style>
 </head>
 <body>
 <a href="index.html" id="home-btn">⌂</a>
+
+<div id="notes-panel">
+  <div id="notes-header">
+    <span id="notes-title">Field Notes</span>
+    <button id="notes-close">✕</button>
+  </div>
+  <div id="notes-empty">No observations yet.<br>The notebook fills as you explore.</div>
+  <div id="notes-list"></div>
+  <div id="notes-footer">
+    <button id="notes-close-bottom">Close notebook</button>
+  </div>
+</div>
 
 <canvas id="c"></canvas>
 
@@ -215,6 +299,100 @@ let mycelialView = false;
 let mycelialT    = 0;
 let myceliumEdges = [];
 let _myceliumRecomputeTimer = 0;
+const mycParticles   = [];   // flowing nutrient particles along network edges
+let   _mycSpawnAccum = 0;
+
+// ── Field Notes ───────────────────────────────────────────────────────────────
+// Structured log — future-proof for print/export. Each entry is a plain object
+// so it can be serialised to JSON with no extra work.
+//   { id, trigger, year, seasonName, observation, prompt, response }
+const fieldNotes = [];
+let _notesNextId  = 1;
+let _notebookOpen = false;
+let _notebookPulse = 0;   // 0..1, drives the glow; decays to 0 over ~3 s
+const _seenSpecies = new Set();   // speciesIds that have appeared at least once
+let _prevEraLabel  = null;        // tracks succession era for era-change trigger
+// Per-era throttles — each trigger fires at most once per succession era.
+const _notedSpeciesEras = new Set();
+const _notedEatEras     = new Set();
+const _notedListenEras  = new Set();
+
+const SEASON_NAMES = ['Spring','Summer','Autumn','Winter'];
+function _currentSeason() { return SEASON_NAMES[Math.floor((year % 1) * 4)]; }
+function _coverToEraLabel(cover) {
+  if (cover < 0.15) return 'Pioneer';
+  if (cover < 0.35) return 'Early successional';
+  if (cover < 0.60) return 'Mid successional';
+  if (cover < 0.80) return 'Late successional';
+  return 'Climax';
+}
+
+function addFieldNote(trigger, observation, prompt) {
+  const entry = {
+    id:          _notesNextId++,
+    trigger,
+    year:        Math.floor(year),
+    seasonName:  _currentSeason(),
+    observation, // string — auto-filled ecological facts
+    prompt,      // string — the question the student should answer
+    response:    '',
+  };
+  fieldNotes.unshift(entry); // newest first
+  _notebookPulse = 1;
+  _renderNotes();
+}
+
+function _renderNotes() {
+  const list  = document.getElementById('notes-list');
+  const empty = document.getElementById('notes-empty');
+  // notes-empty is a sibling of notes-list (not a child), so innerHTML = ''
+  // on the list will never destroy it.
+  const hasNotes = fieldNotes.length > 0;
+  if (empty) empty.style.display = hasNotes ? 'none' : '';
+  if (!hasNotes) { list.innerHTML = ''; return; }
+
+  list.innerHTML = '';
+  for (const e of fieldNotes) {
+    const div = document.createElement('div');
+    div.className = 'note-entry';
+    div.dataset.id = e.id;
+    div.innerHTML = `
+      <div class="note-stamp">Year ${e.year} &middot; ${e.seasonName} &middot; ${e.trigger}</div>
+      <div class="note-observation">${e.observation}</div>
+      <div class="note-prompt">${e.prompt}</div>
+      <textarea class="note-response" placeholder="Write your observation here…" rows="3">${e.response}</textarea>
+    `;
+    div.querySelector('textarea').addEventListener('input', ev => {
+      e.response = ev.target.value;
+    });
+    list.appendChild(div);
+  }
+}
+
+function toggleNotebook() {
+  _notebookOpen = !_notebookOpen;
+  document.getElementById('notes-panel').classList.toggle('open', _notebookOpen);
+  if (_notebookOpen) {
+    _notebookPulse = 0;
+    // If no game-triggered note is pending (pulse was 0 before opening),
+    // add a blank open-observation entry so the student has somewhere to write.
+    const topNote = fieldNotes[0];
+    const topIsBlank = topNote && topNote.response.trim() === '';
+    if (!topIsBlank) {
+      const cover = Math.round(getCanopyCover() * 100);
+      addFieldNote(
+        'Observation',
+        `Year ${Math.floor(year)} · ${_currentSeason()} · canopy cover ${cover}%.`,
+        'Write down one thing you notice about the forest right now. '
+          + 'You might describe a species, a change you observe, or something that surprised you.'
+      );
+    }
+    _notebookPulse = 0; // opening clears the alert even if addFieldNote re-armed it
+  }
+}
+
+document.getElementById('notes-close').addEventListener('click', toggleNotebook);
+document.getElementById('notes-close-bottom').addEventListener('click', toggleNotebook);
 
 // Debug pane — toggle with ` (backtick)
 let showDebug = false;
@@ -2290,7 +2468,10 @@ function updatePlants(dt) {
     }
   }
 
-  for (const [id,wx] of toAdd) addPlant(id, wx);
+  for (const [id,wx] of toAdd) {
+    addPlant(id, wx);
+    if (SPECIES[id]) noteNewSpecies(SPECIES[id]);
+  }
 
   // Per-layer carrying capacities — each layer competes only within itself,
   // so canopy trees cannot crowd out understory and ground cover.
@@ -3055,6 +3236,73 @@ function drawMycelium() {
   ctx.restore();
 }
 
+// ── MYCELIAL FLOW PARTICLES ───────────────────────────────────────────────────
+// Small glowing orbs that travel along ecto (fungus↔tree) and root
+// (tree↔tree) edges, suggesting nutrient / signal flow. They follow the
+// same quadratic bezier curve as the drawn edges so they stay on the line.
+const MYC_PARTICLE_CAP = 48;
+const MYC_SPAWN_RATE   = 4;   // new particles per real second at full mycelialT
+
+function updateMycParticles(dt) {
+  if (mycelialT <= 0) { mycParticles.length = 0; _mycSpawnAccum = 0; return; }
+
+  // Advance each particle along its edge; retire when it exits [0,1].
+  for (let i = mycParticles.length - 1; i >= 0; i--) {
+    const p = mycParticles[i];
+    p.t += p.speed * dt;
+    if (p.t > 1 || p.t < 0) mycParticles.splice(i, 1);
+  }
+
+  // Only spawn on ecto and root edges — shoots are too short.
+  const eligible = myceliumEdges.filter(e => e.type === 'ecto' || e.type === 'root');
+  if (eligible.length === 0) return;
+
+  _mycSpawnAccum += MYC_SPAWN_RATE * dt * mycelialT;
+  while (_mycSpawnAccum >= 1 && mycParticles.length < MYC_PARTICLE_CAP) {
+    _mycSpawnAccum -= 1;
+    const e   = eligible[Math.floor(Math.random() * eligible.length)];
+    const rev = Math.random() < 0.5;
+    mycParticles.push({
+      edge:  e,
+      t:     rev ? 0.95 + Math.random() * 0.05 : Math.random() * 0.05,
+      speed: (0.055 + Math.random() * 0.07) * (rev ? -1 : 1),
+    });
+  }
+  if (_mycSpawnAccum > 2) _mycSpawnAccum = 0;
+}
+
+function drawMycParticles() {
+  if (mycelialT <= 0 || mycParticles.length === 0) return;
+  ctx.save();
+  for (const p of mycParticles) {
+    const e = p.edge;
+    const t = Math.max(0, Math.min(1, p.t));
+    // Control point — must match drawMycelium exactly.
+    const midX = (e.ax + e.bx) / 2;
+    const midY = (e.ay + e.by) / 2 + 18 + Math.abs(e.ax - e.bx) * 0.08;
+    const u  = 1 - t;
+    const wx = u*u*e.ax + 2*u*t*midX + t*t*e.bx;
+    const wy = u*u*e.ay + 2*u*t*midY + t*t*e.by;
+    const sx = wx - camX;
+    if (sx < -20 || sx > canvas.width + 20) continue;
+    // Fade in/out near the ends of each edge so particles don't pop.
+    const edgeFade = Math.min(t * 8, (1 - t) * 8, 1);
+    const alpha    = mycelialT * edgeFade * (0.55 + 0.45 * e.strength);
+    if (e.type === 'ecto') {
+      ctx.fillStyle   = `rgba(255,215,90,${alpha})`;
+      ctx.shadowColor = 'rgba(255,200,60,0.9)';
+    } else {
+      ctx.fillStyle   = `rgba(140,190,255,${alpha})`;
+      ctx.shadowColor = 'rgba(120,165,245,0.9)';
+    }
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(sx, wy, 2.0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 // C4 — the walking figure becomes a soft glowing node + fading trail
 // while the mycelial view is active. Drawn at full alpha *over* the
 // dimmed body so the player crossfades from human to node as mycelialT
@@ -3114,19 +3362,104 @@ function behaviourSig() {
 }
 
 // ── D2 — REFLECTION LINES ────────────────────────────────────────────────────
-// Every ~60 real-time seconds, the sim may emit a single passing observation
-// about the player's behaviour. At most one per minute. Not compliments, not
+// Every ~30 real-time seconds, the sim may emit a single passing observation
+// about the player's behaviour. At most one per check. Not compliments, not
 // accusations. Tone: an old person noticing weather.
-const REFLECT_INTERVAL  = 30;    // real-time seconds between checks
+const REFLECT_INTERVAL  = 60;    // real-time seconds between checks
 const REFLECT_DURATION  = 6;     // fade-in / hold / fade-out total
-const REFLECT_CHANCE    = 0.30;  // probability of emitting when a rule matches
-const SIG_CHANCE        = 0.15;  // signature lines fire more rarely
+const REFLECT_CHANCE    = 0.40;  // probability of emitting when a D2 rule matches
+const SIG_CHANCE        = 0.40;  // signature (F2) lines — same weight as D2
 let _reflectTimer       = REFLECT_INTERVAL;
 let _reflectText        = '';
 let _reflectT           = 0;     // seconds remaining in the 6-s cycle
 // Canopy-stability tracker for the "forest does not need you" line.
 let _coverStableYears   = 0;
 let _prevCover          = 0;
+
+// D2 line banks — each rule picks randomly so repeat plays feel different.
+const REFLECT_POOLS = {
+  observer: [   // long life, no actions at all
+    'you have walked without taking. the forest notices nothing.',
+    'you have been here a long time without asking anything of it.',
+    'the forest does not know you are watching.',
+    'you move through it. it continues.',
+    'you are here. it is also here. nothing has been exchanged.',
+  ],
+  taker: [      // took dominates strongly
+    'the forest feels your hunger.',
+    'every gap you make becomes something else\'s chance.',
+    'what you removed was here before you arrived.',
+    'the clearing widens. something will grow into it.',
+    'you have eaten. the forest does not count.',
+    'hunger is honest. the forest does not judge it.',
+  ],
+  giver: [      // gave dominates and exceeds took
+    'the forest is becoming what you hoped for.',
+    'you are planting your preferences. the forest does not mind.',
+    'some of what you sowed will outlive this century.',
+    'you are tending what does not need a tender. it grows anyway.',
+    'the things you planted may not remember you planted them.',
+    'the forest is also shaping itself, with or without you.',
+  ],
+  listener: [   // listened dominates
+    'you have been quiet. the trees are louder than they were.',
+    'you sat with it. it continued.',
+    'the listening has not changed anything. that is not why you listened.',
+    'some of what you heard was not meant for you.',
+    'you have asked nothing of it. it has offered nothing back. that is a kind of conversation.',
+    'the quiet here is not empty.',
+  ],
+  returned: [   // multiple deaths
+    'you have returned before. the soil remembers you.',
+    'this is not the first time you have stood here.',
+    'the foxglove grew from your last body. it is gone now.',
+    'you have started again. the forest has not started again.',
+    'three times you have come back. the lichen did not notice.',
+    'you keep returning. the forest is not waiting for you.',
+  ],
+  stable: [     // canopy stable for a long stretch
+    'the forest does not need you to continue.',
+    'it was doing this before you arrived.',
+    'succession continues whether or not you watch.',
+    'the forest is finishing a sentence it began before your grandparents.',
+    'this is not paused. it is simply slow.',
+  ],
+};
+
+// F2 signature-tinted pools — keyed to dominant stance.
+const SIG_POOLS = {
+  dominion: [
+    'the forest does not fight you. it does not fight anything.',
+    'you have shaped this. the forest will outlast the shape.',
+    'what you cleared will fill in. it always does.',
+    'nothing you have removed is gone. it is elsewhere.',
+    'the forest has its own direction. you have given it another one for now.',
+  ],
+  stewardship: [
+    'you are shaping. the forest is also shaping itself.',
+    'you have decided what belongs here. the forest has also decided.',
+    'the things you tended are tending themselves now.',
+    'a garden is one thing the forest might become. it has become others.',
+    'you are one of the forces acting on this place. not the only one.',
+  ],
+  participation: [
+    'your edges are quieter than they were.',
+    'you have been listening long enough that the sound has changed.',
+    'you are one of the things that lives here.',
+    'at some point you stopped being a visitor. you may not have noticed.',
+    'the forest does not distinguish you from the rest of what moves through it.',
+    'something is different about how you are standing.',
+  ],
+  indifference: [
+    'something is here without you. you have not asked what.',
+    'the forest does not require your attention to continue.',
+    'you are here and not here at the same time.',
+    'things are happening that you are not watching.',
+    'the forest has been indifferent to indifferent things for longer than it has had trees.',
+  ],
+};
+
+function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function checkReflection(dt) {
   // Track canopy-cover stability (considered stable if change < 0.03/year).
@@ -3148,52 +3481,59 @@ function checkReflection(dt) {
 
   const { took, gave, listened, died, lifeStart } = player.ledger;
   const lifeDuration = year - lifeStart;
+  const total = took + gave + listened;
 
-  // First-match cascade. Each rule rolls the 30% chance independently.
-  let line = null;
-  if (lifeDuration > 20 && took === 0 && gave === 0) {
-    line = 'you have walked without taking. the forest notices nothing.';
-  } else if (took >= 10 && gave === 0) {
-    line = 'the forest feels your hunger.';
-  } else if (gave >= 5 && took <= gave) {
-    line = 'the forest is becoming what you hoped for.';
-  } else if (listened >= 5) {
-    line = 'you have been quiet. the trees are louder than they were.';
+  // Ratios — safe even when total is 0.
+  const tookR      = total > 0 ? took / total      : 0;
+  const gaveR      = total > 0 ? gave / total      : 0;
+  const listenedR  = total > 0 ? listened / total  : 0;
+
+  // D2: first-match cascade using ratios (not absolute counts).
+  // "total >= 3" guards against noise in the first few actions.
+  let d2Pool = null;
+  if (lifeDuration > 20 && total === 0) {
+    d2Pool = REFLECT_POOLS.observer;
+  } else if (total >= 3 && tookR >= 0.55 && gaveR < 0.15) {
+    d2Pool = REFLECT_POOLS.taker;
+  } else if (total >= 3 && gaveR >= 0.45 && gave > took) {
+    d2Pool = REFLECT_POOLS.giver;
+  } else if (total >= 3 && listenedR >= 0.45) {
+    d2Pool = REFLECT_POOLS.listener;
   } else if (died >= 3) {
-    line = 'you have returned before. the soil remembers you.';
+    d2Pool = REFLECT_POOLS.returned;
   } else if (_coverStableYears >= 30) {
-    line = 'the forest does not need you to continue.';
+    d2Pool = REFLECT_POOLS.stable;
   }
 
-  if (line) {
-    if (Math.random() < REFLECT_CHANCE) {
-      _reflectText = line;
-      _reflectT = REFLECT_DURATION;
-    }
-    return; // D2 matched — skip F2 this cycle whether or not we emitted
-  }
-
-  // F2 — Signature-tinted lines. A second, rarer pool keyed to the player's
-  // dominant stance. One at a time. Never labelled. The player notices the
-  // tone and does not know why.
+  // F2: signature-tinted lines — computed each cycle regardless of D2.
   const sig = behaviourSig();
-  if (sig.mode === 'novice') return; // too early to reflect
-  let sigLine = null;
-  if (sig.dominion > 0.5) {
-    sigLine = 'the forest does not fight you. it does not fight anything.';
-  } else if (sig.stewardship > 0.5) {
-    sigLine = 'you are shaping. the forest is also shaping itself.';
-  } else if (sig.participation > 0.5) {
-    sigLine = 'your edges are quieter than they were.';
-  } else if (sig.indifference > 0.6) {
-    sigLine = 'something is here without you. you have not asked what.';
+  let f2Pool = null;
+  if (sig.mode !== 'novice') {
+    if      (sig.dominion > 0.45)      f2Pool = SIG_POOLS.dominion;
+    else if (sig.stewardship > 0.40)   f2Pool = SIG_POOLS.stewardship;
+    else if (sig.participation > 0.40) f2Pool = SIG_POOLS.participation;
+    else if (sig.indifference > 0.55)  f2Pool = SIG_POOLS.indifference;
   }
-  if (sigLine && Math.random() < SIG_CHANCE) {
-    _reflectText = sigLine;
-    _reflectT = REFLECT_DURATION;
-  } else if (!sigLine) {
-    // No rule matched at all — re-check sooner instead of waiting a full 60 s.
+
+  // Decide what to emit: if both D2 and F2 have a candidate, give F2 a
+  // genuine ~35% share of the roll so signature lines actually appear.
+  let chosenPool = null;
+  if (d2Pool && f2Pool) {
+    chosenPool = Math.random() < 0.35 ? f2Pool : d2Pool;
+  } else {
+    chosenPool = d2Pool || f2Pool;
+  }
+
+  if (!chosenPool) {
+    // Nothing matched — re-check sooner.
     _reflectTimer = 15;
+    return;
+  }
+
+  const chance = (chosenPool === f2Pool && !d2Pool) ? SIG_CHANCE : REFLECT_CHANCE;
+  if (Math.random() < chance) {
+    _reflectText = _pick(chosenPool);
+    _reflectT = REFLECT_DURATION;
   }
 }
 
@@ -3239,7 +3579,7 @@ function checkEndReflection(dt) {
   // Track climax duration: cover ≥ 0.8.
   const cover = getCanopyCover();
   const yearDelta = dt * speed;
-  if (cover >= 0.8 && yearDelta > 0) _climaxYears += yearDelta;
+  if (cover >= 0.8 && yearDelta > 0) { _climaxYears += yearDelta; if (_climaxYears >= 20) noteClimax(); }
   else if (cover < 0.75) _climaxYears = 0;  // small hysteresis
 
   const trigger = _climaxYears >= 20 || player.ledger.died >= 5;
@@ -3461,6 +3801,29 @@ function drawUI() {
   ctx.fillText(moonLbl, moonX + 10, 30);
   ctx.textBaseline = 'alphabetic';
   uiBtnBounds.push({ x: moonX, y: 12, w: mw, h: 36, action: 'mycelium' });
+
+  // ── Notebook button (left of moon) ─────────────────────────────────────────
+  const notesLbl = '✎';
+  ctx.font = '14px Segoe UI, system-ui, sans-serif';
+  const nw = ctx.measureText(notesLbl).width + 20;
+  const notesX = moonX - nw - 6;
+  // Pulse: glow ring when new entries have arrived.
+  if (_notebookPulse > 0) {
+    ctx.save();
+    ctx.globalAlpha = _notebookPulse * 0.55;
+    ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 14;
+    roundRect(ctx, notesX, 12, nw, 36, 8);
+    ctx.fillStyle = 'rgba(251,191,36,0.18)';
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = _notebookOpen ? 'rgba(251,191,36,0.18)' : 'rgba(15,23,42,0.75)';
+  roundRect(ctx, notesX, 12, nw, 36, 8);
+  ctx.fillStyle = _notebookOpen ? '#fbbf24' : (_notebookPulse > 0 ? '#fbbf24' : '#94a3b8');
+  ctx.textBaseline = 'middle';
+  ctx.fillText(notesLbl, notesX + 10, 30);
+  ctx.textBaseline = 'alphabetic';
+  uiBtnBounds.push({ x: notesX, y: 12, w: nw, h: 36, action: 'notebook' });
 
   ctx.font = 'bold 14px Segoe UI, system-ui, sans-serif';
   ctx.fillStyle = 'rgba(15,23,42,0.75)';
@@ -3733,7 +4096,7 @@ const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.key] = true;
   if (e.key === 'm' || e.key === 'M') {
-    mycelialView = !mycelialView;
+    mycelialView = !mycelialView; if (mycelialView) noteMycelialView();
     return;
   }
   if (e.key === '`') {
@@ -3780,6 +4143,10 @@ function findClickTarget(cx, cy) {
 }
 
 canvas.addEventListener('click', e => {
+  // If the click landed on an HTML overlay (info card, notes panel, etc.)
+  // let the HTML element handle it; don't process canvas interaction.
+  if (document.elementFromPoint(e.clientX, e.clientY) !== canvas) return;
+
   // E3 — memorial species choice (during death screen).
   for (const btn of memorialBtnBounds) {
     if (e.clientX >= btn.x && e.clientX <= btn.x + btn.w &&
@@ -3800,7 +4167,9 @@ canvas.addEventListener('click', e => {
         speed = SPEEDS[speedIdx];
         paused = false;
       } else if (btn.action === 'mycelium') {
-        mycelialView = !mycelialView;
+        mycelialView = !mycelialView; if (mycelialView) noteMycelialView();
+      } else if (btn.action === 'notebook') {
+        toggleNotebook();
       }
       if (player.selectedSeed) player.selectedSeed = null;
       return;
@@ -3818,8 +4187,8 @@ canvas.addEventListener('click', e => {
   // Seed-in-hand flow takes precedence: click empty ground to sow, click plant to cancel.
   if (player.selectedSeed) {
     const target = findClickTarget(e.clientX, e.clientY);
-    if (target) {
-      // Clicking a plant or animal with a seed selected just deselects — no info card, no sow.
+    // Animals cancel the sow; plants and empty ground both allow it.
+    if (target && target.kind === 'animal') {
       player.selectedSeed = null;
       if (infoOpen) hideInfoCard();
       return;
@@ -3867,10 +4236,12 @@ function eatPlant(plant, sp, sx2, sy2) {
     if (sp.edible.poisonous) {
       player.hunger = Math.max(0, player.hunger + sp.edible.restore);
       showFloatText('Poisonous!', sx2, sy2-30, '#f87171');
+      noteEat(sp, true, 0);
     } else {
       player.hunger = Math.min(1, player.hunger + sp.edible.restore);
       const pct = Math.round(sp.edible.restore*100);
       showFloatText(`+${pct}%`, sx2, sy2-30, '#4ade80');
+      noteEat(sp, false, pct);
       // Seed credit — berries, nuts, seeds, keys, acorns pass through the gut.
       // Mature plants yield up to 3 seeds; young plants yield 1.
       if (sp.edible.part && /berries|nuts|seeds|keys|acorns/i.test(sp.edible.part)) {
@@ -3915,6 +4286,7 @@ function startListening(sp, plantObj) {
   listenPlant = plantObj;
   listenText = sp.listen[Math.floor(Math.random() * sp.listen.length)];
   player.ledger.listened++; player.ledger.totalListened++;
+  noteListen(sp, listenText);
   hideInfoCard();
 }
 
@@ -3987,11 +4359,8 @@ function sow(sp, wx, sx, sy) {
   const buffer = 0.05;
   if (cover > sp.coverMax + buffer) {
     showFloatText('the light here is wrong for this one', sx, sy-18, '#cbd5e1');
-    return false;
-  }
-  if (cover < sp.coverMin - buffer) {
+  } else if (cover < sp.coverMin - buffer) {
     showFloatText('the soil is not yet ready', sx, sy-18, '#cbd5e1');
-    return false;
   }
   const p = addPlant(sp.id, wx);
   if (!p) return false;
@@ -4011,9 +4380,121 @@ function sow(sp, wx, sx, sy) {
   return true;
 }
 
+// ── FIELD NOTES TRIGGERS ─────────────────────────────────────────────────────
+
+// Called from the colonisation loop when a new plant is placed.
+function noteNewSpecies(sp) {
+  if (_seenSpecies.has(sp.id)) return;
+  _seenSpecies.add(sp.id);
+  const era = _coverToEraLabel(getCanopyCover());
+  if (_notedSpeciesEras.has(era)) return;
+  _notedSpeciesEras.add(era);
+  const cover = Math.round(getCanopyCover() * 100);
+  const persist = sp.persistence ? sp.persistence.strategy : null;
+  const persistNote = persist ? ` Its persistence strategy is listed as <em>${persist}</em>.` : '';
+  const obs = `<strong>${sp.name}</strong> (${sp.latin}) has appeared for the first time. `
+    + `Canopy cover: ${cover}%. Succession stage: ${sp.era}.${persistNote}`;
+  const prompt = `The info card states that ${sp.name} requires ${Math.round(sp.coverMin*100)}–${Math.round(sp.coverMax*100)}% canopy cover. `
+    + `Current cover is ${cover}%. Using the info card, explain what conditions made it possible for this species to establish now.`
+    + (persist ? ` Also describe what the persistence strategy "${persist}" means for how this organism survives here.` : '');
+  addFieldNote('New species', obs, prompt);
+}
+
+// Checks each frame whether succession era has changed.
+function checkEraChange() {
+  const label = _coverToEraLabel(getCanopyCover());
+  if (_prevEraLabel === null) { _prevEraLabel = label; return; }
+  if (label === _prevEraLabel) return;
+  const prev = _prevEraLabel;
+  _prevEraLabel = label;
+  const cover = Math.round(getCanopyCover() * 100);
+  const dominantIds = [..._seenSpecies].filter(id => {
+    const s = SPECIES[id]; return s && s.era === label.split(' ')[0].toLowerCase();
+  }).slice(0, 3).map(id => SPECIES[id].name).join(', ') || 'none yet observed';
+  const obs = `Succession stage shifted from <em>${prev}</em> to <em>${label}</em>. `
+    + `Canopy cover reached ${cover}%. Representative new-stage species visible: ${dominantIds}.`;
+  const prompt = `Name one species from the previous (${prev}) stage that is still present in the forest, `
+    + `and one species from the new (${label}) stage. What physical change in the canopy made this transition possible?`;
+  addFieldNote('Era change', obs, prompt);
+}
+
+// Called when the player eats or is poisoned by a plant.
+function noteEat(sp, poisonous, restorePct) {
+  const era = _coverToEraLabel(getCanopyCover());
+  if (_notedEatEras.has(era)) return;
+  _notedEatEras.add(era);
+  const part = (sp.edible && sp.edible.part) ? sp.edible.part : 'part';
+  let obs, prompt;
+  if (poisonous) {
+    obs = `You ingested <strong>${sp.name}</strong> (${sp.latin}). It is toxic — hunger decreased.`;
+    prompt = `The info card describes ${sp.name} as poisonous. What ecological purpose might its toxicity serve for the plant?`;
+  } else {
+    obs = `You ate the ${part} of <strong>${sp.name}</strong> (${sp.latin}), restoring ${restorePct}% hunger.`;
+    prompt = `According to the info card, what other organisms interact with or depend on ${sp.name}'s ${part}? `
+      + `How does the plant benefit from producing ${part}?`;
+  }
+  addFieldNote('Consumption', obs, prompt);
+}
+
+// Called when the player listens to a plant.
+function noteListen(sp, listenLine) {
+  const era = _coverToEraLabel(getCanopyCover());
+  if (_notedListenEras.has(era)) return;
+  _notedListenEras.add(era);
+  const infoSnippet = sp.info ? sp.info.split('.')[0] + '.' : '';
+  const obs = `You listened to <strong>${sp.name}</strong> (${sp.latin}). `
+    + `It communicated: <em>"${listenLine}"</em>`;
+  const prompt = `The info card describes ${sp.name} as follows: "${infoSnippet}" `
+    + `How does what the organism communicated connect to or diverge from this factual description?`;
+  addFieldNote('Listen', obs, prompt);
+}
+
+// Called on player death.
+function noteDeath() {
+  const { took, gave, listened } = player.ledger;
+  const lifeYears = Math.floor(year) - Math.floor(player.ledger.lifeStart);
+  const obs = `You died in year ${Math.floor(year)} after ${lifeYears} years. `
+    + `This life: ${took} harvest${took !== 1 ? 's' : ''}, ${gave} plant${gave !== 1 ? 's' : ''} sown, `
+    + `${listened} listen${listened !== 1 ? 's' : ''}. Your body will decompose where it fell.`;
+  const prompt = `Decomposition returns nutrients to the soil. `
+    + `Name two specific nutrients released by a decomposing body, and explain how nearby plants would use each one.`;
+  addFieldNote('Death', obs, prompt);
+}
+
+// Called when mycelial view is first toggled on.
+let _mycelialNoteGiven = false;
+function noteMycelialView() {
+  if (_mycelialNoteGiven) return;
+  _mycelialNoteGiven = true;
+  const fungiPresent = [..._seenSpecies]
+    .filter(id => SPECIES[id] && SPECIES[id].layer === 'fungal')
+    .map(id => SPECIES[id].name).join(', ') || 'none yet';
+  const obs = `Underground fungal network visible. Fungal species observed so far: ${fungiPresent}. `
+    + `Lines connect fungal organisms to canopy tree roots.`;
+  const prompt = `Using the info card for one of the fungal species listed above, `
+    + `describe what each partner (the fungus and the tree) gives and receives in this relationship. `
+    + `What category of ecological relationship is this?`;
+  addFieldNote('Mycelial view', obs, prompt);
+}
+
+// Called once when climax is sustained.
+let _climaxNoteGiven = false;
+function noteClimax() {
+  if (_climaxNoteGiven) return;
+  _climaxNoteGiven = true;
+  const speciesCount = new Set(plants.map(p => p.speciesId)).size;
+  const obs = `The forest has reached a climax state (canopy cover ≥ 80%, sustained). `
+    + `Total species present: ${speciesCount}. Year: ${Math.floor(year)}.`;
+  const prompt = `Using species currently visible in the forest, construct one complete food chain `
+    + `(minimum three levels: producer → primary consumer → secondary consumer). `
+    + `Is a climax forest "finished" changing? Explain using what you have observed.`;
+  addFieldNote('Climax forest', obs, prompt);
+}
+
 // ── PLAYER DEATH & REBIRTH ────────────────────────────────────────────────────
 function killPlayer() {
   if (player.dead) return;
+  noteDeath();
   player.dead = true;
   player.deathX = player.x;
   player.deathY = groundY(player.x);
@@ -4076,8 +4557,8 @@ function frame(ts) {
     year += dt * effSpeed * 0.5; // time keeps passing during death
   }
 
-  // Player movement
-  if (!player.dead) {
+  // Player movement (suppressed when notebook is open — let student type freely)
+  if (!player.dead && !_notebookOpen) {
     const moveSpeed = 180;
     if (keys['ArrowLeft']||keys['a']||keys['A']) player.x -= moveSpeed*dt;
     if (keys['ArrowRight']||keys['d']||keys['D']) player.x += moveSpeed*dt;
@@ -4085,7 +4566,7 @@ function frame(ts) {
     player.y = groundY(player.x);
 
     // Hunger — follows effective speed so listening doesn't starve you faster than it feels.
-    player.hunger -= 0.012 * dt * effSpeed;
+    player.hunger -= 0.042 * dt * effSpeed;
     if (player.hunger <= 0) { player.hunger=0; killPlayer(); }
 
     // Camera follows player
@@ -4124,6 +4605,9 @@ function frame(ts) {
   // D2 — reflection line check (runs every frame, cheap; timer gates emission).
   checkReflection(dt);
   if (_reflectT > 0) _reflectT = Math.max(0, _reflectT - dt);
+  // Field notes — pulse decay and succession era change detection.
+  if (_notebookPulse > 0) _notebookPulse = Math.max(0, _notebookPulse - dt / 3);
+  checkEraChange();
   // D3 — one-time end-of-age reflection modal.
   checkEndReflection(dt);
 
@@ -4139,6 +4623,7 @@ function frame(ts) {
   const mRate   = dt / 0.8;
   if (mycelialT < mTarget)      mycelialT = Math.min(mTarget, mycelialT + mRate);
   else if (mycelialT > mTarget) mycelialT = Math.max(mTarget, mycelialT - mRate);
+  updateMycParticles(dt);
 
   // C5 — on each false→true transition, fade in the next contextual line.
   // Suppress when triggered by death (C6) — the death message owns the screen.
@@ -4189,6 +4674,7 @@ function frame(ts) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   drawMycelium();
+  drawMycParticles();
 
   // Above-ground life dims to ~30% during full mycelial view.
   const worldAlpha = 1 - 0.7 * mycelialT;
