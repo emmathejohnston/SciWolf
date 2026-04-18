@@ -661,7 +661,7 @@ defSpecies('earthball', {
   info: "An early colonist of poor, disturbed soils. Unlike most mushrooms it has no real stem — a leathery sphere bursts from the ground, releasing a brown cloud of spores when it splits.",
   draw(ctx, x, gy, t, season, phase, id) {
     if (season < 1 || season > 2) return; // summer/autumn
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 12; // original: 12
     const r = 8 * scale * t;
     // Sphere
     ctx.beginPath();
@@ -947,7 +947,7 @@ defSpecies('shaggy_inkcap', {
   info: "Lawyer's Wig. Pushes through trampled grassland and roadside verges. By the time you fetch a basket, the cap has begun to autodigest, releasing its spores as a slow drip of black liquid.",
   draw(ctx, x, gy, t, season, phase) {
     if (season < 1 || season > 2) return;
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 28; // original: 28
     const h = 26 * scale * t;
     // Slim white stem
     ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
@@ -1321,7 +1321,7 @@ defSpecies('stinkhorn', {
   info: "Bursts from a soft white 'egg' in the leaf litter, growing inches per hour. Its slimy olive cap reeks of rotting flesh — a strategy that bypasses wind by recruiting flies for dispersal.",
   draw(ctx, x, gy, t, season, phase) {
     if (season < 1 || season > 2) return;
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 24; // original: 24
     const h = 22 * scale * t;
     // White spongy stalk
     ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
@@ -1732,7 +1732,7 @@ defSpecies('chanterelle', {
   info: "The chanterelle mycelium lives in symbiosis with tree roots, exchanging minerals for sugars. What you see is merely the fruiting body — the organism beneath may span acres.",
   draw(ctx, x, gy, t, season, phase) {
     if (season!==2 && season!==1) return; // late summer/autumn
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 22; // original: 22
     const h = 20*scale*t;
     // stout stem
     ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
@@ -1849,7 +1849,7 @@ defSpecies('fly_agaric', {
   edible: { part: 'DO NOT EAT', restore: -0.4, poisonous: true, flavor: 'Hallucinogenic and potentially lethal. Its beauty is a warning.' },
   info: "The fly agaric is the classic toadstool of fairy tales. It is the mycorrhizal partner of birch and pine — invisible networks connecting the roots of many trees simultaneously.",
   draw(ctx, x, gy, t, season, phase) {
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 26; // original: 26
     const h = 24*scale*t;
     // white stem with skirt
     ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
@@ -1883,7 +1883,7 @@ defSpecies('bracket_fungus', {
   info: "Artist's bracket slowly consumes the heartwood of standing and fallen trees, returning centuries of accumulated carbon to the soil. Its flat white underside can be scratched to make drawings that last for years. Dead wood is not dead.",
   draw(ctx, x, gy, t, season, phase) {
     // hoof-shaped shelf on tree
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 18; // original: 18
     const w = 20*scale*t;
     const h = 14*scale*t;
     for (let ring=0;ring<4;ring++) {
@@ -1909,7 +1909,7 @@ defSpecies('honey_fungus', {
   info: "Clustered caps on the surface; underground, a single individual may stretch for kilometres of black bootlace strands, slowly killing the trees it has lived alongside for a century.",
   draw(ctx, x, gy, t, season, phase, id) {
     if (season < 1 || season > 2) return;
-    const heightScale = this.heightPx / 12;
+    const heightScale = this.heightPx / 22; // original: 22
     const h = 18 * heightScale * t;
     // Tight cluster of 4 caps
     const positions = [[-8, 0, 0.9], [0, -2, 1.0], [7, -1, 0.85], [-3, 3, 0.75]];
@@ -2039,7 +2039,7 @@ defSpecies('deathcap', {
   info: "The most dangerous mushroom in the world. Non-native to Ontario but spreading — found near mature oaks and imported European trees, exchanging minerals for sugars through a quiet underground partnership.",
   draw(ctx, x, gy, t, season, phase) {
     if (season < 1 || season > 2) return;
-    const scale = this.heightPx / 12;
+    const scale = this.heightPx / 28; // original: 28
     const h = 26 * scale * t;
     // Bulbous volva
     ctx.beginPath();
