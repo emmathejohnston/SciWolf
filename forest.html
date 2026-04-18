@@ -661,7 +661,8 @@ defSpecies('earthball', {
   info: "An early colonist of poor, disturbed soils. Unlike most mushrooms it has no real stem — a leathery sphere bursts from the ground, releasing a brown cloud of spores when it splits.",
   draw(ctx, x, gy, t, season, phase, id) {
     if (season < 1 || season > 2) return; // summer/autumn
-    const r = 8 * t;
+    const scale = this.heightPx / 12;
+    const r = 8 * scale * t;
     // Sphere
     ctx.beginPath();
     ctx.ellipse(x, gy - r * 0.65, r, r * 0.85, 0, 0, Math.PI * 2);
@@ -946,24 +947,25 @@ defSpecies('shaggy_inkcap', {
   info: "Lawyer's Wig. Pushes through trampled grassland and roadside verges. By the time you fetch a basket, the cap has begun to autodigest, releasing its spores as a slow drip of black liquid.",
   draw(ctx, x, gy, t, season, phase) {
     if (season < 1 || season > 2) return;
-    const h = 26 * t;
+    const scale = this.heightPx / 12;
+    const h = 26 * scale * t;
     // Slim white stem
     ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
-    ctx.strokeStyle = '#f0ece2'; ctx.lineWidth = 3 * t; ctx.stroke();
+    ctx.strokeStyle = '#f0ece2'; ctx.lineWidth = 3 * scale * t; ctx.stroke();
     // Tall cylindrical cap
     ctx.beginPath();
-    ctx.moveTo(x - 6 * t, gy - h * 0.3);
-    ctx.quadraticCurveTo(x - 7 * t, gy - h * 1.0, x - 4 * t, gy - h * 1.05);
-    ctx.quadraticCurveTo(x, gy - h * 1.18, x + 4 * t, gy - h * 1.05);
-    ctx.quadraticCurveTo(x + 7 * t, gy - h * 1.0, x + 6 * t, gy - h * 0.3);
+    ctx.moveTo(x - 6 * scale * t, gy - h * 0.3);
+    ctx.quadraticCurveTo(x - 7 * scale * t, gy - h * 1.0, x - 4 * scale * t, gy - h * 1.05);
+    ctx.quadraticCurveTo(x, gy - h * 1.18, x + 4 * scale * t, gy - h * 1.05);
+    ctx.quadraticCurveTo(x + 7 * scale * t, gy - h * 1.0, x + 6 * scale * t, gy - h * 0.3);
     ctx.closePath();
     ctx.fillStyle = '#f8f5ed'; ctx.fill();
     // Shaggy upturned scales
     ctx.strokeStyle = '#b8a890'; ctx.lineWidth = 0.9;
     for (let i = 0; i < 5; i++) {
       const sy = gy - h * (0.4 + i * 0.12);
-      ctx.beginPath(); ctx.moveTo(x - 5 * t, sy); ctx.lineTo(x - 7 * t, sy - 1.5); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + 5 * t, sy); ctx.lineTo(x + 7 * t, sy - 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 5 * scale * t, sy); ctx.lineTo(x - 7 * scale * t, sy - 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 5 * scale * t, sy); ctx.lineTo(x + 7 * scale * t, sy - 1.5); ctx.stroke();
     }
     // Black ink dripping from base of cap when fully ripe
     if (t > 0.85 && season === 2) {
@@ -1319,33 +1321,34 @@ defSpecies('stinkhorn', {
   info: "Bursts from a soft white 'egg' in the leaf litter, growing inches per hour. Its slimy olive cap reeks of rotting flesh — a strategy that bypasses wind by recruiting flies for dispersal.",
   draw(ctx, x, gy, t, season, phase) {
     if (season < 1 || season > 2) return;
-    const h = 22 * t;
+    const scale = this.heightPx / 12;
+    const h = 22 * scale * t;
     // White spongy stalk
     ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
-    ctx.strokeStyle = '#f4eedc'; ctx.lineWidth = 4 * t; ctx.stroke();
+    ctx.strokeStyle = '#f4eedc'; ctx.lineWidth = 4 * scale * t; ctx.stroke();
     // Soft 'egg' base at ground
     ctx.beginPath();
-    ctx.ellipse(x, gy - 1, 5 * t, 3 * t, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, gy - 1, 5 * scale * t, 3 * scale * t, 0, 0, Math.PI * 2);
     ctx.fillStyle = '#dcd0b8'; ctx.fill();
     // Dark olive slimy cap
     ctx.beginPath();
-    ctx.moveTo(x - 5 * t, gy - h);
-    ctx.quadraticCurveTo(x - 5 * t, gy - h - 6 * t, x, gy - h - 7 * t);
-    ctx.quadraticCurveTo(x + 5 * t, gy - h - 6 * t, x + 5 * t, gy - h);
-    ctx.quadraticCurveTo(x, gy - h + 1, x - 5 * t, gy - h);
+    ctx.moveTo(x - 5 * scale * t, gy - h);
+    ctx.quadraticCurveTo(x - 5 * scale * t, gy - h - 6 * scale * t, x, gy - h - 7 * scale * t);
+    ctx.quadraticCurveTo(x + 5 * scale * t, gy - h - 6 * scale * t, x + 5 * scale * t, gy - h);
+    ctx.quadraticCurveTo(x, gy - h + 1, x - 5 * scale * t, gy - h);
     ctx.closePath();
     ctx.fillStyle = '#3a4a20'; ctx.fill();
     // Honeycomb texture lines
     ctx.strokeStyle = '#1a2810'; ctx.lineWidth = 0.5;
     for (let i = 0; i < 4; i++) {
       ctx.beginPath();
-      ctx.moveTo(x - 4 * t + i * 2.5 * t, gy - h - 2);
-      ctx.lineTo(x - 4 * t + i * 2.5 * t, gy - h - 5);
+      ctx.moveTo(x - 4 * scale * t + i * 2.5 * scale * t, gy - h - 2);
+      ctx.lineTo(x - 4 * scale * t + i * 2.5 * scale * t, gy - h - 5);
       ctx.stroke();
     }
     // Shiny gleba droplet on tip
     if (t > 0.7) {
-      drawCircle(ctx, x, gy - h - 7 * t, 1.2 * t, 'rgba(220,210,140,0.7)');
+      drawCircle(ctx, x, gy - h - 7 * scale * t, 1.2 * scale * t, 'rgba(220,210,140,0.7)');
     }
   }
 });
@@ -1729,17 +1732,18 @@ defSpecies('chanterelle', {
   info: "The chanterelle mycelium lives in symbiosis with tree roots, exchanging minerals for sugars. What you see is merely the fruiting body — the organism beneath may span acres.",
   draw(ctx, x, gy, t, season, phase) {
     if (season!==2 && season!==1) return; // late summer/autumn
-    const h = 20*t;
+    const scale = this.heightPx / 12;
+    const h = 20*scale*t;
     // stout stem
     ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
-    ctx.strokeStyle='#d4a820'; ctx.lineWidth=5*t; ctx.stroke();
+    ctx.strokeStyle='#d4a820'; ctx.lineWidth=5*scale*t; ctx.stroke();
     // wavy funnel cap
     ctx.beginPath();
-    ctx.moveTo(x-12*t,gy-h+3);
-    ctx.quadraticCurveTo(x-8*t,gy-h-5,x,gy-h-8*t);
-    ctx.quadraticCurveTo(x+8*t,gy-h-5,x+12*t,gy-h+3);
-    ctx.quadraticCurveTo(x+6*t,gy-h-1,x,gy-h-3*t);
-    ctx.quadraticCurveTo(x-6*t,gy-h-1,x-12*t,gy-h+3);
+    ctx.moveTo(x-12*scale*t,gy-h+3);
+    ctx.quadraticCurveTo(x-8*scale*t,gy-h-5,x,gy-h-8*scale*t);
+    ctx.quadraticCurveTo(x+8*scale*t,gy-h-5,x+12*scale*t,gy-h+3);
+    ctx.quadraticCurveTo(x+6*scale*t,gy-h-1,x,gy-h-3*scale*t);
+    ctx.quadraticCurveTo(x-6*scale*t,gy-h-1,x-12*scale*t,gy-h+3);
     ctx.fillStyle='#d4a020'; ctx.fill();
     ctx.strokeStyle='#b88010'; ctx.lineWidth=1; ctx.stroke();
   }
@@ -1845,25 +1849,26 @@ defSpecies('fly_agaric', {
   edible: { part: 'DO NOT EAT', restore: -0.4, poisonous: true, flavor: 'Hallucinogenic and potentially lethal. Its beauty is a warning.' },
   info: "The fly agaric is the classic toadstool of fairy tales. It is the mycorrhizal partner of birch and pine — invisible networks connecting the roots of many trees simultaneously.",
   draw(ctx, x, gy, t, season, phase) {
-    const h = 24*t;
+    const scale = this.heightPx / 12;
+    const h = 24*scale*t;
     // white stem with skirt
     ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,gy-h);
-    ctx.strokeStyle='#f0ece4'; ctx.lineWidth=6*t; ctx.stroke();
+    ctx.strokeStyle='#f0ece4'; ctx.lineWidth=6*scale*t; ctx.stroke();
     // skirt
     if (t>0.5) {
-      ctx.beginPath(); ctx.ellipse(x,gy-h*0.5,7*t,2.5*t,0,0,Math.PI*2);
+      ctx.beginPath(); ctx.ellipse(x,gy-h*0.5,7*scale*t,2.5*scale*t,0,0,Math.PI*2);
       ctx.fillStyle='rgba(240,236,228,0.9)'; ctx.fill();
     }
     // red cap with white spots
     ctx.beginPath();
-    ctx.arc(x,gy-h,12*t,Math.PI,Math.PI*2);
-    ctx.quadraticCurveTo(x+14*t,gy-h,x,gy-h+3);
-    ctx.quadraticCurveTo(x-14*t,gy-h,x-12*t,gy-h);
+    ctx.arc(x,gy-h,12*scale*t,Math.PI,Math.PI*2);
+    ctx.quadraticCurveTo(x+14*scale*t,gy-h,x,gy-h+3);
+    ctx.quadraticCurveTo(x-14*scale*t,gy-h,x-12*scale*t,gy-h);
     ctx.fillStyle='#d02010'; ctx.fill();
     // white spots
     const spots = [[0,-11],[6,-8],[-5,-9],[3,-13],[-7,-12]];
     spots.forEach(([ox,oy])=>{
-      drawCircle(ctx,x+ox*t,gy-h+oy*t,2.2*t,'rgba(255,250,245,0.9)');
+      drawCircle(ctx,x+ox*scale*t,gy-h+oy*scale*t,2.2*scale*t,'rgba(255,250,245,0.9)');
     });
   }
 });
@@ -1878,8 +1883,9 @@ defSpecies('bracket_fungus', {
   info: "Artist's bracket slowly consumes the heartwood of standing and fallen trees, returning centuries of accumulated carbon to the soil. Its flat white underside can be scratched to make drawings that last for years. Dead wood is not dead.",
   draw(ctx, x, gy, t, season, phase) {
     // hoof-shaped shelf on tree
-    const w = 20*t;
-    const h = 14*t;
+    const scale = this.heightPx / 12;
+    const w = 20*scale*t;
+    const h = 14*scale*t;
     for (let ring=0;ring<4;ring++) {
       const p = ring/4;
       ctx.beginPath();
@@ -1888,7 +1894,7 @@ defSpecies('bracket_fungus', {
     }
     // underside pores
     ctx.beginPath();
-    ctx.ellipse(x, gy-5, w*0.9, 4, -0.2, 0, Math.PI);
+    ctx.ellipse(x, gy-5, w*0.9, 4*scale, -0.2, 0, Math.PI);
     ctx.fillStyle='#c8b8a0'; ctx.fill();
   }
 });
@@ -1903,25 +1909,26 @@ defSpecies('honey_fungus', {
   info: "Clustered caps on the surface; underground, a single individual may stretch for kilometres of black bootlace strands, slowly killing the trees it has lived alongside for a century.",
   draw(ctx, x, gy, t, season, phase, id) {
     if (season < 1 || season > 2) return;
-    const h = 18 * t;
+    const heightScale = this.heightPx / 12;
+    const h = 18 * heightScale * t;
     // Tight cluster of 4 caps
     const positions = [[-8, 0, 0.9], [0, -2, 1.0], [7, -1, 0.85], [-3, 3, 0.75]];
     for (let k = 0; k < positions.length; k++) {
-      const [ox, oy, scale] = positions[k];
-      const cx = x + ox * t;
-      const stemH = h * scale;
+      const [ox, oy, capScale] = positions[k];
+      const cx = x + ox * heightScale * t;
+      const stemH = h * capScale;
       // Pale honey stem
       ctx.beginPath();
       ctx.moveTo(cx, gy + oy);
       ctx.lineTo(cx, gy + oy - stemH);
-      ctx.strokeStyle = '#d8c08c'; ctx.lineWidth = 2.2 * t * scale; ctx.stroke();
+      ctx.strokeStyle = '#d8c08c'; ctx.lineWidth = 2.2 * heightScale * t * capScale; ctx.stroke();
       // Honey-coloured convex cap
       ctx.beginPath();
-      ctx.ellipse(cx, gy + oy - stemH, 6 * t * scale, 3 * t * scale, 0, Math.PI, Math.PI * 2);
+      ctx.ellipse(cx, gy + oy - stemH, 6 * heightScale * t * capScale, 3 * heightScale * t * capScale, 0, Math.PI, Math.PI * 2);
       ctx.fillStyle = '#c08840'; ctx.fill();
       // Darker scales
       for (let i = 0; i < 3; i++) {
-        drawCircle(ctx, cx + (i - 1) * 1.8 * t * scale, gy + oy - stemH - 0.5, 0.7 * t * scale, '#7a4818');
+        drawCircle(ctx, cx + (i - 1) * 1.8 * heightScale * t * capScale, gy + oy - stemH - 0.5, 0.7 * heightScale * t * capScale, '#7a4818');
       }
     }
   }
@@ -2032,25 +2039,26 @@ defSpecies('deathcap', {
   info: "The most dangerous mushroom in the world. Non-native to Ontario but spreading — found near mature oaks and imported European trees, exchanging minerals for sugars through a quiet underground partnership.",
   draw(ctx, x, gy, t, season, phase) {
     if (season < 1 || season > 2) return;
-    const h = 26 * t;
+    const scale = this.heightPx / 12;
+    const h = 26 * scale * t;
     // Bulbous volva
     ctx.beginPath();
-    ctx.ellipse(x, gy, 6 * t, 3 * t, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, gy, 6 * scale * t, 3 * scale * t, 0, 0, Math.PI * 2);
     ctx.fillStyle = '#e8e4d6'; ctx.fill();
     // White stem
     ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - h);
-    ctx.strokeStyle = '#f4f0e2'; ctx.lineWidth = 4 * t; ctx.stroke();
+    ctx.strokeStyle = '#f4f0e2'; ctx.lineWidth = 4 * scale * t; ctx.stroke();
     // Skirt (annulus)
     if (t > 0.5) {
       ctx.beginPath();
-      ctx.ellipse(x, gy - h * 0.5, 6 * t, 1.8 * t, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, gy - h * 0.5, 6 * scale * t, 1.8 * scale * t, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(244,240,226,0.95)'; ctx.fill();
     }
     // Pale olive-green cap
     ctx.beginPath();
-    ctx.arc(x, gy - h, 12 * t, Math.PI, Math.PI * 2);
-    ctx.quadraticCurveTo(x + 13 * t, gy - h, x, gy - h + 2);
-    ctx.quadraticCurveTo(x - 13 * t, gy - h, x - 12 * t, gy - h);
+    ctx.arc(x, gy - h, 12 * scale * t, Math.PI, Math.PI * 2);
+    ctx.quadraticCurveTo(x + 13 * scale * t, gy - h, x, gy - h + 2);
+    ctx.quadraticCurveTo(x - 13 * scale * t, gy - h, x - 12 * scale * t, gy - h);
     ctx.fillStyle = '#9bb070'; ctx.fill();
     // Subtle radial streaks
     ctx.strokeStyle = '#7a8a55'; ctx.lineWidth = 0.6;
@@ -2058,7 +2066,7 @@ defSpecies('deathcap', {
       const a = Math.PI + (i / 4) * Math.PI;
       ctx.beginPath();
       ctx.moveTo(x, gy - h + 1);
-      ctx.lineTo(x + Math.cos(a) * 11 * t, gy - h + Math.sin(a) * 6 * t);
+      ctx.lineTo(x + Math.cos(a) * 11 * scale * t, gy - h + Math.sin(a) * 6 * scale * t);
       ctx.stroke();
     }
   }
