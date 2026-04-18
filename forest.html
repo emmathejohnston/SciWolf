@@ -219,10 +219,61 @@
     transition: border-color 0.15s, color 0.15s;
   }
   #notes-close-bottom:hover { border-color: #334155; color: #94a3b8; }
+
+  /* ── Population graph panel ──────────────────────────────────────────────── */
+  #graph-panel {
+    position: fixed; top: -280px; left: 0; width: 100%; height: 260px;
+    background: #0a0f1a; border-bottom: 1px solid #1e293b;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    transition: top 0.32s cubic-bezier(.4,0,.2,1);
+    z-index: 200;
+  }
+  #graph-panel.open { top: 0; }
+  #graph-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 14px 8px; border-bottom: 1px solid #1e293b;
+    flex-shrink: 0;
+  }
+  #graph-title {
+    font-size: 0.78rem; font-family: 'Segoe UI', system-ui, sans-serif;
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #374151; margin-right: auto;
+  }
+  .graph-tab {
+    background: none; border: 1px solid transparent;
+    border-radius: 5px; padding: 3px 9px;
+    font-size: 0.70rem; font-family: 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    color: #374151; cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .graph-tab:hover { color: #64748b; }
+  .graph-tab.active { color: #94a3b8; border-color: #334155; }
+  #graph-close {
+    background: none; border: none; color: #374151; cursor: pointer;
+    font-size: 1rem; line-height: 1; padding: 2px 5px; margin-left: 4px;
+  }
+  #graph-close:hover { color: #64748b; }
+  #graph-body { flex: 1; position: relative; overflow: hidden; min-height: 0; }
+  #graph-canvas { position: absolute; inset: 0; }
 </style>
 </head>
 <body>
 <a href="index.html" id="home-btn">⌂</a>
+
+<div id="graph-panel">
+  <div id="graph-header">
+    <span id="graph-title">Population Record</span>
+    <button class="graph-tab active" data-layer="all">All</button>
+    <button class="graph-tab" data-layer="canopy">Canopy</button>
+    <button class="graph-tab" data-layer="shrub">Shrub</button>
+    <button class="graph-tab" data-layer="ground">Ground</button>
+    <button class="graph-tab" data-layer="fungal">Fungal</button>
+    <button id="graph-close">✕</button>
+  </div>
+  <div id="graph-body"><canvas id="graph-canvas"></canvas></div>
+</div>
 
 <div id="notes-panel">
   <div id="notes-header">
@@ -271,7 +322,7 @@ const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 resize();
-window.addEventListener('resize', resize);
+window.addEventListener('resize', () => { resize(); _lastGraphLogLen = -1; if (_graphOpen) requestAnimationFrame(drawGraph); });
 
 const WORLD_W = 4000;
 
@@ -310,7 +361,11 @@ const fieldNotes = [];
 let _notesNextId  = 1;
 let _notebookOpen = false;
 let _notebookPulse = 0;   // 0..1, drives the glow; decays to 0 over ~3 s
-const _seenSpecies = new Set();   // speciesIds that have appeared at least once
+let _graphOpen = false;
+let _graphLayer = 'all';
+let _lastGraphLogLen = -1;
+const _seenSpecies   = new Set(); // speciesIds that have appeared in the world (for era-change notes)
+const _clickedSpecies = new Set(); // speciesIds the player has opened the info card for
 let _prevEraLabel  = null;        // tracks succession era for era-change trigger
 // Per-era throttles — each trigger fires at most once per succession era.
 const _notedSpeciesEras = new Set();
@@ -383,8 +438,7 @@ function toggleNotebook() {
       addFieldNote(
         'Observation',
         `Year ${Math.floor(year)} · ${_currentSeason()} · canopy cover ${cover}%.`,
-        'Write down one thing you notice about the forest right now. '
-          + 'You might describe a species, a change you observe, or something that surprised you.'
+        'Write down one thing you notice about the forest right now.'
       );
     }
     _notebookPulse = 0; // opening clears the alert even if addFieldNote re-armed it
@@ -393,6 +447,22 @@ function toggleNotebook() {
 
 document.getElementById('notes-close').addEventListener('click', toggleNotebook);
 document.getElementById('notes-close-bottom').addEventListener('click', toggleNotebook);
+
+function toggleGraph() {
+  _graphOpen = !_graphOpen;
+  document.getElementById('graph-panel').classList.toggle('open', _graphOpen);
+  if (_graphOpen) { _lastGraphLogLen = -1; requestAnimationFrame(drawGraph); }
+}
+
+document.getElementById('graph-close').addEventListener('click', toggleGraph);
+document.getElementById('graph-header').addEventListener('click', e => {
+  const tab = e.target.closest('.graph-tab');
+  if (!tab) return;
+  _graphLayer = tab.dataset.layer;
+  document.querySelectorAll('.graph-tab').forEach(t => t.classList.toggle('active', t === tab));
+  _lastGraphLogLen = -1;
+  drawGraph();
+});
 
 // Debug pane — toggle with ` (backtick)
 let showDebug = false;
@@ -585,8 +655,8 @@ defSpecies('earthball', {
   name: 'Common Earthball', latin: 'Scleroderma citrinum',
   kingdom: 'fungi', layer: 'fungal',
   era: 'pioneer', coverMin: 0, coverMax: 0.30,
-  maxAge: 0.4, matureAge: 0.1, heightPx: 12,
-  spreadPerYear: 2.5, spreadRadius: 50,
+  maxAge: 1.0, matureAge: 0.1, heightPx: 6,
+  spreadPerYear: 2.5, spreadRadius: 50, colonizeMultiplier: 1500,
   edible: { part: 'whole body', restore: -0.15, poisonous: true, flavor: 'Peppery and gritty. Mildly toxic — the warning is in the taste.' },
   info: "An early colonist of poor, disturbed soils. Unlike most mushrooms it has no real stem — a leathery sphere bursts from the ground, releasing a brown cloud of spores when it splits.",
   draw(ctx, x, gy, t, season, phase, id) {
@@ -870,8 +940,8 @@ defSpecies('shaggy_inkcap', {
   name: 'Shaggy Inkcap', latin: 'Coprinus comatus',
   kingdom: 'fungi', layer: 'fungal',
   era: 'early', coverMin: 0, coverMax: 0.50,
-  maxAge: 0.2, matureAge: 0.05, heightPx: 28,
-  spreadPerYear: 3, spreadRadius: 60,
+  maxAge: 0.5, matureAge: 0.05, heightPx: 14,
+  spreadPerYear: 3, spreadRadius: 60, colonizeMultiplier: 1500,
   edible: { part: 'cap when young and white', restore: 0.18, poisonous: false, flavor: 'Delicate and faintly sweet — but eat within hours. By morning the cap has dissolved itself into black ink.' },
   info: "Lawyer's Wig. Pushes through trampled grassland and roadside verges. By the time you fetch a basket, the cap has begun to autodigest, releasing its spores as a slow drip of black liquid.",
   draw(ctx, x, gy, t, season, phase) {
@@ -1243,8 +1313,8 @@ defSpecies('stinkhorn', {
   name: 'Common Stinkhorn', latin: 'Phallus impudicus',
   kingdom: 'fungi', layer: 'fungal',
   era: 'mid', coverMin: 0.10, coverMax: 0.85,
-  maxAge: 0.15, matureAge: 0.05, heightPx: 24,
-  spreadPerYear: 2, spreadRadius: 70,
+  maxAge: 0.375, matureAge: 0.05, heightPx: 12,
+  spreadPerYear: 2, spreadRadius: 70, colonizeMultiplier: 1500,
   edible: { part: 'egg stage (rarely)', restore: -0.05, poisonous: false, flavor: 'A foul carrion stench that flies mistake for meat. They carry the spores away on their feet.' },
   info: "Bursts from a soft white 'egg' in the leaf litter, growing inches per hour. Its slimy olive cap reeks of rotting flesh — a strategy that bypasses wind by recruiting flies for dispersal.",
   draw(ctx, x, gy, t, season, phase) {
@@ -1653,8 +1723,8 @@ defSpecies('chanterelle', {
   name: 'Chanterelle', latin: 'Cantharellus cibarius',
   kingdom: 'fungi', layer: 'fungal',
   era: 'late', coverMin: 0.40, coverMax: 1.0,
-  maxAge: 0.2, matureAge: 0.1, heightPx: 22,
-  spreadPerYear: 3, spreadRadius: 40,
+  maxAge: 0.5, matureAge: 0.1, heightPx: 11,
+  spreadPerYear: 3, spreadRadius: 40, colonizeMultiplier: 1500,
   edible: { part: 'whole fruiting body', restore: 0.25, poisonous: false, flavor: 'Fruity, faintly apricot, richly earthy. One of the finest foods the forest offers.' },
   info: "The chanterelle mycelium lives in symbiosis with tree roots, exchanging minerals for sugars. What you see is merely the fruiting body — the organism beneath may span acres.",
   draw(ctx, x, gy, t, season, phase) {
@@ -1770,8 +1840,8 @@ defSpecies('fly_agaric', {
   name: 'Fly Agaric', latin: 'Amanita muscaria',
   kingdom: 'fungi', layer: 'fungal',
   era: 'climax', coverMin: 0.25, coverMax: 1.0,
-  maxAge: 0.15, matureAge: 0.08, heightPx: 26,
-  spreadPerYear: 2, spreadRadius: 60,
+  maxAge: 0.375, matureAge: 0.08, heightPx: 13,
+  spreadPerYear: 2, spreadRadius: 60, colonizeMultiplier: 1500,
   edible: { part: 'DO NOT EAT', restore: -0.4, poisonous: true, flavor: 'Hallucinogenic and potentially lethal. Its beauty is a warning.' },
   info: "The fly agaric is the classic toadstool of fairy tales. It is the mycorrhizal partner of birch and pine — invisible networks connecting the roots of many trees simultaneously.",
   draw(ctx, x, gy, t, season, phase) {
@@ -1801,9 +1871,9 @@ defSpecies('fly_agaric', {
 defSpecies('bracket_fungus', {
   name: 'Artist\'s Bracket', latin: 'Ganoderma applanatum',
   kingdom: 'fungi', layer: 'fungal',
-  era: 'mid', coverMin: 0.15, coverMax: 1.0,
-  maxAge: 30, matureAge: 5, heightPx: 18,
-  spreadPerYear: 0.4, spreadRadius: 80,
+  era: 'mid', coverMin: 0.25, coverMax: 1.0,
+  maxAge: 30, matureAge: 5, heightPx: 9,
+  spreadPerYear: 0.07, spreadRadius: 80, maxInstances: 5,
   edible: null,
   info: "Artist's bracket slowly consumes the heartwood of standing and fallen trees, returning centuries of accumulated carbon to the soil. Its flat white underside can be scratched to make drawings that last for years. Dead wood is not dead.",
   draw(ctx, x, gy, t, season, phase) {
@@ -1827,8 +1897,8 @@ defSpecies('honey_fungus', {
   name: 'Honey Fungus', latin: 'Armillaria mellea',
   kingdom: 'fungi', layer: 'fungal',
   era: 'late', coverMin: 0.30, coverMax: 1.0,
-  maxAge: 0.2, matureAge: 0.08, heightPx: 22,
-  spreadPerYear: 2, spreadRadius: 80,
+  maxAge: 0.5, matureAge: 0.08, heightPx: 11,
+  spreadPerYear: 2, spreadRadius: 80, colonizeMultiplier: 1500,
   edible: { part: 'caps (must be cooked thoroughly)', restore: 0.15, poisonous: false, flavor: 'Bitter raw, mild and nutty cooked. Some people remain ill — try a small piece first.' },
   info: "Clustered caps on the surface; underground, a single individual may stretch for kilometres of black bootlace strands, slowly killing the trees it has lived alongside for a century.",
   draw(ctx, x, gy, t, season, phase, id) {
@@ -1956,8 +2026,8 @@ defSpecies('deathcap', {
   name: 'Death Cap', latin: 'Amanita phalloides',
   kingdom: 'fungi', layer: 'fungal',
   era: 'climax', coverMin: 0.40, coverMax: 1.0,
-  maxAge: 0.18, matureAge: 0.08, heightPx: 28,
-  spreadPerYear: 1.5, spreadRadius: 70,
+  maxAge: 0.45, matureAge: 0.08, heightPx: 14,
+  spreadPerYear: 1.5, spreadRadius: 70, colonizeMultiplier: 1500,
   edible: { part: 'half a cap is lethal', restore: -0.95, poisonous: true, flavor: 'The taste is reportedly pleasant. The damage to the liver begins after the symptoms have passed, and is irreversible.' },
   info: "The most dangerous mushroom in the world. Non-native to Ontario but spreading — found near mature oaks and imported European trees, exchanging minerals for sugars through a quiet underground partnership.",
   draw(ctx, x, gy, t, season, phase) {
@@ -2460,7 +2530,7 @@ function updatePlants(dt) {
   const recoveryBoost = plants.length < 30 ? 3 : plants.length < 100 ? 1.5 : 1;
   for (const [id, sp] of Object.entries(SPECIES)) {
     if (cover < sp.coverMin || cover > sp.coverMax || soilScore < soilReqFor(sp)) continue;
-    const rate = (colonizeRates[sp.era] || 0.15) * (sp.layer === 'canopy' ? 0.2 : 1) * recoveryBoost;
+    const rate = (colonizeRates[sp.era] || 0.15) * (sp.colonizeMultiplier || 1) * (sp.layer === 'canopy' ? 0.2 : 1) * recoveryBoost;
     if (Math.random() < rate * yearDelta) {
       const wx = Math.random() * WORLD_W;
       if (sp.layer === 'fungal' && Math.floor((year%1)*4) !== 2 && Math.floor((year%1)*4) !== 1) continue;
@@ -2469,8 +2539,12 @@ function updatePlants(dt) {
   }
 
   for (const [id,wx] of toAdd) {
+    const sp = SPECIES[id];
+    if (sp && sp.maxInstances !== undefined) {
+      if (plants.filter(p => p.speciesId === id).length >= sp.maxInstances) continue;
+    }
     addPlant(id, wx);
-    if (SPECIES[id]) noteNewSpecies(SPECIES[id]);
+    if (sp) _seenSpecies.add(id); // track world presence for era-change notes
   }
 
   // Per-layer carrying capacities — each layer competes only within itself,
@@ -3641,6 +3715,7 @@ const infoCard = document.getElementById('info-card');
 let infoOpen = false;
 
 function showInfoCard(species, plantObj) {
+  if (species.id && plantObj) noteNewSpecies(species);
   document.getElementById('info-name').textContent = species.name;
   document.getElementById('info-latin').textContent = species.latin;
   document.getElementById('info-desc').textContent = species.info;
@@ -3802,11 +3877,24 @@ function drawUI() {
   ctx.textBaseline = 'alphabetic';
   uiBtnBounds.push({ x: moonX, y: 12, w: mw, h: 36, action: 'mycelium' });
 
-  // ── Notebook button (left of moon) ─────────────────────────────────────────
+  // ── Graph button (left of moon) ────────────────────────────────────────────
+  const graphLbl = '∿';
+  ctx.font = '15px Segoe UI, system-ui, sans-serif';
+  const grw = ctx.measureText(graphLbl).width + 20;
+  const graphBtnX = moonX - grw - 6;
+  ctx.fillStyle = _graphOpen ? 'rgba(94,234,212,0.16)' : 'rgba(15,23,42,0.75)';
+  roundRect(ctx, graphBtnX, 12, grw, 36, 8);
+  ctx.fillStyle = _graphOpen ? '#5eead4' : '#94a3b8';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(graphLbl, graphBtnX + 10, 30);
+  ctx.textBaseline = 'alphabetic';
+  uiBtnBounds.push({ x: graphBtnX, y: 12, w: grw, h: 36, action: 'graph' });
+
+  // ── Notebook button (left of graph button) ──────────────────────────────────
   const notesLbl = '✎';
   ctx.font = '14px Segoe UI, system-ui, sans-serif';
   const nw = ctx.measureText(notesLbl).width + 20;
-  const notesX = moonX - nw - 6;
+  const notesX = graphBtnX - nw - 6;
   // Pulse: glow ring when new entries have arrived.
   if (_notebookPulse > 0) {
     ctx.save();
@@ -4043,6 +4131,176 @@ function logBiodiversity() {
   console.log(`── Biodiversity log (${_bioLog.length} samples) — copy and paste into a spreadsheet ──\n${header}\n${lines.join('\n')}`);
 }
 
+// ── POPULATION GRAPH ──────────────────────────────────────────────────────────
+
+const GRAPH_LAYER_COLOURS = {
+  ground:  '#86efac',
+  shrub:   '#a78bfa',
+  canopy:  '#5eead4',
+  fungal:  '#fbbf24',
+};
+
+const GRAPH_ERA_COLOURS = {
+  bare:    'rgba(160,140,110,0.10)',
+  pioneer: 'rgba(180,155,90,0.10)',
+  early:   'rgba(90,170,75,0.09)',
+  mid:     'rgba(45,130,65,0.10)',
+  late:    'rgba(30,105,85,0.10)',
+  climax:  'rgba(20,65,85,0.13)',
+};
+
+function drawGraph() {
+  if (!_graphOpen) return;
+  const gc = document.getElementById('graph-canvas');
+  const body = document.getElementById('graph-body');
+  if (!gc || !body) return;
+  const W = body.offsetWidth, H = body.offsetHeight;
+  const sizeChanged = gc.width !== W || gc.height !== H;
+  if (!sizeChanged && _bioLog.length === _lastGraphLogLen) return;
+  if (W < 1 || H < 40) { _lastGraphLogLen = -1; return; }
+  gc.width = W; gc.height = H;
+  _lastGraphLogLen = _bioLog.length;
+
+  const gx = gc.getContext('2d');
+  gx.clearRect(0, 0, W, H);
+
+  if (_bioLog.length < 2) {
+    gx.fillStyle = '#374151';
+    gx.font = 'italic 11px Segoe UI, system-ui, sans-serif';
+    gx.textAlign = 'center';
+    gx.textBaseline = 'middle';
+    gx.fillText('No data yet — the record fills as years pass.', W / 2, H / 2);
+    return;
+  }
+
+  const PAD_L = 34, PAD_R = 18, PAD_T = 14, PAD_B = 22;
+  const gW = W - PAD_L - PAD_R;
+  const gH = H - PAD_T - PAD_B;
+  const maxYear = _bioLog[_bioLog.length - 1].year || 1;
+
+  function toX(yr) { return PAD_L + (yr / maxYear) * gW; }
+  function toY(count, maxY) { return PAD_T + gH - (count / maxY) * gH; }
+
+  // Build series
+  let series = [];
+  if (_graphLayer === 'all') {
+    for (const layer of ['canopy', 'shrub', 'ground', 'fungal']) {
+      const data = _bioLog.map(snap => {
+        let sum = 0;
+        for (const [sid, n] of Object.entries(snap.counts)) {
+          if (SPECIES[sid] && SPECIES[sid].layer === layer) sum += n;
+        }
+        return sum;
+      });
+      if (data.some(v => v > 0))
+        series.push({ label: layer.charAt(0).toUpperCase() + layer.slice(1), colour: GRAPH_LAYER_COLOURS[layer], data });
+    }
+  } else {
+    const speciesInLayer = Object.entries(SPECIES).filter(([, sp]) => sp.layer === _graphLayer);
+    const n = speciesInLayer.length;
+    speciesInLayer.forEach(([sid, sp], i) => {
+      const data = _bioLog.map(snap => snap.counts[sid] || 0);
+      if (!data.some(v => v > 0)) return;
+      const hue = (160 + i * (300 / Math.max(n, 1))) % 360;
+      series.push({ label: sp.name, colour: `hsl(${hue},55%,62%)`, data });
+    });
+  }
+
+  const maxY = Math.max(1, ...series.map(s => Math.max(...s.data)));
+
+  // Era bands
+  let eraStart = 0;
+  for (let i = 1; i <= _bioLog.length; i++) {
+    const atEnd = i === _bioLog.length;
+    if (atEnd || _bioLog[i].era !== _bioLog[eraStart].era) {
+      const bandEra = _bioLog[eraStart].era;
+      const x1 = toX(_bioLog[eraStart].year);
+      const x2 = atEnd ? PAD_L + gW : toX(_bioLog[i].year);
+      gx.fillStyle = GRAPH_ERA_COLOURS[bandEra] || 'rgba(100,100,100,0.06)';
+      gx.fillRect(x1, PAD_T, Math.max(x2 - x1, 1), gH);
+      if (x2 - x1 > 24) {
+        gx.fillStyle = '#2d3748';
+        gx.font = '8px Segoe UI, system-ui, sans-serif';
+        gx.textAlign = 'left';
+        gx.textBaseline = 'top';
+        gx.fillText(bandEra.toUpperCase(), x1 + 3, PAD_T + 2);
+      }
+      eraStart = i;
+    }
+  }
+
+  // Horizontal grid lines
+  const yStep = Math.ceil(maxY / 4);
+  gx.strokeStyle = 'rgba(45,55,72,0.7)';
+  gx.lineWidth = 0.5;
+  for (let v = 0; v <= maxY; v += yStep) {
+    const y = toY(v, maxY);
+    gx.beginPath(); gx.moveTo(PAD_L, y); gx.lineTo(PAD_L + gW, y); gx.stroke();
+    gx.fillStyle = '#374151';
+    gx.font = '8px Segoe UI, monospace, sans-serif';
+    gx.textAlign = 'right';
+    gx.textBaseline = 'middle';
+    gx.fillText(v, PAD_L - 3, y);
+  }
+
+  // Vertical grid lines every 25 years
+  const yearStep = maxYear <= 50 ? 10 : maxYear <= 150 ? 25 : 50;
+  for (let yr = 0; yr <= maxYear; yr += yearStep) {
+    const x = toX(yr);
+    gx.strokeStyle = 'rgba(45,55,72,0.5)';
+    gx.lineWidth = 0.5;
+    gx.beginPath(); gx.moveTo(x, PAD_T); gx.lineTo(x, PAD_T + gH); gx.stroke();
+    gx.fillStyle = '#374151';
+    gx.font = '8px Segoe UI, monospace, sans-serif';
+    gx.textAlign = 'center';
+    gx.textBaseline = 'top';
+    gx.fillText(yr, x, PAD_T + gH + 4);
+  }
+
+  // Data lines
+  for (const s of series) {
+    gx.beginPath();
+    gx.strokeStyle = s.colour;
+    gx.lineWidth = 1.5;
+    gx.globalAlpha = 0.80;
+    let first = true;
+    for (let i = 0; i < _bioLog.length; i++) {
+      const x = toX(_bioLog[i].year);
+      const y = toY(s.data[i], maxY);
+      if (first) { gx.moveTo(x, y); first = false; } else gx.lineTo(x, y);
+    }
+    gx.stroke();
+    gx.globalAlpha = 1;
+  }
+
+  // "Now" dashed marker
+  const nowX = toX(maxYear);
+  gx.strokeStyle = 'rgba(100,116,139,0.25)';
+  gx.lineWidth = 1;
+  gx.setLineDash([2, 4]);
+  gx.beginPath(); gx.moveTo(nowX, PAD_T); gx.lineTo(nowX, PAD_T + gH); gx.stroke();
+  gx.setLineDash([]);
+
+  // Legend — stacked top-right inside the graph area
+  if (series.length > 0) {
+    const swatchSize = 7;
+    const lineH = 13;
+    const legendX = PAD_L + gW - 4;
+    gx.font = '9px Segoe UI, system-ui, sans-serif';
+    gx.textAlign = 'right';
+    gx.textBaseline = 'middle';
+    series.forEach((s, i) => {
+      const ly = PAD_T + 6 + i * lineH;
+      gx.fillStyle = s.colour;
+      gx.globalAlpha = 0.85;
+      gx.fillRect(legendX - gx.measureText(s.label).width - swatchSize - 5, ly - swatchSize / 2, swatchSize, swatchSize);
+      gx.globalAlpha = 1;
+      gx.fillStyle = '#4b5563';
+      gx.fillText(s.label, legendX, ly);
+    });
+  }
+}
+
 let uiBtnBounds = [];
 let pouchBtnBounds = [];
 let memorialBtnBounds = [];
@@ -4170,6 +4428,8 @@ canvas.addEventListener('click', e => {
         mycelialView = !mycelialView; if (mycelialView) noteMycelialView();
       } else if (btn.action === 'notebook') {
         toggleNotebook();
+      } else if (btn.action === 'graph') {
+        toggleGraph();
       }
       if (player.selectedSeed) player.selectedSeed = null;
       return;
@@ -4384,19 +4644,17 @@ function sow(sp, wx, sx, sy) {
 
 // Called from the colonisation loop when a new plant is placed.
 function noteNewSpecies(sp) {
-  if (_seenSpecies.has(sp.id)) return;
-  _seenSpecies.add(sp.id);
+  if (_clickedSpecies.has(sp.id)) return;
+  _clickedSpecies.add(sp.id);
   const era = _coverToEraLabel(getCanopyCover());
   if (_notedSpeciesEras.has(era)) return;
   _notedSpeciesEras.add(era);
   const cover = Math.round(getCanopyCover() * 100);
   const persist = sp.persistence ? sp.persistence.strategy : null;
-  const persistNote = persist ? ` Its persistence strategy is listed as <em>${persist}</em>.` : '';
-  const obs = `<strong>${sp.name}</strong> (${sp.latin}) has appeared for the first time. `
-    + `Canopy cover: ${cover}%. Succession stage: ${sp.era}.${persistNote}`;
-  const prompt = `The info card states that ${sp.name} requires ${Math.round(sp.coverMin*100)}–${Math.round(sp.coverMax*100)}% canopy cover. `
-    + `Current cover is ${cover}%. Using the info card, explain what conditions made it possible for this species to establish now.`
-    + (persist ? ` Also describe what the persistence strategy "${persist}" means for how this organism survives here.` : '');
+  const persistNote = persist ? ` Persistence: <em>${persist}</em>.` : '';
+  const obs = `<strong>${sp.name}</strong> (${sp.latin}) has appeared. `
+    + `Canopy cover: ${cover}%. Stage: ${sp.era}.${persistNote}`;
+  const prompt = `Using the info card for ${sp.name}, explain why this species can establish here now.`;
   addFieldNote('New species', obs, prompt);
 }
 
@@ -4411,10 +4669,9 @@ function checkEraChange() {
   const dominantIds = [..._seenSpecies].filter(id => {
     const s = SPECIES[id]; return s && s.era === label.split(' ')[0].toLowerCase();
   }).slice(0, 3).map(id => SPECIES[id].name).join(', ') || 'none yet observed';
-  const obs = `Succession stage shifted from <em>${prev}</em> to <em>${label}</em>. `
-    + `Canopy cover reached ${cover}%. Representative new-stage species visible: ${dominantIds}.`;
-  const prompt = `Name one species from the previous (${prev}) stage that is still present in the forest, `
-    + `and one species from the new (${label}) stage. What physical change in the canopy made this transition possible?`;
+  const obs = `The forest has moved from <em>${prev}</em> to <em>${label}</em>. `
+    + `Canopy cover: ${cover}%. New species now present: ${dominantIds}.`;
+  const prompt = `Name one species from the previous stage still visible, and one from the new stage. What changed in the forest to allow this?`;
   addFieldNote('Era change', obs, prompt);
 }
 
@@ -4426,12 +4683,11 @@ function noteEat(sp, poisonous, restorePct) {
   const part = (sp.edible && sp.edible.part) ? sp.edible.part : 'part';
   let obs, prompt;
   if (poisonous) {
-    obs = `You ingested <strong>${sp.name}</strong> (${sp.latin}). It is toxic — hunger decreased.`;
-    prompt = `The info card describes ${sp.name} as poisonous. What ecological purpose might its toxicity serve for the plant?`;
+    obs = `You ate <strong>${sp.name}</strong> (${sp.latin}). It is toxic — hunger decreased.`;
+    prompt = `Using the info card, why might ${sp.name} be toxic? What does it gain from this?`;
   } else {
     obs = `You ate the ${part} of <strong>${sp.name}</strong> (${sp.latin}), restoring ${restorePct}% hunger.`;
-    prompt = `According to the info card, what other organisms interact with or depend on ${sp.name}'s ${part}? `
-      + `How does the plant benefit from producing ${part}?`;
+    prompt = `Using the info card, what other organisms depend on this plant's ${part}?`;
   }
   addFieldNote('Consumption', obs, prompt);
 }
@@ -4441,11 +4697,8 @@ function noteListen(sp, listenLine) {
   const era = _coverToEraLabel(getCanopyCover());
   if (_notedListenEras.has(era)) return;
   _notedListenEras.add(era);
-  const infoSnippet = sp.info ? sp.info.split('.')[0] + '.' : '';
-  const obs = `You listened to <strong>${sp.name}</strong> (${sp.latin}). `
-    + `It communicated: <em>"${listenLine}"</em>`;
-  const prompt = `The info card describes ${sp.name} as follows: "${infoSnippet}" `
-    + `How does what the organism communicated connect to or diverge from this factual description?`;
+  const obs = `The ${sp.name} said: <em>"${listenLine}"</em>`;
+  const prompt = `How do the words of the ${sp.name} connect to the information in its description?`;
   addFieldNote('Listen', obs, prompt);
 }
 
@@ -4456,8 +4709,7 @@ function noteDeath() {
   const obs = `You died in year ${Math.floor(year)} after ${lifeYears} years. `
     + `This life: ${took} harvest${took !== 1 ? 's' : ''}, ${gave} plant${gave !== 1 ? 's' : ''} sown, `
     + `${listened} listen${listened !== 1 ? 's' : ''}. Your body will decompose where it fell.`;
-  const prompt = `Decomposition returns nutrients to the soil. `
-    + `Name two specific nutrients released by a decomposing body, and explain how nearby plants would use each one.`;
+  const prompt = `Name two nutrients a decomposing body returns to the soil. How would nearby plants use them?`;
   addFieldNote('Death', obs, prompt);
 }
 
@@ -4469,11 +4721,8 @@ function noteMycelialView() {
   const fungiPresent = [..._seenSpecies]
     .filter(id => SPECIES[id] && SPECIES[id].layer === 'fungal')
     .map(id => SPECIES[id].name).join(', ') || 'none yet';
-  const obs = `Underground fungal network visible. Fungal species observed so far: ${fungiPresent}. `
-    + `Lines connect fungal organisms to canopy tree roots.`;
-  const prompt = `Using the info card for one of the fungal species listed above, `
-    + `describe what each partner (the fungus and the tree) gives and receives in this relationship. `
-    + `What category of ecological relationship is this?`;
+  const obs = `Underground fungal network visible. Fungal species present: ${fungiPresent}.`;
+  const prompt = `Using the info card for one of the fungi above, what does each partner give and receive? What kind of relationship is this?`;
   addFieldNote('Mycelial view', obs, prompt);
 }
 
@@ -4485,9 +4734,7 @@ function noteClimax() {
   const speciesCount = new Set(plants.map(p => p.speciesId)).size;
   const obs = `The forest has reached a climax state (canopy cover ≥ 80%, sustained). `
     + `Total species present: ${speciesCount}. Year: ${Math.floor(year)}.`;
-  const prompt = `Using species currently visible in the forest, construct one complete food chain `
-    + `(minimum three levels: producer → primary consumer → secondary consumer). `
-    + `Is a climax forest "finished" changing? Explain using what you have observed.`;
+  const prompt = `Using species you can see, name a producer, a primary consumer, and a secondary consumer. Is a climax forest finished changing?`;
   addFieldNote('Climax forest', obs, prompt);
 }
 
@@ -4600,6 +4847,7 @@ function frame(ts) {
   // Biodiversity auto-sample every in-game year.
   if (Math.floor(year) > Math.floor(year - dt * effSpeed)) {
     sampleBiodiversity();
+    if (_graphOpen) drawGraph();
   }
 
   // D2 — reflection line check (runs every frame, cheap; timer gates emission).
