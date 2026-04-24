@@ -678,6 +678,7 @@ const COMP_DEFS = {
 const TERM_R   = 5;   // terminal dot radius (world px)
 const SNAP_R   = 20;  // snap-to-terminal distance (world px)
 const JUNC_R   = 4;   // junction dot radius
+const DIRECT_JOIN_EPS = 3;
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let comps  = [];   // {id, type, x, y, angle, props, state}
@@ -741,6 +742,234 @@ function nearestTerminal(wx, wy, excludeCompId) {
     }
   }
   return best;
+}
+
+function nearestWireAnchor(wx, wy) {
+  let best = null, bestD = SNAP_R;
+
+  for (const w of wires) {
+    for (const pt of w.pts) {
+      const d = dist2(wx, wy, pt.x, pt.y);
+      if (d < bestD) {
+        bestD = d;
+        best = { type: 'wire', wireId: w.id, x: pt.x, y: pt.y };
+      }
+    }
+    for (let i = 0; i < w.pts.length - 1; i++) {
+      const ax = w.pts[i].x, ay = w.pts[i].y;
+      const bx = w.pts[i+1].x, by = w.pts[i+1].y;
+      const dx = bx - ax, dy = by - ay, len2 = dx*dx + dy*dy;
+      if (len2 < 1e-6) continue;
+      const t = Math.max(0, Math.min(1, ((wx-ax)*dx + (wy-ay)*dy) / len2));
+      const px = ax + t*dx, py = ay + t*dy;
+      const d = dist2(wx, wy, px, py);
+      if (d < bestD) {
+        bestD = d;
+        best = { type: 'wire', wireId: w.id, x: px, y: py };
+      }
+    }
+  }
+
+  return best;
+}
+
+function nearestConnectionTarget(wx, wy, excludeCompId) {
+  const term = nearestTerminal(wx, wy, excludeCompId);
+  const wire = nearestWireAnchor(wx, wy);
+  if (!term) return wire;
+  if (!wire) return { type: 'terminal', ...term };
+  const td = dist2(wx, wy, term.x, term.y);
+  const wd = dist2(wx, wy, wire.x, wire.y);
+  return td <= wd ? { type: 'terminal', ...term } : wire;
+}
+
+function getComponentSnap(comp, excludeCompId = comp.id) {
+  const ownTerms = getTerminals(comp);
+  let best = null, bestD = SNAP_R;
+  for (const side of ['a', 'b']) {
+    const pt = ownTerms[side];
+    const target = nearestConnectionTarget(pt.x, pt.y, excludeCompId);
+    if (!target) continue;
+    const d = dist2(pt.x, pt.y, target.x, target.y);
+    if (d < bestD) {
+      bestD = d;
+      best = { x: comp.x + (target.x - pt.x), y: comp.y + (target.y - pt.y), side, target };
+    }
+  }
+  return best;
+}
+
+function snapComponentToTerminal(comp, excludeCompId = comp.id) {
+  const snap = getComponentSnap(comp, excludeCompId);
+  if (snap) {
+    comp.x = snap.x;
+    comp.y = snap.y;
+  }
+  return snap;
+}
+
+function computeDirectComponentJunctions() {
+  const joints = [];
+  const seen = new Set();
+  for (let i = 0; i < comps.length; i++) {
+    const ta = getTerminals(comps[i]);
+    for (let j = i + 1; j < comps.length; j++) {
+      const tb = getTerminals(comps[j]);
+      for (const sideA of ['a', 'b']) {
+        for (const sideB of ['a', 'b']) {
+          const a = ta[sideA], b = tb[sideB];
+          if (Math.hypot(a.x - b.x, a.y - b.y) > DIRECT_JOIN_EPS) continue;
+          const key = `${comps[i].id}:${sideA}:${comps[j].id}:${sideB}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          joints.push({
+            aCompId: comps[i].id, aSide: sideA,
+            bCompId: comps[j].id, bSide: sideB,
+            x: (a.x + b.x) / 2, y: (a.y + b.y) / 2,
+          });
+        }
+      }
+    }
+  }
+  return joints;
+}
+
+function computeComponentWireJunctions() {
+  const joints = [];
+  const seen = new Set();
+  for (const c of comps) {
+    const terms = getTerminals(c);
+    for (const side of ['a', 'b']) {
+      const pt = terms[side];
+      for (const w of wires) {
+        for (let i = 0; i < w.pts.length - 1; i++) {
+          const ax = w.pts[i].x, ay = w.pts[i].y;
+          const bx = w.pts[i+1].x, by = w.pts[i+1].y;
+          const dx = bx - ax, dy = by - ay, len2 = dx*dx + dy*dy;
+          if (len2 < 1e-6) continue;
+          const t = Math.max(0, Math.min(1, ((pt.x-ax)*dx + (pt.y-ay)*dy) / len2));
+          const px = ax + t*dx, py = ay + t*dy;
+          if (Math.hypot(pt.x - px, pt.y - py) > DIRECT_JOIN_EPS) continue;
+          const key = `${c.id}:${side}:${w.id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          joints.push({ compId: c.id, side, wireId: w.id, x: px, y: py });
+        }
+      }
+    }
+  }
+  return joints;
+}
+
+function pointKey(x, y) {
+  return `${x.toFixed(1)},${y.toFixed(1)}`;
+}
+
+function addGraphEdge(graph, a, b) {
+  if (a === b) return;
+  if (!graph.has(a)) graph.set(a, new Set());
+  if (!graph.has(b)) graph.set(b, new Set());
+  graph.get(a).add(b);
+  graph.get(b).add(a);
+}
+
+function wireStopsWithDistances(w, wireJunctions, compWireJunctions) {
+  const stops = [];
+  let prefix = 0;
+  for (let i = 0; i < w.pts.length; i++) {
+    if (i > 0) prefix += Math.hypot(w.pts[i].x - w.pts[i-1].x, w.pts[i].y - w.pts[i-1].y);
+    stops.push({ x: w.pts[i].x, y: w.pts[i].y, d: prefix });
+  }
+
+  const registerPointOnSegments = p => {
+    let segStart = 0;
+    for (let i = 0; i < w.pts.length - 1; i++) {
+      const ax = w.pts[i].x, ay = w.pts[i].y;
+      const bx = w.pts[i+1].x, by = w.pts[i+1].y;
+      const segLen = Math.hypot(bx - ax, by - ay);
+      if (segLen < 1e-6) continue;
+      const d1 = Math.hypot(p.x - ax, p.y - ay);
+      const d2 = Math.hypot(p.x - bx, p.y - by);
+      if (Math.abs((d1 + d2) - segLen) <= DIRECT_JOIN_EPS) {
+        stops.push({ x: p.x, y: p.y, d: segStart + d1 });
+        return;
+      }
+      segStart += segLen;
+    }
+  };
+
+  for (const j of wireJunctions) {
+    if (j.w1id === w.id || j.w2id === w.id) registerPointOnSegments(j);
+  }
+  for (const j of compWireJunctions) {
+    if (j.wireId === w.id) registerPointOnSegments(j);
+  }
+
+  stops.sort((a, b) => a.d - b.d);
+  const unique = [];
+  const seen = new Set();
+  for (const stop of stops) {
+    const k = pointKey(stop.x, stop.y);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    unique.push(stop);
+  }
+  return unique;
+}
+
+function computeWireDirections() {
+  const graph = new Map();
+  const distances = new Map();
+  const directions = {};
+  const activeWireIds = circuitState.activeWireIds || new Set();
+  const wireJunctions = computeJunctionsWithWires();
+  const compWireJunctions = computeComponentWireJunctions();
+
+  for (const w of wires) {
+    if (!activeWireIds.has(w.id)) continue;
+    const stops = wireStopsWithDistances(w, wireJunctions, compWireJunctions);
+    for (let i = 0; i < stops.length - 1; i++) {
+      addGraphEdge(graph, pointKey(stops[i].x, stops[i].y), pointKey(stops[i+1].x, stops[i+1].y));
+    }
+  }
+
+  for (const c of comps) {
+    if (c.type === 'battery') continue;
+    if (!circuitState.pathCompIds?.has(c.id)) continue;
+    const t = getTerminals(c);
+    addGraphEdge(graph, pointKey(t.a.x, t.a.y), pointKey(t.b.x, t.b.y));
+  }
+
+  const queue = [];
+  for (const bat of comps.filter(c => c.type === 'battery' && (circuitState.batteryCurrents?.[c.id] || 0) > 1e-4)) {
+    const neg = getTerminals(bat).a;
+    const k = pointKey(neg.x, neg.y);
+    distances.set(k, 0);
+    queue.push(k);
+  }
+
+  while (queue.length) {
+    const cur = queue.shift();
+    const curDist = distances.get(cur);
+    for (const next of graph.get(cur) || []) {
+      if (distances.has(next)) continue;
+      distances.set(next, curDist + 1);
+      queue.push(next);
+    }
+  }
+
+  for (const w of wires) {
+    if (!activeWireIds.has(w.id)) continue;
+    const startK = pointKey(w.pts[0].x, w.pts[0].y);
+    const endK = pointKey(w.pts[w.pts.length - 1].x, w.pts[w.pts.length - 1].y);
+    const ds = distances.get(startK);
+    const de = distances.get(endK);
+    if (ds !== undefined && de !== undefined && ds !== de) {
+      directions[w.id] = ds < de ? 1 : -1;
+    }
+  }
+
+  return directions;
 }
 
 // Returns nearest snappable wire point. Prefers exact corners/endpoints (larger
@@ -868,6 +1097,14 @@ function computeNodeDots() {
   for (const j of computeJunctionsWithWires())
     dots.push({ x:j.x, y:j.y, big:true });
 
+  // 1b. Direct component-to-component terminal joins
+  for (const j of computeDirectComponentJunctions())
+    dots.push({ x:j.x, y:j.y, big:true });
+
+  // 1c. Direct component-to-wire joins
+  for (const j of computeComponentWireJunctions())
+    dots.push({ x:j.x, y:j.y, big:true });
+
   // 2. All wire points: interior corners + free (unbound) endpoints
   for (const w of wires) {
     for (let i = 0; i < w.pts.length; i++) {
@@ -903,7 +1140,7 @@ function computeNodeDots() {
 // ─── Circuit solver  (Union-Find + Nodal Analysis) ────────────────────────────
 let circuitState = { open: true, short: false, current: 0,
                      pathCompIds: new Set(), activeWireIds: new Set(),
-                     compCurrents: {}, wireCurrents: {} };
+                     compCurrents: {}, wireCurrents: {}, batteryCurrents: {}, wireDirections: {} };
 let fireT = 0;
 
 // Component resistance (Ω). Returns null for open/disabled components.
@@ -939,15 +1176,17 @@ function gaussSolve(A, b) {
   return M.map((row, i) => row[n] / row[i]);
 }
 
+function buildEmptyCircuitState() {
+  return { open: true, short: false, current: 0,
+           pathCompIds: new Set(), activeWireIds: new Set(),
+           compCurrents: {}, wireCurrents: {}, batteryCurrents: {}, wireDirections: {} };
+}
+
 function solveCircuit() {
-  const EMPTY = { open: true, short: false, current: 0,
-                  pathCompIds: new Set(), activeWireIds: new Set(),
-                  compCurrents: {}, wireCurrents: {} };
+  const EMPTY = buildEmptyCircuitState();
+  const batteries = comps.filter(c => c.type === 'battery');
+  if (!batteries.length) { circuitState = EMPTY; return; }
 
-  const bat = comps.find(c => c.type === 'battery');
-  if (!bat) { circuitState = EMPTY; return; }
-
-  // ── Union-Find ────────────────────────────────────────────────────────────
   const par = {}, rnk = {};
   const ufInit = k => { if (par[k] === undefined) { par[k] = k; rnk[k] = 0; } };
   function ufFind(k) {
@@ -965,19 +1204,14 @@ function solveCircuit() {
   }
 
   const tk  = (id, side) => `t:${id}:${side}`;
-  const wks = id => `w:${id}:s`;   // wire-start node key
-  const wke = id => `w:${id}:e`;   // wire-end node key
+  const wks = id => `w:${id}:s`;
+  const wke = id => `w:${id}:e`;
 
-  // Init all terminal keys
   for (const c of comps) { ufInit(tk(c.id,'a')); ufInit(tk(c.id,'b')); }
 
-  // Wires: each wire is a zero-resistance conductor — union start and end nodes,
-  // then union each end with its bound terminal (if any).
-  // Using explicit wire-node keys means free-endpoint wires still get nodes in
-  // the graph, so wire-wire-wire chains conduct correctly.
   for (const w of wires) {
     ufInit(wks(w.id)); ufInit(wke(w.id));
-    ufUnion(wks(w.id), wke(w.id));           // wire is a conductor
+    ufUnion(wks(w.id), wke(w.id));
 
     const sk = w.startBind ? tk(w.startBind.compId, w.startBind.side) : null;
     const ek = w.endBind   ? tk(w.endBind.compId,   w.endBind.side)   : null;
@@ -985,8 +1219,6 @@ function solveCircuit() {
     if (ek) { ufInit(ek); ufUnion(wke(w.id), ek); }
   }
 
-  // Wire crossings: every crossing = automatic electrical junction.
-  // Union the wire-node keys directly — no longer requires bound terminals.
   for (const x of computeJunctionsWithWires()) {
     const w1 = wires.find(w => w.id === x.w1id);
     const w2 = wires.find(w => w.id === x.w2id);
@@ -994,154 +1226,167 @@ function solveCircuit() {
     ufUnion(wks(w1.id), wks(w2.id));
   }
 
-  const refRoot = ufFind(tk(bat.id,'a'));  // V = 0
-  const srcRoot = ufFind(tk(bat.id,'b'));  // V = V_bat
-  const V_bat   = bat.props.voltage || 9;
-
-  // Short circuit: battery terminals in same net
-  if (refRoot === srcRoot) {
-    const allW = new Set(wires.map(w => w.id));
-    circuitState = { open:false, short:true, current:Infinity,
-                     pathCompIds: new Set(comps.map(c=>c.id)),
-                     activeWireIds: allW, compCurrents:{}, wireCurrents:{} };
-    return;
+  for (const j of computeDirectComponentJunctions()) {
+    ufUnion(tk(j.aCompId, j.aSide), tk(j.bCompId, j.bSide));
+  }
+  for (const j of computeComponentWireJunctions()) {
+    ufUnion(tk(j.compId, j.side), wks(j.wireId));
   }
 
-  // ── Nodal Analysis ────────────────────────────────────────────────────────
-  // Collect all unique net node roots (excluding refRoot)
-  const allRoots = new Set();
-  for (const c of comps) {
-    allRoots.add(ufFind(tk(c.id,'a')));
-    allRoots.add(ufFind(tk(c.id,'b')));
-  }
-  allRoots.delete(refRoot);
+  const result = buildEmptyCircuitState();
+  const nodeVoltages = {};
+  const batteryCurrents = {};
+  const allNonBattery = comps.filter(c => c.type !== 'battery');
+  const rootsForComp = c => [ufFind(tk(c.id,'a')), ufFind(tk(c.id,'b'))];
+  let hasShort = false;
 
-  // rootToIdx: row 0 = srcRoot (known = V_bat), rest = unknowns
-  const rootToIdx = {};
-  let idx = 0;
-  rootToIdx[srcRoot] = idx++;
-  for (const r of allRoots) if (r !== srcRoot) rootToIdx[r] = idx++;
-  const N = idx;
-  if (N === 0) { circuitState = EMPTY; return; }
+  for (const bat of batteries) {
+    const refRoot = ufFind(tk(bat.id,'a'));
+    const srcRoot = ufFind(tk(bat.id,'b'));
+    const V_bat = bat.props.voltage || 9;
 
-  const G = Array.from({length:N}, () => new Float64Array(N));
-  const bv = new Float64Array(N);
-
-  for (const c of comps) {
-    if (c.type === 'battery') continue;
-    const R = compResistance(c);
-    if (!R) continue;
-    const Gc = 1 / R;
-    const ra = ufFind(tk(c.id,'a')), rb = ufFind(tk(c.id,'b'));
-    const ia = ra === refRoot ? -1 : rootToIdx[ra] ?? -1;
-    const ib = rb === refRoot ? -1 : rootToIdx[rb] ?? -1;
-
-    if (ia >= 0) {
-      G[ia][ia] += Gc;
-      if (ib >= 0) G[ia][ib] -= Gc;
+    if (refRoot === srcRoot) {
+      hasShort = true;
+      batteryCurrents[bat.id] = Infinity;
+      result.pathCompIds.add(bat.id);
+      for (const w of wires) result.activeWireIds.add(w.id);
+      continue;
     }
-    if (ib >= 0) {
-      G[ib][ib] += Gc;
-      if (ia >= 0) G[ib][ia] -= Gc;
+
+    const reachableRoots = new Set([refRoot, srcRoot]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const c of allNonBattery) {
+        const [ra, rb] = rootsForComp(c);
+        if (reachableRoots.has(ra) || reachableRoots.has(rb)) {
+          if (!reachableRoots.has(ra)) { reachableRoots.add(ra); changed = true; }
+          if (!reachableRoots.has(rb)) { reachableRoots.add(rb); changed = true; }
+        }
+      }
     }
+
+    const localComps = allNonBattery.filter(c => {
+      const [ra, rb] = rootsForComp(c);
+      return reachableRoots.has(ra) || reachableRoots.has(rb);
+    });
+    if (!localComps.length) {
+      batteryCurrents[bat.id] = 0;
+      continue;
+    }
+
+    const allRoots = new Set(reachableRoots);
+    allRoots.delete(refRoot);
+
+    const rootToIdx = {};
+    let idx = 0;
+    rootToIdx[srcRoot] = idx++;
+    for (const r of allRoots) if (r !== srcRoot) rootToIdx[r] = idx++;
+    const N = idx;
+    if (N === 0) {
+      batteryCurrents[bat.id] = 0;
+      continue;
+    }
+
+    const G = Array.from({length:N}, () => new Float64Array(N));
+    const bv = new Float64Array(N);
+
+    for (const c of localComps) {
+      const R = compResistance(c);
+      if (!R) continue;
+      const Gc = 1 / R;
+      const [ra, rb] = rootsForComp(c);
+      const ia = ra === refRoot ? -1 : rootToIdx[ra] ?? -1;
+      const ib = rb === refRoot ? -1 : rootToIdx[rb] ?? -1;
+
+      if (ia >= 0) {
+        G[ia][ia] += Gc;
+        if (ib >= 0) G[ia][ib] -= Gc;
+      }
+      if (ib >= 0) {
+        G[ib][ib] += Gc;
+        if (ia >= 0) G[ib][ia] -= Gc;
+      }
+    }
+
+    for (let j = 0; j < N; j++) G[0][j] = 0;
+    G[0][0] = 1;
+    bv[0] = V_bat;
+
+    const Vsol = gaussSolve(G, bv);
+    if (!Vsol) continue;
+
+    const nodeV = r => r === refRoot ? 0 : (rootToIdx[r] !== undefined ? Vsol[rootToIdx[r]] : 0);
+    for (const root of reachableRoots) nodeVoltages[root] = nodeV(root);
+
+    let totalI = 0;
+    for (const c of localComps) {
+      const R = compResistance(c);
+      if (!R) continue;
+      const [ra, rb] = rootsForComp(c);
+      const I = (nodeV(rb) - nodeV(ra)) / R;
+      result.compCurrents[c.id] = I;
+      if (ra === srcRoot || rb === srcRoot) totalI += Math.abs(I);
+    }
+
+    batteryCurrents[bat.id] = totalI;
+    result.current += totalI;
+    if (totalI > 200) hasShort = true;
   }
 
-  // Enforce source voltage: row 0 → V[0] = V_bat
-  for (let j = 0; j < N; j++) G[0][j] = 0;
-  G[0][0] = 1; bv[0] = V_bat;
-
-  const Vsol = gaussSolve(G, bv);
-  if (!Vsol) { circuitState = EMPTY; return; }
-
-  const nodeV = r => r === refRoot ? 0 : (rootToIdx[r] !== undefined ? Vsol[rootToIdx[r]] : 0);
-
-  // ── Per-component currents ────────────────────────────────────────────────
-  const compCurrents = {};
-  for (const c of comps) {
-    if (c.type === 'battery') continue;
-    const R = compResistance(c);
-    if (!R) continue;
-    const Va = nodeV(ufFind(tk(c.id,'a'))), Vb = nodeV(ufFind(tk(c.id,'b')));
-    compCurrents[c.id] = (Vb - Va) / R; // + means a→b conventional flow
-  }
-
-  // Blow fuses
   for (const c of comps) {
     if (c.type === 'fuse' && !c.state.blown) {
-      const I = Math.abs(compCurrents[c.id] || 0);
+      const I = Math.abs(result.compCurrents[c.id] || 0);
       if (I > (c.props.rating || 1)) { snapshot(); c.state.blown = true; }
     }
   }
-
-  // Total current (sum of |currents| through all loads at the source node)
-  let totalI = 0;
-  for (const c of comps) {
-    if (c.type === 'battery') continue;
-    const ra = ufFind(tk(c.id,'a')), rb = ufFind(tk(c.id,'b'));
-    if (ra === srcRoot || rb === srcRoot) totalI += Math.abs(compCurrents[c.id] || 0);
-  }
-
-  // Short circuit check: no real loads but current is very high
-  if (totalI > 200) {
-    const allW = new Set(wires.map(w => w.id));
-    circuitState = { open:false, short:true, current:totalI,
-                     pathCompIds: new Set(comps.map(c=>c.id)),
-                     activeWireIds: allW, compCurrents, wireCurrents:{} };
-    return;
-  }
-
-  // ── Per-wire current + active set ─────────────────────────────────────────
-  // Use the minimum of the two endpoint component currents.
-  // In a parallel circuit this correctly assigns each branch wire its own
-  // branch current rather than the (wrong) max-in-net heuristic.
-  // Reasoning: a wire directly in series with a component carries that
-  // component's current; the trunk component (or battery) always carries more,
-  // so min() naturally selects the branch current.
-  const activeWireIds = new Set();
-  const wireCurrents  = {};
 
   for (const w of wires) {
     const sId = w.startBind?.compId, eId = w.endBind?.compId;
     const sComp = sId != null ? comps.find(c => c.id === sId) : null;
     const eComp = eId != null ? comps.find(c => c.id === eId) : null;
 
-    // Battery carries total current — exclude it so min() picks the branch current.
-    // Null bind (junction/free end) is also treated as unknown (null).
-    const Is = (sComp && sComp.type !== 'battery') ? Math.abs(compCurrents[sId] || 0) : null;
-    const Ie = (eComp && eComp.type !== 'battery') ? Math.abs(compCurrents[eId] || 0) : null;
+    const Is = (sComp && sComp.type !== 'battery') ? Math.abs(result.compCurrents[sId] || 0) : null;
+    const Ie = (eComp && eComp.type !== 'battery') ? Math.abs(result.compCurrents[eId] || 0) : null;
 
     let wireI;
     if (Is !== null && Ie !== null) wireI = Math.min(Is, Ie);
-    else if (Is !== null)           wireI = Is;
-    else if (Ie !== null)           wireI = Ie;
+    else if (Is !== null) wireI = Is;
+    else if (Ie !== null) wireI = Ie;
     else {
-      // Both endpoints are batteries or unbound junctions — fall back to max-in-net heuristic
       const root = ufFind(wks(w.id));
       wireI = 0;
-      for (const c of comps) {
-        if (c.type === 'battery') continue;
-        const ca = ufFind(tk(c.id,'a')), cb = ufFind(tk(c.id,'b'));
-        if (ca === root || cb === root) wireI = Math.max(wireI, Math.abs(compCurrents[c.id] || 0));
+      for (const c of allNonBattery) {
+        const [ca, cb] = rootsForComp(c);
+        if (ca === root || cb === root) wireI = Math.max(wireI, Math.abs(result.compCurrents[c.id] || 0));
       }
     }
 
-    if (wireI > 1e-4) { activeWireIds.add(w.id); wireCurrents[w.id] = wireI; }
+    if (wireI > 1e-4) {
+      result.activeWireIds.add(w.id);
+      result.wireCurrents[w.id] = wireI;
+    }
   }
 
-  const pathCompIds = new Set(
-    Object.entries(compCurrents)
+  result.pathCompIds = new Set(
+    Object.entries(result.compCurrents)
       .filter(([,I]) => Math.abs(I) > 1e-4)
       .map(([id]) => Number(id))
   );
+  for (const bat of batteries) {
+    if ((batteryCurrents[bat.id] || 0) > 1e-4) result.pathCompIds.add(bat.id);
+  }
 
-  const isOpen = pathCompIds.size === 0 && comps.filter(c => c.type !== 'battery').length > 0;
-
-  circuitState = { open:isOpen, short:false, current:totalI,
-                   pathCompIds, activeWireIds, compCurrents, wireCurrents,
-                   nodeVoltage: nodeV, ufFind, tk };
+  result.open = result.pathCompIds.size === 0 && comps.length > 0;
+  result.short = hasShort;
+  result.batteryCurrents = batteryCurrents;
+  result.wireDirections = computeWireDirections();
+  result.nodeVoltage = root => nodeVoltages[root] ?? 0;
+  result.ufFind = ufFind;
+  result.tk = tk;
+  circuitState = result;
 }
 
-// ─── Undo ─────────────────────────────────────────────────────────────────────
 function snapshot() {
   undoStack.push({ comps: JSON.parse(JSON.stringify(comps)),
                    wires: JSON.parse(JSON.stringify(wires)), nextId });
@@ -1253,8 +1498,18 @@ function fmt(n, unit, digits=2) {
   return n.toFixed(digits) + ' ' + unit;
 }
 
+function getPrimaryBattery() {
+  const batteries = comps.filter(c => c.type === 'battery');
+  if (!batteries.length) return null;
+  if (selId) {
+    const selected = comps.find(c => c.id === selId);
+    if (selected?.type === 'battery') return selected;
+  }
+  return batteries.find(b => (circuitState.batteryCurrents?.[b.id] || 0) > 1e-4) || batteries[0];
+}
+
 function updateReadout() {
-  const bat = comps.find(c => c.type === 'battery');
+  const bat = getPrimaryBattery();
   const vEl = document.getElementById('ro-v-val');
   const iEl = document.getElementById('ro-i-val');
   const rEl = document.getElementById('ro-r-val');
@@ -1276,7 +1531,7 @@ function updateReadout() {
   }
 
   const V = bat.props.voltage || 9;
-  const I = circuitState.current;
+  const I = circuitState.batteryCurrents?.[bat.id] || 0;
   const R = I > 1e-9 ? V / I : 0;
 
   vEl.textContent = fmt(V, 'V');
@@ -1380,19 +1635,32 @@ function draw() {
 
   // Endpoint drag snap indicator
   if (endpointDrag) {
-    const snapT = nearestTerminal(mouseW.x, mouseW.y);
-    if (snapT) {
-      ctx.beginPath(); ctx.arc(snapT.x, snapT.y, SNAP_R * 0.55, 0, Math.PI * 2);
+    const snap = nearestConnectionTarget(mouseW.x, mouseW.y);
+    if (snap) {
+      ctx.beginPath(); ctx.arc(snap.x, snap.y, SNAP_R * 0.55, 0, Math.PI * 2);
       ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
 
   // Ghost component (place mode)
   if (mode === 'place' && placeType) {
+    const ghost = { id:-1, type:placeType, x:mouseW.x, y:mouseW.y, angle:0,
+                    props:{ ...COMP_DEFS[placeType].defaultProps }, state:{} };
+    const ghostSnap = getComponentSnap(ghost, ghost.id);
+    if (ghostSnap) {
+      ghost.x = ghostSnap.x;
+      ghost.y = ghostSnap.y;
+    }
     ctx.globalAlpha = 0.5;
-    drawComp({ id:-1, type:placeType, x:mouseW.x, y:mouseW.y, angle:0,
-               props:{ ...COMP_DEFS[placeType].defaultProps }, state:{} }, false);
+    drawComp(ghost, false);
     ctx.globalAlpha = 1;
+    if (ghostSnap) {
+      ctx.beginPath();
+      ctx.arc(ghostSnap.target.x, ghostSnap.target.y, SNAP_R * 0.55, 0, Math.PI * 2);
+      ctx.strokeStyle = cssVar('--accent');
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
   }
 
   // Open-circuit / short-circuit feedback
@@ -1416,7 +1684,7 @@ function drawCircuitFeedback() {
     return;
   }
   if (circuitState.short) {
-    const bat = comps.find(c => c.type === 'battery');
+    const bat = getPrimaryBattery();
     const fx = bat ? bat.x : 0;
     const fy = bat ? bat.y : 0;
     if (schematicMode) {
@@ -1513,11 +1781,10 @@ function drawWire(w, col) {
     const I = circuitState.wireCurrents[w.id] || 0;
     if (I < 1e-4) return;
 
-    // Determine electron flow direction from the component current sign.
-    // compCurrents[id] = (Vb−Va)/R; positive = conventional current a→b = electrons b→a.
-    // Battery: effective I = −1 (always drives electrons out of terminal-a into the circuit).
-    // At start (pts[0]): side=b → electrons leave b → dir=+sign; side=a → dir=−sign.
-    // At end (pts[last]): side=a → electrons arrive at a → dir=+sign; side=b → dir=−sign.
+    // Determine electron flow direction from the solved component-current sign.
+    // compCurrents[id] = (Vb−Va)/R, so positive means electrons flow a→b through a load.
+    // Battery uses an effective negative sign so the same endpoint rule makes electrons
+    // leave terminal a (negative) and return into terminal b (positive).
     let dir = 1; // 1 = particle moves from pts[0] toward pts[last]
     if (circuitState.compCurrents) {
       const tryDir = (bind, isStart) => {
@@ -1530,7 +1797,10 @@ function drawWire(w, col) {
         return isStart ? (bind.side === 'b' ? sign : -sign)
                        : (bind.side === 'a' ? sign : -sign);
       };
-      const d = tryDir(w.startBind, true) ?? tryDir(w.endBind, false);
+      const d = tryDir(w.startBind, true)
+             ?? tryDir(w.endBind, false)
+             ?? circuitState.wireDirections?.[w.id]
+             ?? null;
       if (d != null) dir = d;
     }
 
@@ -1989,7 +2259,11 @@ function onMove(e) {
   }
   if (dragState) {
     const c = comps.find(c => c.id === dragState.compId);
-    if (c) { c.x = mouseW.x - dragState.ox; c.y = mouseW.y - dragState.oy; }
+    if (c) {
+      c.x = mouseW.x - dragState.ox;
+      c.y = mouseW.y - dragState.oy;
+      snapComponentToTerminal(c);
+    }
     draw(); return;
   }
   if (endpointDrag) {
@@ -2024,9 +2298,11 @@ function onDown(e) {
   // Place mode: drop component
   if (mode === 'place' && placeType) {
     snapshot();
-    comps.push({ id:nextId++, type:placeType, x:wx, y:wy, angle:0,
-                 props:{ ...COMP_DEFS[placeType].defaultProps },
-                 state: placeType === 'switch' ? { closed:true } : {} });
+    const comp = { id:nextId++, type:placeType, x:wx, y:wy, angle:0,
+                   props:{ ...COMP_DEFS[placeType].defaultProps },
+                   state: placeType === 'switch' ? { closed:true } : {} };
+    snapComponentToTerminal(comp, comp.id);
+    comps.push(comp);
     draw(); return;
   }
 
@@ -2387,7 +2663,7 @@ function updateCalcLive() {
   }
 
   const V = bat.props.voltage || 9;
-  const I = circuitState.current;
+  const I = circuitState.batteryCurrents?.[bat.id] || 0;
   const R = I > 1e-9 ? V / I : 0;
 
   lV.textContent = fmt(V, 'V', 2);
