@@ -1,392 +1,485 @@
 # Bonding Simulator — Scoping Doc
 
-_SNC2D/SNC2P · Ionic & Covalent Bonding · Draft 2026-04-02_
+_SNC2D/SNC2P · Ionic, Covalent & Polyatomic Bonding · Revised 2026-04-15_
 
 ---
 
-## What this is
+## Testing Harness
 
-A browser-based bonding simulator where students select two elements from a graphical periodic table and watch the bonding process animated in real time — electron transfer for ionic compounds, electron sharing for covalent. The sim determines bond type, stoichiometry, and bond order from real electronegativity and valence electron data, so the chemistry is accurate without requiring a lookup table of hardcoded compounds.
+| Test case             | Expected result                                     | Current Result  |
+|-----------------------|-------------------------------------------------------|-----------------|
+| H + H                 | H₂, nonpolar covalent, BO=1                           | works
+| H + O + H             | H₂O, polar covalent, 2 single bonds                   | works
+| H + N + H + H         | NH₃ (ammonia), polar, 3 single bonds                  | refers to as H3N, otherwise works
+| C + 4H                | CH₄ (methane), nonpolar, 4 single bonds               | works
+| N + N                 | N₂, nonpolar, BO=3                                    | works
+| C + 2O                | CO₂, polar, 2 double bonds                            | works
+| C + C + 6H            | C₂H₆ (ethane), 7 single bonds                         | works
+| Na + Cl               | NaCl, ionic, stoich 1:1                               | works
+| 2Na + O               | Na₂O, ionic, stoich 2:1                               | works
+| 2Al + 3O              | Al₂O₃, ionic, stoich 2:3                              | works
+| NaCl + KBr (separate) | Both complete independently, info per-component       | works. can click back and forth
+| H + H + H             | Third H can't bond (valence full), warning shown      | forms H2, rejects third H, no warning shown
+| O + O + O             | O₃ (ozone), correct bond orders                       | Referred to incorrectly as trioxidane
+| H+Cl-C-C-Cl+H         | 1,2-dichloroethene					| works!
+| [benzene]		  | C6H6 (benzene)					| works!
+| [glucose]             | C6H12O6 (glucose)					| works!
+| Na + [OH palette]     | NaOH — full structural model, ionic bond shown        | works!
+| Ca + [NO3 palette]    | Ca(NO₃)₂ —full model with visible N=O / N–O bonds     | works!
+| [NH₄ palette] + Cl    | NH₄Cl — structural model with visible N–H bonds       | works!
+| Build N+3O on canvas  | NO₃⁻ recognized, promotable to polyatomic group       | works!
+| Sodium phenoxide      | Phenol created, bonds to cation                       | Results in nonsense "sodium hydrogen carbon oxide"
 
-**Phase 1 scope:** first 18 elements, binary compounds only.
-
-**Filename:** `bonding.html` (single-file, same architecture as `bohr.html` and `ph.html`)
-
----
-
-## Element data — first 18
-
-The sim's data layer is a single array. All bond-type logic derives from this at runtime.
-
-| Z  | Symbol | Name       | Period | Group | Valence e⁻ | EN (Pauling) | Oxidation states (common) |
-|----|--------|------------|--------|-------|------------|--------------|---------------------------|
-| 1  | H      | Hydrogen   | 1      | 1     | 1          | 2.20         | +1, −1                    |
-| 2  | He     | Helium     | 1      | 18    | 2          | —            | (none)                    |
-| 3  | Li     | Lithium    | 2      | 1     | 1          | 0.98         | +1                        |
-| 4  | Be     | Beryllium  | 2      | 2     | 2          | 1.57         | +2                        |
-| 5  | B      | Boron      | 2      | 13    | 3          | 2.04         | +3                        |
-| 6  | C      | Carbon     | 2      | 14    | 4          | 2.55         | +4, −4                    |
-| 7  | N      | Nitrogen   | 2      | 15    | 5          | 3.04         | −3, +3, +5                |
-| 8  | O      | Oxygen     | 2      | 16    | 6          | 3.44         | −2                        |
-| 9  | F      | Fluorine   | 2      | 17    | 7          | 3.98         | −1                        |
-| 10 | Ne     | Neon       | 2      | 18    | 8          | —            | (none)                    |
-| 11 | Na     | Sodium     | 3      | 1     | 1          | 0.93         | +1                        |
-| 12 | Mg     | Magnesium  | 3      | 2     | 2          | 1.31         | +2                        |
-| 13 | Al     | Aluminium  | 3      | 13    | 3          | 1.61         | +3                        |
-| 14 | Si     | Silicon    | 3      | 14    | 4          | 1.90         | +4, −4                    |
-| 15 | P      | Phosphorus | 3      | 15    | 5          | 2.19         | −3, +3, +5                |
-| 16 | S      | Sulfur     | 3      | 16    | 6          | 2.58         | −2, +4, +6                |
-| 17 | Cl     | Chlorine   | 3      | 17    | 7          | 3.16         | −1, +1, +3, +5, +7        |
-| 18 | Ar     | Argon      | 3      | 18    | 8          | —            | (none)                    |
+**Known bugs:**
+- Canvas size weirdness when expanding/contracting periodic table
+- Multivalent picker appears/disappears frustratingly
 
 ---
 
-## Bond-type classification logic
+## Current state (as of 2026-04-15)
 
-Runs at the moment two elements are selected. All thresholds are the standard Pauling cutoffs.
+bonding.html is a single-file canvas 2D app, no external deps. Full periodic table (all 118 elements, Z=1–118), drag-and-drop atom placement, ionic transfer animation, covalent sharing animation, molecular graph engine with bond-order solver, and structural polyatomic ions.
 
-```
-ΔEN = |EN(A) − EN(B)|
+**What works well:**
+- Binary ionic compounds (NaCl, MgO, CaCl₂, Al₂O₃) — stoichiometry, naming, animation
+- d-block simplified cation model with Stock nomenclature (Fe(II) chloride, etc.)
+- Simple/complex covalent molecules (H₂ through glucose) with correct bond orders
+- Alkane/alkene/alkyne pattern recognition (methane → decane)
+- Common-name lookup for ~17 well-known formulas; PubChem lookup for the rest
+- ΔEN bar, dipole arrows, exception messages, theme toggle
+- **Polyatomic ions as real atom clusters** — palette ions (NO₃⁻, OH⁻, NH₄⁺, SO₄²⁻, etc.) spawn as pre-bonded atom groups with visible covalent structure, charge badge, and correct ionic bonding to metals
+- **Build-from-scratch polyatomics** — drawing N+3O detects NO₃⁻ match and offers promotion to charged group
+- **All 118 elements** — periods 5–7 (d-block simplified, f-block lanthanide/actinide rows); collapsible table (periods 1–4 default, "Show all elements ▾" toggle expands to full table)
 
-if either element is noble gas (He, Ne, Ar):
-    → NO BOND (show inert message)
-
-else if ΔEN > 1.7:
-    → IONIC
-    → animate electron transfer
-
-else if 0.4 < ΔEN ≤ 1.7:
-    → POLAR COVALENT
-    → animate electron sharing + dipole arrow
-
-else (ΔEN ≤ 0.4):
-    → NONPOLAR COVALENT
-    → animate electron sharing, no dipole
-```
-
-The 1.7 threshold is a simplification (the actual ionic/covalent boundary is a gradient, not a hard line). This is pedagogically standard at the Grade 10 level and worth stating explicitly in the sim's info panel.
+**What's broken / not yet implemented:**
+- **NH₃ naming:** Molecular graph reports H₃N (Hill order) instead of NH₃
+- **Ozone naming:** O₃ identified as "trioxidane" rather than "ozone"
+- **Valence-full warning missing:** Placing a third H near H₂ silently rejects it; no user-facing message
+- **Organic naming:** Anything beyond alkane/alkene/alkyne patterns and the ~17 hard-coded names produces nonsense (e.g. sodium phenoxide → "sodium hydrogen carbon oxide")
+- **Canvas resize jank:** Toggling the periodic table expand/collapse has visual weirdness
+- **Multivalent picker UX:** Picker for d-block elements appears/disappears unexpectedly on hover
 
 ---
 
-## Stoichiometry determination
+## Plan A — Polyatomic Ions as Real Atom Clusters ✓ DONE
 
-For **ionic** compounds: balance by charge. Derive from the common oxidation state of each element.
-- Na (+1) + Cl (−1) → NaCl (1:1)
-- Mg (+2) + O (−2) → MgO (1:1)
-- Al (+3) + O (−2) → Al₂O₃ (2:3, cross-multiply method)
-- Na (+1) + O (−2) → Na₂O (2:1)
-
-For **covalent** compounds: apply the octet rule with the "8 − valence electrons = bonds needed" heuristic, then confirm the Lewis structure satisfies octets for both atoms (H uses duet).
-
-```
-bonds_needed(A) = 8 − valence(A)   [H: 2 − valence(H) = 1]
-total shared pairs = bonds_needed(A) + bonds_needed(B) − total valence electrons
-bond_order = shared pairs / 2
-```
-
-Example: N₂
-- bonds_needed(N) = 8 − 5 = 3; total for N+N = 6
-- total valence e⁻ = 5+5 = 10
-- shared = 6 (3 pairs) → triple bond ✓
-
-Example: H₂O
-- bonds_needed(H) = 1, bonds_needed(O) = 2
-- Lewis structure: O makes 2 bonds (one to each H), 2 lone pairs on O → this is a ternary compound, out of Phase 1 scope
-
-For binary covalent, Phase 1 always produces one bond between one atom of each element (e.g. HF, CO, N₂, O₂, Cl₂). Stoichiometry 1:1. Bond order varies.
-
-**Known edge cases within first 18 (flagged, not hidden):**
-
-| Compound | Issue |
-|----------|-------|
-| BF₃, BCl₃, BH₃ | Incomplete octet on B (only 6 electrons) — still forms, just flag it |
-| CO | Triple bond despite low ΔEN — classified as polar covalent, bond order 3 |
-| NO | Odd-electron molecule (11 valence e⁻ total) — can't satisfy octets cleanly |
-| H with metals (LiH, NaH, MgH₂) | H is the anion (H⁻) here, not the cation — flag this in the info panel |
-| AlCl₃, AlBr₃ | Al forms 3 bonds; can be treated as ionic (ΔEN 1.55) or polar covalent — right at the threshold. Classify as ionic, note the borderline |
-| PCl₅, SF₆ | Hypervalent (expanded octet) — these are binary compounds but require d-orbital involvement; out of Phase 1, show "compound too complex for this sim" message if selected |
+Replaced phantom `Z:-1` atoms with real atom clusters. Key pieces:
+- `POLY_PALETTE` entries gained `topology: { atoms, central, bonds }` describing internal structure
+- `spawnPolyGroup()` now places N real atoms in trigonal/tetrahedral geometry and instantly bonds them
+- Bond-order solver extended with `netCharge` on components; charged electron count drives correct bond orders (NO₃⁻ gets one double bond + two singles; resonance noted in info panel)
+- Bracket/badge rendering replaced with translucent convex-hull enclosure + superscript charge
+- Ionic bonding proximity test updated to nearest atom in group rather than phantom centroid
+- Build-from-scratch: `findGroupableCandidates()` prompts "This looks like nitrate — add as ion?"
 
 ---
 
-## UI layout
+## Plan B — All 118 Elements ✓ DONE (Steps 1–3)
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  PERIODIC TABLE (top half of canvas)                        │
-│  Periods 1–3 displayed as a styled grid (18 columns wide)   │
-│  Noble gases greyed out. Hover shows: name, EN, valence e⁻  │
-│  Selected elements highlighted (up to 2 at a time)          │
-│  [Clear] button to deselect                                  │
-├──────────────────────────────────────────────────────────────┤
-│  BONDING STAGE (bottom half of canvas)                      │
-│                                                              │
-│  LEFT                 CENTRE              RIGHT              │
-│  Atom A               Bond region         Atom B             │
-│  (Lewis dot)         (animation)         (Lewis dot)         │
-│                                                              │
-│  Below stage: formula · bond type · ΔEN · bond order        │
-│               dipole arrow (if polar)                        │
-└──────────────────────────────────────────────────────────────┘
-```
-
-The periodic table and bonding stage share a single canvas. The table sits in the top 40% of the canvas; the bonding stage occupies the bottom 60%.
+- **Data:** All 118 elements in `ELEMENTS[]` with Z, sym, name, period, group, valence, EN, ox[], cat. Lanthanides/actinides have `fblock` + `fblockCol` fields; d/f-block use `simplified:true`.
+- **Layout:** `elemRect()` routes f-block elements to separate rows below the main 7-period grid; dashed `*` placeholder at group 3 for periods 6–7. `recomputeLayout()` recalculates all layout constants on toggle.
+- **Collapsible UI (Option A):** Default shows periods 1–4. Centered "Show all elements ▾" button expands to all 118 elements + f-block rows; canvas height grows from 710→860px.
+- **New categories:** `lanthanide` (fuchsia tiles) and `actinide` (teal tiles) added to `CAT_STYLE`.
 
 ---
 
-## Periodic table display
+## Plan C — Organic Naming
 
-- **Layout:** periods 1–3 across 3 rows, columns aligned to standard group positions (H in group 1, He in group 18, gap in periods 2–3 between groups 2 and 13 shown as empty space)
-- **Colour coding** (matches chemistry convention):
-  - Alkali metals (Li, Na): warm orange
-  - Alkaline earth metals (Be, Mg): pale orange
-  - Metalloids (B, Si): yellow-green
-  - Nonmetals (H, C, N, O, F, P, S, Cl): cyan/blue
-  - Noble gases (He, Ne, Ar): grey, dimmed, non-interactive
-  - Al: light orange (post-transition metal)
-- **Hover tooltip:** element name, electronegativity, valence electrons, typical oxidation states
-- **Selection state:** first click = primary element (accent border), second click on a different element = secondary element → trigger bond calculation immediately. Clicking the same element twice = homonuclear bond (H₂, O₂, N₂, Cl₂, etc.)
-- **Noble gas click:** show message "Noble gases have a full valence shell and do not form bonds under normal conditions."
+Removed this from scope, replaced with PubChem lookup.
 
 ---
 
-## Bonding stage — animation phases
+## Plan D — "Toggle 3D Shape" (VSEPR Geometry + Wedge/Dash Rendering)
 
-All animations run on the canvas using `requestAnimationFrame`. Each phase has a defined duration; students can also click "skip" to jump to the final state.
+### Goal
 
-### Ionic bonding animation
+Add a **"Toggle 3D Shape"** button that:
+1. Identifies the VSEPR geometry of each central atom in the selected molecule
+2. Repositions all atoms to match the canonical textbook geometry (correct bond angles, uniform bond lengths)
+3. Renders bonds using **wedge** (solid triangle) and **dash** (hashed lines) conventions to convey 3D depth on the 2D canvas
+4. Acts as a "make this messy sketch look like a textbook 3D diagram" button
 
-**Phase 1 — Approach (600 ms)**
-Both atoms drawn as circles with Lewis dot electrons (coloured dots at N/E/S/W/NE/NW/SE/SW positions). Atoms slide toward each other from opposite sides.
-
-**Phase 2 — Transfer (800 ms)**
-The electron(s) being transferred visibly lift off the donor atom and arc across to the acceptor atom. Each transferred electron drawn as a moving particle with a trailing glow. Donor's dot count decreases; acceptor's increases in real time as each electron arrives.
-
-**Phase 3 — Ion formation (400 ms)**
-Donor transforms: circle shrinks slightly (outer shell gone), charge label (+n) appears. Acceptor transforms: circle grows slightly, charge label (−n) appears. Electrons shown in full octets.
-
-**Phase 4 — Attraction (600 ms)**
-Ions move back together, settling at an appropriate distance. Dashed bond lines appear between them. Formula and name displayed below.
-
-### Covalent bonding animation
-
-**Phase 1 — Approach (600 ms)**
-Both atoms drawn with Lewis dots. Atoms approach.
-
-**Phase 2 — Orbital overlap (700 ms)**
-The electron clouds (drawn as soft translucent circles) begin to overlap in the centre region. The shared electrons move to the overlap zone.
-
-**Phase 3 — Sharing (500 ms)**
-Shared electron pair(s) shown as dots (or line segments) in the centre. Lone pairs settle on outer atoms. Bond order indicated by number of pairs/lines. For triple bond (N₂): three pairs shown. For double bond (O₂): two pairs.
-
-**Phase 4 — Final state**
-For polar covalent: δ+ appears on the less electronegative atom, δ− on the more electronegative. A dipole arrow (→ pointing toward δ−) drawn across the bond. The arrow length scales with ΔEN. ΔEN value shown numerically.
-
-### Homonuclear diatomics (H₂, O₂, N₂, F₂, Cl₂)
-Same covalent animation. No dipole arrow. "Nonpolar covalent — electrons shared equally" label.
+Toggling off restores the original freehand positions.
 
 ---
 
-## Lewis dot rendering
+### Design Decision: Procedural VSEPR (not PubChem 3D)
 
-Each atom is drawn as:
-- Circle (radius scales slightly with atomic radius)
-- Element symbol centred
-- Valence electrons as small filled circles arranged around the perimeter (paired where applicable, following Hund's rule pairing order: first one at each of 4 positions, then pair up)
+PubChem does offer 3D conformer data via `record_type=3d`, but procedural VSEPR is the right choice here:
 
-Electrons use a consistent colour scheme:
-- Atom A's electrons: accent colour A (e.g. blue)
-- Atom B's electrons: accent colour B (e.g. red)
-- When electrons are shared or transferred, their colour blends or changes to show the new ownership
+- **Works instantly and offline** — no network call, no 404 for exotic/partial molecules
+- **Produces canonical textbook shapes** — hardcoded per geometry, not dependent on viewing angle
+- **Wedge/dash assignment is deterministic** — each shape has a fixed, well-known representation
+- **No atom-order reconciliation needed** — PubChem canonicalizes SMILES atom order, which would require a graph isomorphism solver to map back to canvas atoms
+- **The app already computes the inputs** — lone pairs (`loneA`/`loneB` from `classifyBond`) and bond orders are already calculated
+
+PubChem 3D could be added later as a "verify your prediction" feature for advanced students, but it shouldn't drive the core geometry engine.
 
 ---
 
-## Info panel
+### VSEPR Geometry Reference
 
-Below the bonding stage, a fixed panel shows (updates after animation completes):
+Geometry depends on **steric number** (bonding pairs + lone pairs around a central atom):
 
-```
-Formula:        NaCl
-IUPAC name:     sodium chloride
-Bond type:      Ionic
-ΔEN:            2.23  (Na 0.93 · Cl 3.16)
-Transfer:       1 electron from Na → Cl
-Ions formed:    Na⁺  ·  Cl⁻
+| Steric # | Lone Pairs | Shape | Bond Angle(s) | Example |
+|----------|------------|-------|---------------|---------|
+| 2 | 0 | Linear | 180° | CO₂, BeCl₂ |
+| 3 | 0 | Trigonal planar | 120° | BF₃, SO₃ |
+| 3 | 1 | Bent | ~117° | SO₂, O₃ |
+| 4 | 0 | Tetrahedral | 109.5° | CH₄, CCl₄ |
+| 4 | 1 | Trigonal pyramidal | ~107° | NH₃, PCl₃ |
+| 4 | 2 | Bent | ~104.5° | H₂O, H₂S |
+| 5 | 0 | Trigonal bipyramidal | 90°/120° | PCl₅ |
+| 5 | 1 | Seesaw | ~90°/120° | SF₄ |
+| 5 | 2 | T-shaped | ~90° | ClF₃ |
+| 5 | 3 | Linear | 180° | XeF₂ |
+| 6 | 0 | Octahedral | 90° | SF₆ |
+| 6 | 1 | Square pyramidal | ~90° | BrF₅ |
+| 6 | 2 | Square planar | 90° | XeF₄ |
+
+### Wedge/Dash Convention per Shape
+
+Each shape has a fixed textbook depiction:
+
+| Shape | Plain (in-page) | Wedge (toward viewer) | Dash (away from viewer) |
+|-------|------------------|-----------------------|------------------------|
+| Linear | 2 | — | — |
+| Trigonal planar | 3 | — | — |
+| Bent (from trig.) | 2 | — | — |
+| Tetrahedral | 2 (left, right) | 1 (bottom-left) | 1 (bottom-right) |
+| Trig. pyramidal | 2 (left, right) | 1 (bottom-centre) | — |
+| Bent (from tet.) | 2 | — | — |
+| Trig. bipyramidal | 3 equatorial | 1 axial | 1 axial |
+| Octahedral | 4 equatorial | 1 | 1 |
+
 ---
-Formula:        HF
-IUPAC name:     hydrogen fluoride
-Bond type:      Polar covalent
-ΔEN:            1.78  (H 2.20 · F 3.98)
-Bond order:     Single (1 shared pair)
-Dipole:         δ+ on H · δ− on F
+
+### Step 0 — VSEPR Lookup Table & Classifier
+
+**0A. `VSEPR_SHAPES` constant** (~50 lines)
+
+A map from `"stericNumber_lonePairs"` → shape descriptor:
+
+```js
+const VSEPR_SHAPES = {
+  '2_0': {
+    name: 'linear',
+    electronGeometry: 'linear',
+    bondAngle: '180°',
+    // Unit-vector (x, y) for each bonding position in the canonical textbook view.
+    // These ARE the textbook — they define what the snap looks like.
+    positions: [{ x: -1, y: 0 }, { x: 1, y: 0 }],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain'],
+  },
+  '3_0': {
+    name: 'trigonal planar',
+    electronGeometry: 'trigonal planar',
+    bondAngle: '120°',
+    positions: [{ x: 0, y: -1 }, { x: -0.866, y: 0.5 }, { x: 0.866, y: 0.5 }],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain', 'plain'],
+  },
+  '4_0': {
+    name: 'tetrahedral',
+    electronGeometry: 'tetrahedral',
+    bondAngle: '109.5°',
+    positions: [
+      { x: -0.7, y: -0.2 },   // left  — plain
+      { x:  0.7, y: -0.2 },   // right — plain
+      { x: -0.35, y: 0.55 },  // front-left — wedge
+      { x:  0.35, y: 0.55 },  // back-right — dash
+    ],
+    lonePairPositions: [],
+    bondStyles: ['plain', 'plain', 'wedge', 'dash'],
+  },
+  '4_1': {
+    name: 'trigonal pyramidal',
+    electronGeometry: 'tetrahedral',
+    bondAngle: '~107°',
+    positions: [
+      { x: -0.7, y: 0.15 },   // left  — plain
+      { x:  0.7, y: 0.15 },   // right — plain
+      { x:  0,   y: 0.65 },   // front — wedge
+    ],
+    lonePairPositions: [{ x: 0, y: -0.7 }],
+    bondStyles: ['plain', 'plain', 'wedge'],
+  },
+  // ... etc for all rows in the table above
+};
 ```
 
-For edge cases, a ⚠️ callout appears:
-> "BF₃ has only 6 electrons around boron — an incomplete octet. This is a known exception to the octet rule."
+**0B. `classifyVSEPR(atom, bonds)` function** (~25 lines)
 
----
-
-## Homonuclear / same-element selection
-
-Allow selecting the same element twice. Produces:
-- H₂ (single, nonpolar) — "the most abundant molecule in the universe"
-- O₂ (double, nonpolar)
-- N₂ (triple, nonpolar) — "the triple bond in N₂ is one of the strongest bonds in chemistry — this is why nitrogen gas is so unreactive"
-- F₂ (single, nonpolar)
-- Cl₂ (single, nonpolar)
-- Li₂, Na₂ (single, metallic character — flag as unstable in gas phase)
-- Noble gases: show monoatomic, inert message
-
----
-
-## Bond order summary for Phase 1 compounds
-
-This is the complete expected output for all interesting pairs. Used to validate the runtime logic.
-
-**Ionic (ΔEN > 1.7):**
-LiF, LiCl, LiH (H is anion), NaF, NaCl, NaH, NaO (→Na₂O), MgF₂, MgCl₂, MgO, AlF₃, AlCl₃ (borderline), Al₂O₃, AlN (borderline)
-
-**Polar covalent:**
-HF (1.78), HCl (0.96), HO (→H₂O — out of Phase 1 scope for H₂O but H+O binary is 1:1 as OH radical — flag), CO (0.89 — triple bond), NO (0.84 — odd electron, flag), SiC (0.65 — single), SF (1.58 — single), SF₂ concept (out of scope for 1:1)
-
-**Nonpolar covalent:**
-H₂ (0.00, single), N₂ (0.00, triple), O₂ (0.00, double), F₂ (0.00, single), Cl₂ (0.00, single), NN, CC, CS (0.03 — single/double), PH (0.01 — single), SiH (0.30 — single), CH (0.35 — single)
-
----
-
-## What "binary compound" means in this sim
-
-The sim models one bond between **one atom of element A and one atom of element B** (or two of the same). This is an accurate representation for:
-- All diatomics (H₂, HF, HCl, N₂, O₂, Cl₂, CO, NO)
-- All ionic pairs shown in their simplest formula unit (NaCl, MgO, AlN)
-
-For ionic compounds like Na₂O or MgCl₂, the sim shows the simplest repeating unit (one Na donating to O with the "×2" or charge-balance logic clearly labelled) rather than animating two separate Na atoms simultaneously. This is a deliberate simplification — noted in the UI.
-
----
-
-## Architecture
-
-Single file: `bonding.html`
-
-Internal sections:
 ```
-<style>          — All CSS, same token system as other sims (--accent, --surface, etc.)
-<canvas>         — Periodic table + bonding stage
-<div #info>      — Info panel below canvas
-<script>
-  ELEMENTS[]     — Data table (Z, symbol, EN, valence, group, period, color, oxidation states)
-  classifyBond() — Returns { type, deltaEN, bondOrder, formula, ions, exceptions }
-  drawTable()    — Periodic table renderer
-  drawAtom()     — Lewis dot atom renderer (given element + electron state)
-  Animator class — Phase-sequenced animation runner
-  InfoPanel      — Updates DOM after animation
-</script>
+1. Filter atom.bonds to covalent bonds only
+2. Count bonding partners (number of unique partner atoms)
+3. Compute lone pairs from valence electrons:
+     lonePairs = (valenceElectrons − Σ bondOrders) / 2
+   NOTE: The per-bond loneA/loneB values from classifyBond() describe the
+   lone pairs relative to ONE bond. For VSEPR we need the global count
+   considering ALL bonds. Derive from first principles using elem.valence.
+4. stericNumber = bondingPartners + lonePairs
+5. Return VSEPR_SHAPES[stericNumber + '_' + lonePairs] + ordered partner list
 ```
 
-No external dependencies. Canvas 2D only (no WebGL needed — this is 2D Lewis structures).
-
-Estimated file size: ~700–900 lines. Comparable to `bohr.html`.
-
----
-
-## Phase breakdown
-
-### Phase 1 — Core bonding engine
-_Goal: two elements selected → correct bond type determined → static final state displayed (no animation yet)_
-
-- Periodic table rendered (first 18 elements, colour-coded, hover tooltips)
-- Element selection (click one, click another → classify)
-- `classifyBond()` logic running correctly for all first-18 pairs
-- Lewis dot final state drawn for both atoms in their bonded configuration
-- Info panel populated
-- Noble gas and edge-case messages
-- Light/dark mode
-
-**Deliverable:** scientifically accurate bonding classifier with static display.
+**Gotcha — lone pair calculation:** The existing `loneA`/`loneB` in each bond's `result` are computed per-bond (lines 795–802: `calcLone(a, bondOrder)`). These assume the atom is in a single bond. For VSEPR we need:
+```js
+const totalBondingE = atom.bonds
+  .filter(id => bondById(id).result.type !== 'ionic')
+  .reduce((sum, id) => sum + (bondById(id).result.bondOrder || 1), 0);
+const lonePairs = Math.max(0, (atom.elem.valence - totalBondingE) / 2);
+```
 
 ---
 
-### Phase 2 — Ionic animation
-_Goal: electron transfer animated for ionic pairs_
+### Step 1 — Toggle Button & State
 
-- Phase-sequenced ionic animation (approach → transfer → ion formation → attraction)
-- Electron particle arc (the signature visual of this sim)
-- Charge labels animate in
-- Works correctly for 1:1, 1:2, 2:3 stoichiometries (Na⁺Cl⁻, Mg²⁺O²⁻, Al³⁺ with appropriate anion)
+**1A. Toggle button** (~15 lines HTML + ~10 lines CSS)
 
----
+Add inside the info panel area:
+```html
+<button id="toggle-3d" class="toggle-3d-btn" style="display:none">
+  Toggle 3D Shape
+</button>
+```
 
-### Phase 3 — Covalent animation + polarity
-_Goal: electron sharing animated; dipole shown for polar_
+Style: small pill button, muted colour, sits below the bond-info text. Active state gets a highlight border.
 
-- Phase-sequenced covalent animation (approach → orbital overlap → sharing → final)
-- Single, double, triple bond rendering
-- Lone pair placement on final atoms
-- Dipole arrow + δ+/δ− labels for polar
-- ΔEN bar or scale indicator (visual sense of how ionic vs covalent a bond is)
+**1B. State variables** (~5 lines)
 
----
+```js
+let show3DShape = false;               // global toggle state
+const savedPositions = new Map();       // atomId → { x, y }
+const bondStyleOverrides = new Map();   // bondId → 'plain' | 'wedge' | 'dash'
+let shape3DLabel = null;                // e.g. 'tetrahedral' for info panel
+```
 
-### Phase 4 — Polish & edge cases
-_Goal: complete, lesson-ready_
+**1C. Save/restore logic** (~20 lines)
 
-- Edge case callouts (incomplete octet, odd-electron, borderline ionic/covalent)
-- "Replay" button
-- Mobile touch support (tap to select, pinch zoom on periodic table)
-- Print/screenshot-friendly static view
-- Link from `bohr.html` (natural companion: Bohr diagrams → bonding → next step)
-- Added to `index.html` sim card grid
-- Added to `standalone.html` as the C1 sim (replaces/supplements the lesson link)
+Toggle ON:
+```
+1. Identify selected component (reuse existing connected-component logic)
+2. For each atom: savedPositions.set(atom.id, { x: atom.x, y: atom.y })
+3. Compute VSEPR layout (Step 2)
+4. Start snap animation (Step 4)
+5. show3DShape = true
+```
 
----
-
-## Future expansion (post-Phase 1 scope, for reference)
-
-**More elements (Z = 19–36):**
-- Period 4 introduces transition metals and d-orbital electrons — oxidation states become variable (Fe²⁺/Fe³⁺, Cu⁺/Cu²⁺). Manageable with a lookup table of common states. Would unlock FeCl₂/FeCl₃, CuO/Cu₂O, etc.
-- Requires expanding the periodic table render to 4 rows + the d-block columns.
-
-**Polyatomic ions (medium complexity):**
-- OH⁻, NH₄⁺, SO₄²⁻, CO₃²⁻, NO₃⁻ — treated as pre-built "super-atoms" with known charge and structure
-- Unlocks NaOH, Ca(OH)₂, H₂SO₄ etc. without needing to compute multi-centre Lewis structures from scratch
-- Reasonable extension: ~10–15 common polyatomic ions as data entries
-
-**VSEPR molecular geometry (high complexity):**
-- Requires computing electron pair geometry from lone pair + bonding pair count
-- 3D rendering of molecular shape (tetrahedral, trigonal planar, bent, linear, etc.)
-- Would integrate naturally with the Bohr/orbital 3D viewer
-- Significant work; natural Phase 5 or a separate `vsepr.html`
-
-**Resonance structures:**
-- O₃, SO₂, CO₃²⁻, benzene (way out of Phase 1)
-- Requires showing multiple equivalent Lewis structures and the resonance hybrid
-- Interesting visually (electron delocalisation animation), but Grade 10 doesn't need it
-
-**Organic molecules (long-horizon):**
-- Carbon is the only element that forms enough bonds with itself to make this interesting
-- Alkanes, alkenes, alkynes would follow naturally from single/double/triple bond logic already in the sim
-- True molecular complexity (protein folding, etc.) is where the academic cluster computing begins — the sim can go up to maybe 8–12 atoms before the Lewis structure layout algorithm becomes non-trivial
-- Realistic ceiling: straight-chain alkanes up to ~hexane; simple functional groups
+Toggle OFF:
+```
+1. For each atom: read savedPositions, set as animation target
+2. Animate back to original positions
+3. Clear bondStyleOverrides
+4. show3DShape = false
+```
 
 ---
 
-## SciWolf alignment
+### Step 2 — Geometry Layout Engine
 
-| Lesson | This sim | Fit |
-|--------|----------|-----|
-| C1 — Why Do Atoms Bond? | ⭐ Direct replacement for Bohr-Rutherford in Section 1 | Strong |
-| C1 — compound classification task | Sim generates the examples students name and categorise | Strong |
-| C2 — reaction types | Bonding context (recognising bond breaking/forming) | Weak / background |
+**2A. Find the central atom** (~15 lines)
 
-The C1 lesson sketch currently uses `bohr.html` as a proxy — "build sodium, count valence electrons." This sim is the proper tool for C1 and should be linked from there once built. `bohr.html` remains the right tool for the Bohr diagram drawing task; this sim is the next step after students understand valence electrons.
+For the selected connected component:
+```
+1. Filter to covalent bonds only
+2. For each atom, count its covalent bond partners (degree)
+3. Central = atom with highest degree
+4. Tie-break: lower electronegativity wins (metals more central)
+5. For chains (all degree ≤ 2): pick the middle atom
+```
+
+**2B. Compute target positions for a single centre** (~40 lines)
+
+```
+1. Get VSEPR shape from classifyVSEPR(centralAtom)
+2. Place centralAtom at centroid of current component positions
+   (preserves approximate screen location)
+3. BOND_LENGTH = 90px (matches existing BOND_R ≈ 95)
+4. Sort bonded partners to assign them to shape positions:
+   - Heavier / more-bonded atoms get the in-plane positions (plain bonds)
+   - Lighter terminal atoms (H) get wedge/dash positions
+   This matches textbook convention (e.g., in CH₂Cl₂ the Cls are in-plane)
+5. For each partner i:
+     target.x = central.x + shape.positions[i].x × BOND_LENGTH
+     target.y = central.y + shape.positions[i].y × BOND_LENGTH
+6. Store bondStyleOverrides for each bond
+```
+
+**2C. Multi-centre molecules** (~30 lines)
+
+For molecules like ethanol (CH₃CH₂OH) with multiple non-terminal atoms:
+```
+1. Walk the molecular graph; identify every atom with ≥2 covalent bonds
+   as a local VSEPR centre
+2. Process centres in BFS order from the "most central" atom outward
+3. For each centre: apply VSEPR geometry locally
+   - The bond connecting to the already-placed parent atom is fixed
+     (direction toward parent determines rotation of the local shape)
+   - Remaining positions filled by unplaced partners
+4. After all centres placed, run 5–10 iterations of overlap nudging:
+   - If two non-bonded atoms are closer than 2 × R_ATOM, push apart
+```
 
 ---
 
-## Open questions before build
+### Step 3 — Wedge & Dash Bond Rendering
 
-1. **Stoichiometry display for ionic:** show the full formula unit (Na₂O with "2 Na atoms" in the animation) or show 1:1 with a "×2" annotation? The latter is simpler and avoids having to animate two separate atoms simultaneously.
+**3A. Extend `drawBond()`** (~15 lines of dispatch logic)
 
-2. **ΔEN boundary footnote:** the sim classifies bonds using the 1.7/0.4 thresholds. Should it show a continuous "bond character" slider (0% ionic ↔ 100% ionic) in addition to the categorical label? Could be a nice visual for borderline compounds like AlCl₃ (ΔEN 1.55) or HF (ΔEN 1.78).
+In the existing `drawBond()` function (currently lines 2429–2442), add at the top of the covalent branch:
+```js
+if (show3DShape && bondStyleOverrides.has(bond.id)) {
+  const style = bondStyleOverrides.get(bond.id);
+  if (style === 'wedge') return drawWedgeBond(ctx, aX, aY, bX, bY, bo);
+  if (style === 'dash')  return drawDashBond(ctx, aX, aY, bX, bY, bo);
+  // 'plain' falls through to existing line-drawing code
+}
+```
 
-3. **H as anion in metal hydrides (LiH, NaH):** Grade 10 students find it surprising that H takes a −1 charge here. Worth a flagged callout, or should these just be shown as ionic without calling out H⁻ specifically?
+**3B. `drawWedgeBond(ctx, x1, y1, x2, y2, bondOrder)`** (~30 lines)
 
-4. **Mobile periodic table:** 18 columns in a small grid will be tight on phone screens. Options: (a) scroll/zoom the table, (b) list view on mobile with search, (c) don't support portrait phone (Chromebook/tablet is the target device anyway).
+Draws a filled triangle (narrow at central atom, wide at peripheral atom):
+```
+1. Direction vector: dx = x2−x1, dy = y2−y1, len = hypot
+2. Perpendicular unit: nx = −dy/len, ny = dx/len
+3. Narrow half-width at (x1,y1): 1.5px
+4. Wide half-width at (x2,y2): 7px
+5. Four corners of the trapezoid:
+     topLeft  = (x1 + nx×1.5, y1 + ny×1.5)
+     topRight = (x1 − nx×1.5, y1 − ny×1.5)
+     botLeft  = (x2 + nx×7,   y2 + ny×7)
+     botRight = (x2 − nx×7,   y2 − ny×7)
+6. ctx.beginPath(); moveTo → lineTo × 3 → closePath; ctx.fill()
+7. For BO=2: draw two wedges offset ±3px perpendicular
+8. For BO=3: three wedges at offsets −5, 0, +5
+```
+
+**3C. `drawDashBond(ctx, x1, y1, x2, y2, bondOrder)`** (~25 lines)
+
+Draws a series of perpendicular lines inside a triangular envelope:
+```
+1. Same direction/perpendicular vectors as wedge
+2. N = 7 cross-lines (adjustable)
+3. For i = 0..N−1:
+     t = (i + 0.5) / N                    // position along bond (0→1)
+     cx = lerp(x1, x2, t)                 // centre of cross-line
+     cy = lerp(y1, y2, t)
+     halfW = lerp(1.5, 7, t)              // envelope widens
+     draw line from (cx + nx×halfW, cy + ny×halfW)
+                  to (cx − nx×halfW, cy − ny×halfW)
+4. Line width: 1.5px, colour matches bond colour
+5. For BO=2/3: offset as with wedge
+```
+
+---
+
+### Step 4 — Animated Transition
+
+**4A. Smooth snap** (~25 lines)
+
+Don't teleport atoms — lerp them over ~400ms:
+```js
+// On each atom in the component:
+atom._snapFromX = atom.x;  atom._snapFromY = atom.y;
+atom._snapToX   = targetX; atom._snapToY   = targetY;
+atom._snapT     = 0;
+
+// In gameLoop, before drawAll():
+for (const atom of stageAtoms) {
+  if (atom._snapT !== undefined && atom._snapT < 1) {
+    atom._snapT = Math.min(1, atom._snapT + dt / 0.4);  // 400ms
+    const ease = atom._snapT < 0.5
+      ? 2 * atom._snapT * atom._snapT
+      : 1 - Math.pow(-2 * atom._snapT + 2, 2) / 2;  // easeInOutQuad
+    atom.x = atom._snapFromX + (atom._snapToX - atom._snapFromX) * ease;
+    atom.y = atom._snapFromY + (atom._snapToY - atom._snapFromY) * ease;
+  }
+}
+```
+
+Bond styles switch at t=0.5 (halfway through the animation) for a clean visual transition.
+
+**4B. Lock interaction** (~10 lines)
+
+While `show3DShape` is active for a component:
+- Prevent dragging individual atoms within the 3D-viewed component
+- Allow dragging the whole molecule as a rigid body (translate all atoms equally, like polyatomic group dragging)
+- Disable bonding snap for atoms in the 3D-viewed component
+- Right-click removal of any atom in the component should also toggle off 3D mode
+
+---
+
+### Step 5 — Lone Pair Lobes (Visual Enhancement)
+
+**5A. Draw translucent lone pair lobes** (~30 lines)
+
+In textbook 3D diagrams, lone pairs are shown as diffuse lobes occupying their tetrahedral/trigonal positions. When `show3DShape` is active:
+
+```
+1. Read shape.lonePairPositions (directions where lone pairs sit)
+2. For each lone pair direction (dx, dy):
+     lobeX = central.x + dx × BOND_LENGTH × 0.6  (shorter than bonds)
+     lobeY = central.y + dy × BOND_LENGTH × 0.6
+3. Draw as translucent teardrop/ellipse:
+   - Radial gradient: dense near atom centre, fading at tip
+   - Colour: match electron dot colour at ~25% opacity
+   - Shape: ellipse rotated along the lobe direction, ~15px wide × 35px long
+```
+
+This visually explains *why* the shape is what it is (e.g., NH₃ is pyramidal because the fourth tetrahedral position is a lone pair).
+
+---
+
+### Step 6 — Info Panel Integration
+
+**6A. Display geometry info** (~15 lines)
+
+When `show3DShape` is active, append to the info panel:
+
+```
+Molecular geometry: trigonal pyramidal
+Electron geometry: tetrahedral
+Bond angle: ~107°
+```
+
+Use the `electronGeometry` and `name` fields from `VSEPR_SHAPES`. The distinction between electron geometry and molecular geometry is a key teaching point.
+
+**6B. Toggle button visibility** (~10 lines)
+
+Show the toggle button only when:
+- A covalent molecule is selected (not ionic-only)
+- At least one atom in the component has ≥2 covalent bonds (otherwise geometry is trivially linear or just a single bond)
+- All bonds in the component are in `phase === 'formed'` (not mid-animation)
+
+---
+
+### Build Order & Checkpoints
+
+| Step | What | ~Lines | Depends on | Checkpoint |
+|------|------|--------|------------|------------|
+| 0A | `VSEPR_SHAPES` table | 50 | — | |
+| 0B | `classifyVSEPR()` | 25 | 0A | Can log shape names to console |
+| 1A | Toggle button HTML/CSS | 25 | — | Button visible in UI |
+| 1B–C | State + save/restore | 25 | 1A | Toggle saves/restores positions (no geometry yet) |
+| 2A | Central atom finder | 15 | 0B | |
+| 2B | Single-centre layout | 40 | 0A, 2A | **CH₄, NH₃, H₂O snap to correct shapes** |
+| 3A–C | Wedge/dash rendering | 70 | 2B | **Bonds render with 3D notation** |
+| 4A–B | Animation + locking | 35 | 2B, 3A | Smooth transition, no drag in 3D mode |
+| | **Core feature complete** | **~285** | | **Test with all molecules in harness** |
+| 2C | Multi-centre layout | 30 | 2B | Ethane, ethanol, etc. lay out correctly |
+| 5A | Lone pair lobes | 30 | 0A, 2B | Lone pairs visible as diffuse clouds |
+| 6A–B | Info panel labels | 25 | 0B, 1A | Shape name + angles in panel |
+| | **Full feature** | **~370** | | |
+
+---
+
+### Edge Cases
+
+- **Ionic bonds:** Toggle hidden — VSEPR doesn't apply to ionic compounds
+- **Diatomics** (H₂, O₂, N₂): Linear snap; just straighten the bond horizontally. Technically works but not very interesting — could hide toggle for these
+- **Polyatomic groups:** Already placed in rough geometry by `spawnPolyGroup`. The 3D toggle should override with proper VSEPR angles (e.g., SO₄²⁻ → tetrahedral with wedge/dash, not the current even-circle layout)
+- **Expanded octets** (PCl₅, SF₆): Steric numbers 5–6 need full bipyramidal/octahedral templates. Less common in intro chem but should be supported
+- **Resonance** (SO₃, O₃, benzene): Geometry is still determined by steric number. All equivalent bonds stay as plain lines (no wedge/dash distinction among resonance bonds)
+- **Hydrogen terminal atoms:** Always terminal. Position determined entirely by the centre they're bonded to. No VSEPR needed for H itself
+- **Multiple components on stage:** Toggle applies only to the selected component
+- **Very large molecules:** For >10 atoms, multi-centre layout (Step 2C) is needed. For truly large molecules, overlap resolution may get crowded — acceptable limitation for educational scope

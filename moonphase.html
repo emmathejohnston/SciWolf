@@ -26,12 +26,17 @@ html.light {
   --accent2: #6366f1;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, sans-serif;
   overflow: hidden;
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -39,8 +44,10 @@ body {
 #main-canvas {
   flex: 1;
   display: block;
+  width: 100%;
   cursor: grab;
   min-height: 0;
+  touch-action: none;
 }
 #main-canvas:active { cursor: grabbing; }
 
@@ -56,6 +63,16 @@ body {
   flex-shrink: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
+}
+
+#mobile-toggle-bar {
+  display: none;
+}
+
+#mobile-settings-btn,
+#mobile-settings-panel,
+#mobile-settings-scrim {
+  display: none;
 }
 
 .ctrl-btn {
@@ -213,6 +230,227 @@ body {
   font-size: 0.82rem; font-weight: 700; color: var(--sub);
   pointer-events: none;
 }
+
+@media (max-width: 760px) {
+  #sky-pane {
+    top: 58px;
+    right: 10px;
+    width: min(190px, calc(100vw - 20px));
+  }
+
+  #controls {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  #phase-display {
+    width: auto;
+    min-width: 0;
+  }
+
+  #date-display {
+    display: none;
+  }
+
+  .mobile-settings-only {
+    display: none;
+  }
+
+  #mobile-toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  #mobile-toggle-bar .ctrl-check {
+    flex-shrink: 0;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text);
+    gap: 6px;
+  }
+
+  #mobile-toggle-bar .ctrl-check input {
+    width: 15px;
+    height: 15px;
+  }
+
+  #mobile-settings-btn {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  #mobile-settings-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 24;
+    background: rgba(2, 8, 23, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  body.mobile-settings-open #mobile-settings-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #mobile-settings-panel {
+    display: block;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 62px;
+    z-index: 30;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+    padding: 12px;
+    transform: translateY(calc(100% + 14px));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  body.mobile-settings-open #mobile-settings-panel {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mobile-settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .mobile-settings-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--text);
+  }
+
+  .mobile-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-settings-grid .ctrl-check,
+  .mobile-settings-grid .p2-toggle {
+    min-height: 42px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 10px;
+    background: var(--bg);
+  }
+
+  .mobile-settings-grid .ctrl-check {
+    justify-content: flex-start;
+    gap: 8px;
+    color: var(--text);
+  }
+
+  .mobile-settings-grid .ctrl-check input {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mobile-settings-grid .p2-toggle {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .mobile-settings-date {
+    margin-top: 10px;
+    font-size: 0.74rem;
+    color: var(--sub);
+    text-align: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-btn,
+  #theme-toggle {
+    top: 10px;
+  }
+
+  .home-btn {
+    left: 10px;
+    width: 34px;
+    height: 34px;
+  }
+
+  #theme-toggle {
+    right: 10px;
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+
+  #sim-title {
+    top: 12px;
+    left: 50px;
+    max-width: calc(100vw - 138px);
+    font-size: 0.74rem;
+    line-height: 1.2;
+  }
+
+  #sky-pane {
+    top: 50px;
+    right: 8px;
+    width: min(168px, calc(100vw - 16px));
+  }
+
+  #controls {
+    height: 56px;
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  #mobile-toggle-bar {
+    padding: 8px 8px 10px;
+    gap: 6px;
+  }
+
+  .ctrl-btn {
+    padding: 4px 8px;
+  }
+
+  #speed-display {
+    min-width: 44px;
+    font-size: 0.7rem;
+  }
+
+  #phase-display {
+    max-width: 88px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #mobile-settings-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 64px;
+    padding: 10px;
+  }
+
+  .mobile-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
 <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -237,27 +475,54 @@ body {
   <button class="ctrl-btn" id="btn-slower" title="Slow down">⏪</button>
   <button class="ctrl-btn" id="btn-play"   title="Play / Pause">⏸</button>
   <button class="ctrl-btn" id="btn-faster" title="Speed up">⏩</button>
-  <span id="speed-display">1 wk/s</span>
+  <span id="speed-display">1 day/s</span>
   <span id="phase-display"></span>
 
-  <div class="ctrl-sep"></div>
+  <div class="ctrl-sep mobile-settings-only"></div>
 
-  <label class="ctrl-check"><input type="checkbox" id="chk-sun"  checked> ☀️ Sun</label>
-  <label class="ctrl-check"><input type="checkbox" id="chk-moon" checked> 🌙 Moon</label>
-  <label class="ctrl-check"><input type="checkbox" id="chk-tree"> 🌳 Tree</label>
+  <label class="ctrl-check mobile-settings-only"><input type="checkbox" id="chk-sun"  checked> ☀️ Sun</label>
+  <label class="ctrl-check mobile-settings-only"><input type="checkbox" id="chk-moon" checked> 🌙 Moon</label>
+  <label class="ctrl-check mobile-settings-only"><input type="checkbox" id="chk-tree"> 🌳 Tree</label>
 
-  <div class="ctrl-sep"></div>
+  <div class="ctrl-sep mobile-settings-only"></div>
 
-  <label class="ctrl-check"><input type="checkbox" id="chk-scale"> 🔭 Correct Scale</label>
+  <label class="ctrl-check mobile-settings-only"><input type="checkbox" id="chk-scale"> 🔭 Correct Scale</label>
 
-  <div class="ctrl-sep"></div>
+  <div class="ctrl-sep mobile-settings-only"></div>
 
-  <div class="p2-toggle" title="Coming in Phase 2">
+  <div class="p2-toggle mobile-settings-only" title="Coming in Phase 2">
     <div class="p2-switch"></div>
     🌏 Location <span style="font-size:0.65rem;opacity:0.7">(Phase 2)</span>
   </div>
 
+  <button class="ctrl-btn" id="mobile-settings-btn" title="Settings">⚙️</button>
   <span id="date-display"></span>
+</div>
+
+<div id="mobile-toggle-bar">
+  <label class="ctrl-check"><input type="checkbox" id="chk-sun-bar" checked> ☀️ Sun</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-moon-bar" checked> 🌙 Moon</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-tree-bar"> 🌳 Tree</label>
+  <label class="ctrl-check"><input type="checkbox" id="chk-scale-bar"> 🔭 Scale</label>
+</div>
+
+<div id="mobile-settings-scrim" hidden></div>
+<div id="mobile-settings-panel" aria-hidden="true">
+  <div class="mobile-settings-head">
+    <span class="mobile-settings-title">Moon Settings</span>
+    <button class="ctrl-btn" id="mobile-settings-close" title="Close settings">✕</button>
+  </div>
+  <div class="mobile-settings-grid">
+    <label class="ctrl-check"><input type="checkbox" id="chk-sun-mobile" checked> ☀️ Sun</label>
+    <label class="ctrl-check"><input type="checkbox" id="chk-moon-mobile" checked> 🌙 Moon</label>
+    <label class="ctrl-check"><input type="checkbox" id="chk-tree-mobile"> 🌳 Tree</label>
+    <label class="ctrl-check"><input type="checkbox" id="chk-scale-mobile"> 🔭 Correct Scale</label>
+    <div class="p2-toggle" title="Coming in Phase 2">
+      <div class="p2-switch"></div>
+      🌏 Location <span style="font-size:0.65rem;opacity:0.7">(Phase 2)</span>
+    </div>
+  </div>
+  <div class="mobile-settings-date" id="date-display-mobile"></div>
 </div>
 
 <script>
@@ -266,6 +531,7 @@ const canvas = document.getElementById('main-canvas');
 const ctx    = canvas.getContext('2d');
 const skyC   = document.getElementById('sky-canvas');
 const skyCtx = skyC.getContext('2d');
+const controlsEl = document.getElementById('controls');
 const SKY_W  = 210, SKY_H_TOTAL = 150, SKY_H = 108; // sky area vs ground area
 
 // ZS scales the orbital scene so Earth's orbit diameter ≈ 80% of canvas width.
@@ -274,8 +540,12 @@ let ZS = 1;
 function updateZS() { ZS = canvas.width * 0.3 / (175 * (680 / 960)); }
 
 function resize() {
-  canvas.width  = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const controlsH = controlsEl.offsetHeight || 52;
+  const targetH = Math.max(220, viewportH - controlsH);
+  canvas.style.height = `${targetH}px`;
+  canvas.width  = Math.max(1, canvas.clientWidth || window.innerWidth || 1);
+  canvas.height = Math.max(1, canvas.clientHeight || targetH);
   updateZS();
 }
 window.addEventListener('resize', resize);
@@ -330,16 +600,66 @@ const SPEEDS       = [0.25, 1, 7, 30, 182];
 const SPEED_LABELS = ['¼ day/s', '1 day/s', '1 wk/s', '1 mo/s', '6 mo/s'];
 let simTime  = Date.now();
 let realLast = performance.now();
-let speedIdx = 2;
+let speedIdx = 1;
 let playing  = true;
 let hasDragged = false;
+let correctScale = false;
 
 // ── Checkbox state ────────────────────────────────────────────────────────────
 let showSun  = true, showMoon = true, showTree = false;
-document.getElementById('chk-sun' ).addEventListener('change', e => { showSun   = e.target.checked; });
-document.getElementById('chk-moon').addEventListener('change', e => { showMoon  = e.target.checked; });
-document.getElementById('chk-tree').addEventListener('change', e => { showTree  = e.target.checked; });
-document.getElementById('chk-scale').addEventListener('change', e => { correctScale = e.target.checked; });
+const chkSunDesktop = document.getElementById('chk-sun');
+const chkMoonDesktop = document.getElementById('chk-moon');
+const chkTreeDesktop = document.getElementById('chk-tree');
+const chkScaleDesktop = document.getElementById('chk-scale');
+const chkSunMobile = document.getElementById('chk-sun-mobile');
+const chkMoonMobile = document.getElementById('chk-moon-mobile');
+const chkTreeMobile = document.getElementById('chk-tree-mobile');
+const chkScaleMobile = document.getElementById('chk-scale-mobile');
+const chkSunBar = document.getElementById('chk-sun-bar');
+const chkMoonBar = document.getElementById('chk-moon-bar');
+const chkTreeBar = document.getElementById('chk-tree-bar');
+const chkScaleBar = document.getElementById('chk-scale-bar');
+const mobileSettingsBtn = document.getElementById('mobile-settings-btn');
+const mobileSettingsClose = document.getElementById('mobile-settings-close');
+const mobileSettingsScrim = document.getElementById('mobile-settings-scrim');
+const mobileSettingsPanel = document.getElementById('mobile-settings-panel');
+
+function setMobileSettingsOpen(open) {
+  document.body.classList.toggle('mobile-settings-open', open);
+  mobileSettingsScrim.hidden = !open;
+  mobileSettingsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  mobileSettingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function bindMirroredToggle(elements, apply) {
+  const sync = checked => {
+    elements.forEach(el => { el.checked = checked; });
+    apply(checked);
+  };
+  elements.forEach(el => {
+    el.addEventListener('change', e => sync(e.target.checked));
+  });
+  sync(elements[0].checked);
+}
+
+bindMirroredToggle([chkSunDesktop, chkSunMobile, chkSunBar], checked => { showSun = checked; });
+bindMirroredToggle([chkMoonDesktop, chkMoonMobile, chkMoonBar], checked => { showMoon = checked; });
+bindMirroredToggle([chkTreeDesktop, chkTreeMobile, chkTreeBar], checked => { showTree = checked; });
+bindMirroredToggle([chkScaleDesktop, chkScaleMobile, chkScaleBar], checked => { correctScale = checked; });
+
+mobileSettingsBtn.addEventListener('click', () => {
+  const opening = !document.body.classList.contains('mobile-settings-open');
+  setMobileSettingsOpen(opening);
+});
+mobileSettingsClose.addEventListener('click', () => setMobileSettingsOpen(false));
+mobileSettingsScrim.addEventListener('click', () => setMobileSettingsOpen(false));
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 760) setMobileSettingsOpen(false);
+});
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') setMobileSettingsOpen(false);
+});
+setMobileSettingsOpen(false);
 
 // ── Camera ────────────────────────────────────────────────────────────────────
 let camTheta = 0.55, camPhi = 0.40;
@@ -902,8 +1222,6 @@ function render() {
 // Physical radius ratios relative to the Sun
 const EARTH_SUN_R = 6371   / 696000;   // ≈ 1/109
 const MOON_SUN_R  = 1737   / 696000;   // ≈ 1/401
-let correctScale = false;
-
 function sunR(p)    { return 36 * p.scale * ZS; }
 function earthR(p)  {
   if (correctScale) return Math.max(1.5, 36 * EARTH_SUN_R * p.scale * ZS);
@@ -986,8 +1304,9 @@ function drawMoonBody(p, moon, phase, cx, cy) {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function updateHUD(phase) {
   const d = new Date(simTime);
-  document.getElementById('date-display').textContent =
-    `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  const dateLabel = `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  document.getElementById('date-display').textContent = dateLabel;
+  document.getElementById('date-display-mobile').textContent = dateLabel;
   document.getElementById('phase-display').textContent = phaseName(phase);
   document.getElementById('speed-display').textContent = playing ? SPEED_LABELS[speedIdx] : 'Paused';
   document.getElementById('btn-play').textContent = playing ? '⏸' : '▶';
@@ -1030,7 +1349,7 @@ window.addEventListener('touchend', () => { dragging = false; });
 document.getElementById('btn-play').addEventListener('click', () => { playing = !playing; });
 document.getElementById('btn-faster').addEventListener('click', () => { speedIdx = Math.min(SPEEDS.length-1, speedIdx+1); playing = true; });
 document.getElementById('btn-slower').addEventListener('click', () => { if (speedIdx > 0) speedIdx--; else playing = false; });
-document.getElementById('btn-reset').addEventListener('click', () => { simTime = Date.now(); speedIdx = 2; playing = true; });
+document.getElementById('btn-reset').addEventListener('click', () => { simTime = Date.now(); speedIdx = 1; playing = true; });
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
 const themeBtn = document.getElementById('theme-toggle');

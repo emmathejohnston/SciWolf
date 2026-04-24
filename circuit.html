@@ -240,6 +240,25 @@
       min-width: 44px;
       text-align: right;
     }
+    #prop-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+    }
+    #prop-actions button {
+      flex: 1;
+      padding: 5px 0;
+      font-size: 0.72rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #prop-actions button:hover { background: var(--accent); color: #fff; }
+    #prop-actions button.danger:hover { background: #c0392b; color: #fff; }
 
     /* ── V=IR readout ───────────────────────────────────────────── */
     #readout {
@@ -560,13 +579,21 @@
     </div>
     <div class="prop-row" id="prop-row-r">
       <label>Resistance</label>
-      <input type="range" id="slider-r" min="1" max="1000" step="1" value="100">
+      <input type="range" id="slider-r" min="1" max="100" step="1" value="100">
       <span class="prop-val"><span id="val-r">100</span> Ω</span>
     </div>
     <div class="prop-row" id="prop-row-f">
       <label>Fuse rating</label>
       <input type="range" id="slider-f" min="0.1" max="5" step="0.1" value="1">
       <span class="prop-val"><span id="val-f">1.0</span> A</span>
+    </div>
+    <div class="prop-row" id="prop-row-sw" style="display:none">
+      <button id="btn-switch-toggle" style="flex:1;padding:5px 0;font-size:0.75rem;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;">Open</button>
+    </div>
+    <div id="prop-actions">
+      <button id="btn-rotate" title="Rotate 90°">↻ Rotate</button>
+      <button id="btn-detach" title="Detach from wires">⇥ Detach</button>
+      <button id="btn-delete" class="danger" title="Delete component">✕ Delete</button>
     </div>
   </div>
 
@@ -694,8 +721,9 @@ let mode      = 'select';  // 'select' | 'place' | 'wire'
 let placeType = null;
 let wireState = null;   // {startCompId, startSide, x, y}
 let selId     = null;
+let selWireId = null;      // selected wire id
 let dragState    = null;   // {compId, ox, oy}
-let endpointDrag = null;   // {wireId, end:'start'|'end'} — re-routing a free endpoint
+let endpointDrag = null;   // {wireId, end:'start'|'end'} — re-routing an endpoint
 let panState  = null;   // {sx, sy, vx, vy, moved}
 let pinchState = null;  // {dist0, scale0, cx0, cy0, vx0, vy0}
 let mouseW    = { x: 0, y: 0 };  // current mouse in world coords
@@ -1010,11 +1038,13 @@ const ENDPOINT_GRAB_R = 14; // world px — grab radius for free wire endpoints
 function hitFreeEndpoint(wx, wy) {
   let best = null, bestD = ENDPOINT_GRAB_R;
   for (const w of wires) {
-    if (!w.startBind) {
+    // Any endpoint of the selected wire is draggable, even if bound
+    const selWire = w.id === selWireId;
+    if (!w.startBind || selWire) {
       const d = Math.hypot(wx - w.pts[0].x, wy - w.pts[0].y);
       if (d < bestD) { bestD = d; best = { wireId: w.id, end: 'start' }; }
     }
-    if (!w.endBind) {
+    if (!w.endBind || selWire) {
       const last = w.pts[w.pts.length - 1];
       const d = Math.hypot(wx - last.x, wy - last.y);
       if (d < bestD) { bestD = d; best = { wireId: w.id, end: 'end' }; }
@@ -1398,7 +1428,7 @@ function undo() {
   if (!undoStack.length) return;
   const s = undoStack.pop();
   comps = s.comps; wires = s.wires; nextId = s.nextId;
-  selId = null; dragState = null; wireState = null; endpointDrag = null;
+  selId = null; selWireId = null; dragState = null; wireState = null; endpointDrag = null;
   mode = 'select'; updateCursor();
   syncUndoBtn(); showPropPanel();
 }
@@ -1409,7 +1439,7 @@ function syncUndoBtn() {
 
 // ─── Starter circuit ──────────────────────────────────────────────────────────
 function buildStarterCircuit() {
-  comps = []; wires = []; nextId = 1; undoStack = []; selId = null;
+  comps = []; wires = []; nextId = 1; undoStack = []; selId = null; selWireId = null;
 
   const bat = { id: nextId++, type:'battery',  x:-150, y:0,   angle:Math.PI/2,
                 props:{ voltage:9 },     state:{} };
@@ -1752,9 +1782,25 @@ function wirePosAt(pts, t) {  // t = 0..1
 function drawWire(w, col) {
   if (w.pts.length < 2) return;
   const active = circuitState.activeWireIds.has(w.id);
+  const selected = w.id === selWireId;
   ctx.beginPath();
   ctx.moveTo(w.pts[0].x, w.pts[0].y);
   for (let i = 1; i < w.pts.length; i++) ctx.lineTo(w.pts[i].x, w.pts[i].y);
+  if (selected) {
+    ctx.strokeStyle = cssVar('--accent');
+    ctx.lineWidth   = 3.5;
+    ctx.shadowColor = cssVar('--accent');
+    ctx.shadowBlur  = 8;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Draw endpoint handles
+    for (const pt of [w.pts[0], w.pts[w.pts.length - 1]]) {
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, ENDPOINT_GRAB_R * 0.55, 0, Math.PI * 2);
+      ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    return;
+  }
   if (active && !circuitState.open) {
     if (schematicMode) {
       ctx.strokeStyle = col;
@@ -1847,11 +1893,10 @@ function drawComp(comp, selected) {
                 !schematicMode &&
                 circuitState.pathCompIds.has(comp.id) && !circuitState.open;
   if (isLit) {
-    const bat = comps.find(c => c.type === 'battery');
-    const vBat = bat ? (bat.props.voltage || 9) : 9;
     const compI = circuitState.compCurrents[comp.id] || 0;
-    const vComp = Math.abs(compI) * (comp.props.resistance || (comp.type === 'led' ? 20 : 10));
-    brightness = Math.min(1, vComp / vBat);
+    const compR = comp.props.resistance || (comp.type === 'led' ? 20 : 10);
+    const P = compI * compI * compR;  // power in watts
+    brightness = Math.min(1, P / 16); // normalise: 16 W = full brightness
     // LED only glows when forward-biased: compCurrents > 0 means conventional current b→a (anode=b)
     if (comp.type === 'led' && compI <= 1e-9) brightness = 0;
   }
@@ -1927,15 +1972,15 @@ function _drawBattery(col, sub) {
 
 function _drawBulb(col, brightness) {
   const r = 14;
-  // v² maps linear voltage ratio to luminous intensity (P ∝ V²), giving
-  // much more perceptible difference between dim and bright bulbs.
+  // brightness is P/P_max; square it for perceptual luminous intensity mapping
   const v = brightness * brightness;
-  // Glow halo when lit
+  // Glow halo when lit — radius spans ~18px (dim) to ~150px (576 W full power)
   if (brightness > 0.05) {
-    const glowR = r + 4 + v * 34;
-    const alpha = v * 0.85;
+    const glowR = r + 4 + v * 132;
+    const alpha = Math.min(0.95, v * 0.95);
     const grad = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, glowR);
     grad.addColorStop(0, `rgba(255,230,80,${alpha})`);
+    grad.addColorStop(0.4, `rgba(255,210,40,${alpha * 0.5})`);
     grad.addColorStop(1, 'rgba(255,200,0,0)');
     ctx.beginPath(); ctx.arc(0, 0, glowR, 0, Math.PI*2);
     ctx.fillStyle = grad; ctx.fill();
@@ -1943,7 +1988,7 @@ function _drawBulb(col, brightness) {
   // Bulb fill colour (warm yellow when lit)
   ctx.lineWidth = 2;
   if (brightness > 0.05) {
-    ctx.fillStyle = `rgba(255,230,80,${v * 0.85})`;
+    ctx.fillStyle = `rgba(255,230,80,${Math.min(0.95, v * 0.95)})`;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
   }
   ctx.strokeStyle = brightness > 0.05 ? `rgba(255,220,60,1)` : col;
@@ -1997,6 +2042,21 @@ function _drawSwitch(col, state) {
 
 function _drawLED(col, brightness) {
   ctx.lineWidth = 2;
+  // brightness is P/P_max; square it for perceptual luminous intensity mapping
+  const v = brightness * brightness;
+
+  // Glow halo drawn first — same style as bulb, radius spans ~18px (dim) to ~150px (full power)
+  if (brightness > 0.05) {
+    const glowR = 14 + v * 132;
+    const alpha = Math.min(0.95, v * 0.95);
+    const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, glowR);
+    grad.addColorStop(0, `rgba(80,255,80,${alpha})`);
+    grad.addColorStop(0.4, `rgba(80,255,80,${alpha * 0.5})`);
+    grad.addColorStop(1, 'rgba(80,255,80,0)');
+    ctx.beginPath(); ctx.arc(0, 0, glowR, 0, Math.PI*2);
+    ctx.fillStyle = grad; ctx.fill();
+  }
+
   // Triangle: base on right (b=anode), tip on left (a=cathode)
   // Forward biased when compCurrents > 0 (Vb > Va)
   ctx.beginPath();
@@ -2005,8 +2065,7 @@ function _drawLED(col, brightness) {
   ctx.lineTo(10,  10);  // base bottom
   ctx.closePath();
   if (brightness > 0.05) {
-    const v = brightness * brightness;
-    ctx.fillStyle = `rgba(80,255,80,${v * 0.65})`;
+    ctx.fillStyle = `rgba(80,255,80,${Math.min(0.95, v * 0.95)})`;
   } else {
     ctx.fillStyle = 'transparent';
   }
@@ -2019,16 +2078,8 @@ function _drawLED(col, brightness) {
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // Glow halo + light-ray arrows
+  // Light-ray arrows
   if (brightness > 0.05) {
-    const v = brightness * brightness;
-    const glowR = 14 + v * 24;
-    const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, glowR);
-    grad.addColorStop(0, `rgba(80,255,80,${v * 0.7})`);
-    grad.addColorStop(1, 'rgba(80,255,80,0)');
-    ctx.beginPath(); ctx.arc(0, 0, glowR, 0, Math.PI*2);
-    ctx.fillStyle = grad; ctx.fill();
-
     ctx.strokeStyle = `rgba(120,255,120,${Math.min(1, v * 1.3)})`;
     ctx.lineWidth = 1.5;
     // Arrow 1 — up-left
@@ -2338,31 +2389,43 @@ function onDown(e) {
     draw(); return;
   }
 
-  // Select mode: free wire endpoint drag (checked before components — endpoints are small)
+  // Select mode: endpoint drag — free endpoints always, any endpoint of selected wire
   const epHit = hitFreeEndpoint(wx, wy);
   if (epHit) {
+    // Unbind the endpoint being dragged so it follows the mouse freely
+    const w = wires.find(w => w.id === epHit.wireId);
+    if (w) {
+      if (epHit.end === 'start') w.startBind = null;
+      else                       w.endBind   = null;
+    }
     snapshot();
     endpointDrag = epHit;
     draw(); return;
   }
 
-  // Select mode: component hit (wire drawing requires the Wire tool)
+  // Select mode: component hit
   const c = hitComp(wx, wy);
   if (c) {
-    if (c.type === 'switch') {
-      snapshot();
-      c.state.closed = !c.state.closed;
-      draw(); return;
-    }
     selId     = c.id;
+    selWireId = null;
     snapshot();
     dragState = { compId:c.id, ox:wx - c.x, oy:wy - c.y };
     showPropPanel();
     return;
   }
 
+  // Select mode: wire body hit
+  const wHitSel = hitWireSegment(wx, wy, 8);
+  if (wHitSel) {
+    selWireId = wHitSel.id;
+    selId     = null;
+    showPropPanel();
+    draw(); return;
+  }
+
   // Background → pan
   selId     = null;
+  selWireId = null;
   showPropPanel();
   panState  = { sx, sy, vx:viewX, vy:viewY, moved:false };
 }
@@ -2454,11 +2517,12 @@ function onDblClick(e) {
   clearTimeout(info.t);
 
   if (info.n === 1) {
-    // Detach wires
+    // Detach: unbind wire ends rather than deleting wires
     snapshot();
-    wires = wires.filter(w =>
-      !(w.startBind && w.startBind.compId === c.id) &&
-      !(w.endBind   && w.endBind.compId   === c.id));
+    for (const w of wires) {
+      if (w.startBind && w.startBind.compId === c.id) w.startBind = null;
+      if (w.endBind   && w.endBind.compId   === c.id) w.endBind   = null;
+    }
     info.t = setTimeout(() => { dblInfo[c.id] = { n:0 }; }, 700);
     dblInfo[c.id] = info;
   } else {
@@ -2497,13 +2561,19 @@ window.addEventListener('keydown', e => {
     const c = comps.find(c => c.id === selId);
     if (c) { c.angle += Math.PI/2; draw(); }
   }
-  if ((e.key === 'Delete' || e.key === 'Backspace') && selId) {
-    snapshot();
-    wires = wires.filter(w =>
-      !(w.startBind && w.startBind.compId === selId) &&
-      !(w.endBind   && w.endBind.compId   === selId));
-    comps = comps.filter(c => c.id !== selId);
-    selId = null; showPropPanel();
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selWireId) {
+      snapshot();
+      wires = wires.filter(w => w.id !== selWireId);
+      selWireId = null; showPropPanel(); draw();
+    } else if (selId) {
+      snapshot();
+      wires = wires.filter(w =>
+        !(w.startBind && w.startBind.compId === selId) &&
+        !(w.endBind   && w.endBind.compId   === selId));
+      comps = comps.filter(c => c.id !== selId);
+      selId = null; showPropPanel(); draw();
+    }
   }
 });
 
@@ -2551,7 +2621,7 @@ document.getElementById('undo-btn').addEventListener('click', undo);
 
 document.getElementById('clear-btn').addEventListener('click', () => {
   if (!confirm('Clear the canvas and start fresh?')) return;
-  snapshot(); comps = []; wires = []; selId = null; draw();
+  snapshot(); comps = []; wires = []; selId = null; selWireId = null; draw();
 });
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
@@ -2592,16 +2662,36 @@ const valF      = document.getElementById('val-f');
 
 function showPropPanel() {
   const c = selId ? comps.find(c => c.id === selId) : null;
-  // No panel for these types
-  if (!c || c.type === 'switch' || c.type === 'voltmeter' ||
-      c.type === 'ammeter' || c.type === 'capacitor') {
-    propPanel.classList.remove('visible'); return;
+  const w = selWireId ? wires.find(w => w.id === selWireId) : null;
+
+  if (!c && !w) { propPanel.classList.remove('visible'); return; }
+
+  const btnRotate = document.getElementById('btn-rotate');
+
+  if (w) {
+    propTitle.textContent = 'Wire';
+    rowV.style.display = 'none';
+    rowR.style.display = 'none';
+    rowF.style.display = 'none';
+    btnRotate.style.display = 'none';
+    propPanel.classList.add('visible');
+    return;
   }
+
+  btnRotate.style.display = '';
   propTitle.textContent = COMP_DEFS[c.type].label;
   rowV.style.display = c.type === 'battery' ? '' : 'none';
   rowR.style.display = (c.type === 'resistor' || c.type === 'bulb' ||
                         c.type === 'led'      || c.type === 'motor') ? '' : 'none';
   rowF.style.display = c.type === 'fuse' ? '' : 'none';
+  const rowSw = document.getElementById('prop-row-sw');
+  const btnSw = document.getElementById('btn-switch-toggle');
+  if (c.type === 'switch') {
+    rowSw.style.display = '';
+    btnSw.textContent = c.state.closed ? 'Open switch' : 'Close switch';
+  } else {
+    rowSw.style.display = 'none';
+  }
   if (c.type === 'battery') {
     sliderV.value = c.props.voltage || 9; valV.textContent = sliderV.value;
   }
@@ -2634,6 +2724,63 @@ sliderF.addEventListener('input', () => {
   valF.textContent = parseFloat(sliderF.value).toFixed(1);
   const c = comps.find(c => c.id === selId);
   if (c) c.props.rating = parseFloat(sliderF.value);
+});
+
+document.getElementById('btn-switch-toggle').addEventListener('click', () => {
+  const c = comps.find(c => c.id === selId);
+  if (!c || c.type !== 'switch') return;
+  snapshot();
+  c.state.closed = !c.state.closed;
+  document.getElementById('btn-switch-toggle').textContent = c.state.closed ? 'Open switch' : 'Close switch';
+  draw();
+});
+
+document.getElementById('btn-rotate').addEventListener('click', () => {
+  const c = comps.find(c => c.id === selId);
+  if (!c) return;
+  snapshot();
+  c.angle += Math.PI / 2;
+  draw();
+});
+
+document.getElementById('btn-detach').addEventListener('click', () => {
+  if (selWireId) {
+    // Detach wire: unbind both ends
+    const w = wires.find(w => w.id === selWireId);
+    if (!w) return;
+    snapshot();
+    w.startBind = null;
+    w.endBind   = null;
+    draw(); return;
+  }
+  const c = comps.find(c => c.id === selId);
+  if (!c) return;
+  snapshot();
+  // Unbind wire ends touching this component rather than deleting the wires
+  for (const w of wires) {
+    if (w.startBind && w.startBind.compId === c.id) w.startBind = null;
+    if (w.endBind   && w.endBind.compId   === c.id) w.endBind   = null;
+  }
+  c.x += 14; c.y -= 14;
+  draw();
+});
+
+document.getElementById('btn-delete').addEventListener('click', () => {
+  if (selWireId) {
+    snapshot();
+    wires = wires.filter(w => w.id !== selWireId);
+    selWireId = null;
+    showPropPanel(); draw(); return;
+  }
+  if (!selId) return;
+  snapshot();
+  wires = wires.filter(w =>
+    !(w.startBind && w.startBind.compId === selId) &&
+    !(w.endBind   && w.endBind.compId   === selId));
+  comps = comps.filter(c => c.id !== selId);
+  selId = null;
+  showPropPanel();
+  draw();
 });
 
 // ─── Ohm's Law Calculator ────────────────────────────────────────────────────
