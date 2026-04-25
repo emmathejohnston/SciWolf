@@ -486,8 +486,17 @@ It would be very tempting to show a little radar chart of the four framings. **D
 | F1 | Behaviour signature | 20 | D1 | Returns sensible ratios |
 | F2 | Signature-tinted lines | 15 | F1, D2 | Rare signature lines appear |
 | | **Full feature** | **~770** | | |
+| G1 | Local soil health + shade metrics | 50 | — | Grid cells have soil + shade values interpolated from nearby graves and canopy |
+| G2 | Persistent dead plants (graves) | 40 | — | **Dead plants don't delete; visible as lumps; fade over time.** |
+| G3 | Fungal sprouting near graves | 25 | G2 | Fungi spawn preferentially near dead plants |
+| G4 | Dynamic growth/propagation + nutrient depletion | 60 | G1, G2 | Growth rate varies with local cover + soil + shade; plants extract nutrients |
+| G5 | Nearest-neighbour crowding metric | 40 | G4 | Crowding thins younger plants; respects layer+species |
+| G6 | Remove LAYER_CAPS | 10 | G5 | Delete global cap; colonisation driven by ecology only |
+| G7 | Tune shade preferences + crowding caps | 60 (content) | G4, G5 | Each species has `shadeMin/Max/Preference` and `crowdingCap` |
+| | **Carrying capacity heuristic complete** | **~285** | | |
 
 Minimum viable relationship layer: **A1–A5 + B1–B2 + D1–D2** (~425 lines + content).
+**Minimum viable carrying capacity layer: G1–G2 + G4–G5** (~195 lines + content, replace LAYER_CAPS with emergent dynamics driven by local soil, shade, and nutrient depletion).
 
 ---
 
@@ -508,17 +517,183 @@ When in doubt, write less. Silence is part of the design.
 
 ---
 
-## What We Are NOT Building
+## Plan G — Ecological Carrying Capacity (Local Soil & Crowding)
 
-- A morality meter, alignment system, or "ecological footprint" score
-- Quests, objectives, achievements, unlockables
-- Dialogue trees, NPCs that explain things to the player
-- Realistic survival mechanics (thirst, temperature, fatigue, shelter)
-- Multiplayer or persistence beyond `localStorage['forest_reflected']`
-- Procedural listen-text generation via an LLM at runtime — all text ships in the file
-- A tutorial. The sim opens, the body gets hungry, the player figures it out.
+**Goal:** replace artificial per-layer carrying capacity caps (`LAYER_CAPS`) with an emergent heuristic driven by local soil health, local cover preferences, and species-specific crowding limits. This allows each layer to find its own carrying capacity through ecology rather than enforced limits.
+
+### Step G1 — Local soil health and light metrics (~50 lines)
+
+Add to each grid cell:
+```js
+grid[x] = {
+  cover: ...,
+  soil: 0.5,      // 0 (bare) .. 1 (rich). Weighted average of nearby dead plants.
+  shade: 0.3,     // 0 (full sun) .. 1 (deep shade). From canopy above.
+}
+```
+
+**Soil health:** compute each tick as a gaussian-weighted blend of nearby graves (dead plants that are not deleted):
+- For each living plant, sample soil in a 150px radius
+- Dead plants within that radius contribute to soil based on their `nutrientT` decay: contribution = `1 - (nutrientT / 20)`
+- Interpolate between cells for smooth gradients
+- Soil gradually decays if no dead plants feed it: `soil *= 0.995` per tick
+
+**Local shade/light:** compute each tick from canopy plants above:
+- For each grid cell, find all canopy-layer plants within 200px horizontally and above vertically
+- Average their maturity (age / matureAge): `avgMaturity = sum / count`
+- `shade = avgMaturity * 0.7` (mature canopy = 70% shade; young canopy = less)
+- Interpolate for smooth transition
+- Shade decays naturally as plants age and grow thinner (or die)
+
+### Step G2 — Persistent dead plants (~40 lines)
+
+Modify plant death: when `p.health <= 0`, instead of deleting:
+```js
+plants[] → graves[]
+  (plants list removes the dead plant)
+  graves[] {
+    species: p.species,
+    x, y,
+    plantedAt: p.age,    // how mature it was
+    diedAt: year,
+    nutrientT: 0,        // years decomposing
+    successorSpecies: []  // what grew here after
+  }
+```
+
+Each grave persists for ~100 in-game years (nutrientT up to 100), then is removed.
+
+Render graves as small mossed lumps on the ground when within 200px of player. Visually, they vanish gradually as nutrientT increases (opacity = `1 - (nutrientT / 100)`).
+
+### Step G3 — Fungal sprouting near dead plants (~25 lines)
+
+When colonising new locations, increase spawn probability for fungal species near graves:
+
+```js
+for each fungi species in colonisationPhase:
+  for each grave in range [0..300px]:
+    probabilityBonus += 0.15 * (1 - nutrientT / 100)
+```
+
+Fungi sense graves and appear preferentially where soil is enriched. This is emergent partner-seeking behaviour.
+
+### Step G4 — Dynamic growth & propagation with nutrient depletion (~60 lines)
+
+Currently growth and propagation use global cover + global soil health. Rewrite to use **local** cover, soil, and shade; incorporate nutrient depletion:
+
+```js
+function growthRate(plant, gridCell) {
+  const localCover = gridCell.cover;
+  const localSoil = gridCell.soil;
+  const localShade = gridCell.shade;
+
+  // How well does this plant like the conditions here?
+  const coverMatch = 1 - Math.abs(
+    (localCover - plant.preferredCover) / (plant.coverMax - plant.coverMin)
+  );
+
+  // Shade preference: pioneer species hate shade, climax species tolerate it
+  //   (plant.shadeMin defaults to 0 if not set; shadeMax defaults to 1)
+  const shadeMatch = 1 - Math.abs(
+    (localShade - plant.shadePreference) / (plant.shadeMax - plant.shadeMin)
+  );
+
+  const soilMatch = localSoil;  // richer soil = faster growth
+
+  // Combine: all three must be decent. Nutrient depletion: soil decays as plant grows
+  gridCell.soil *= (1 - 0.001 * plant.mass);  // larger plants extract more
+
+  const baseRate = plant.matureAge / 300;  // species-specific
+  return baseRate * Math.pow(coverMatch, 0.8) * Math.pow(shadeMatch, 0.8) * (0.5 + 0.5 * soilMatch);
+}
+```
+
+Set `shadePreference` and `shadeMin/Max` on each species:
+- Pioneers (fireweed, grass): `shadePreference = 0, shadeMin = 0, shadeMax = 0.2` (hate shade)
+- Mid-successional (hawthorn, birch): `shadePreference = 0.3, shadeMin = 0.1, shadeMax = 0.6` (some shade OK)
+- Climax (oak, fern): `shadePreference = 0.5, shadeMin = 0.2, shadeMax = 1.0` (tolerate deep shade)
+
+Apply this to `p.age += growthRate(...)` each tick for living plants.
+
+Propagation (spawn new plants) uses the same logic:
+```js
+function propagationChance(species, gridCell) {
+  const localMatch = growthRate({...species, matureAge: 50, mass: 1}, gridCell);
+  const baseChance = 0.0001;
+  return baseChance * localMatch;
+}
+```
+
+**Nutrient harvesting:** When the player harvests a plant, it removes nutrients. Reduce the local soil further:
+```js
+gridCell.soil = Math.max(0, gridCell.soil - 0.08);  // harvesting costs soil
+```
+
+### Step G5 — Nearest-neighbour crowding metric (~40 lines)
+
+For each living plant, count like-types nearby (same species, or same layer: canopy/ground/herb):
+
+```js
+function crowdingFactor(plant) {
+  const neighbors = plants.filter(p =>
+    p.x within 200px &&
+    p.layer === plant.layer &&
+    p.species === plant.species
+  ).length;
+
+  // Species-specific crowding cap (replaces LAYER_CAPS)
+  const cap = plant.species.crowdingCap || 8;  // e.g., max 8 oaks in 200px radius
+
+  if (neighbors > cap) {
+    // Mortality pressure: older plants survive, younger are thinned
+    return plant.age < plant.matureAge * 0.5 ? 0.8 : 1.0;
+  }
+  return 1.0;
+}
+```
+
+Multiply growth rate by crowding factor: `p.age += growthRate(...) * crowdingFactor(p)`.
+
+### Step G6 — Remove LAYER_CAPS and per-layer limits (~10 lines)
+
+Delete the global `LAYER_CAPS` object. Replace any colonisation checks that use `layerCount >= LAYER_CAPS[layer]` with:
+- Simply allow colonisation if soil + cover conditions are met
+- Let the crowding and growth dynamics regulate population
+- Monitor in-game balance (add counts to debug UI)
+
+### Step G7 — Tune crowding caps per species (~50 lines of content)
+
+For each species, set a reasonable crowding cap based on real-world ecology:
+
+```js
+SPECIES.oak.crowdingCap = 4;        // oaks are spaced
+SPECIES.birch.crowdingCap = 6;      // more common
+SPECIES.blackberry.crowdingCap = 12; // dense patches
+SPECIES.lichen.crowdingCap = null;  // no crowding limit (covers rocks)
+SPECIES.grass.crowdingCap = 20;     // very dense
+SPECIES.ivy.crowdingCap = 15;       // climbs and spreads
+// ... etc for all 22 species
+```
+
+Adjust caps iteratively during playtesting. Caps are emergent self-regulation, not strict rules.
 
 ---
+
+## Testing Harness — Carrying Capacity Layer (to be built)
+
+| Test case | Expected result |
+|---|---|
+| Year 0 bare ground | Lichen, moss, grass establish. No cap enforced, but cover and soil conditions slow their growth. |
+| Dead plant visible on ground | Small mossed lump appears within 200px; fades over ~20 years. |
+| Near a grave, fungi spawn rate increases | Fly agaric and chanterelle appear more often near graves than in open ground. |
+| Sow a species in poor conditions (wrong cover/soil) | Seedling grows slowly or dies (not a hard reject like Step A3). |
+| Dense patch of one species (e.g., grass) | Crowding slows growth; younger plants thin out. Older plants slow but survive. |
+| Remove LAYER_CAPS; observe canopy | Oak layer reaches balance (e.g., 6–10 trees) without artificial cap. Balance is driven by cover, soil, and crowding. |
+| Player watches 200 years unpaused | Forest finds a stable climax without the player's intervention; layer populations are self-regulating. |
+
+---
+
+
 
 ## Curriculum Fit Note
 
