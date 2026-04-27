@@ -1,18 +1,18 @@
 {
   "_comment": "Source of truth for tunable params. Edit this file, then run: python tune_forest.py --apply=species_params.json",
   "colonizeRates": {
-    "pioneer": 0.23286404032319596,
-    "early": 0.6367712879965599,
-    "mid": 0.39406266812163027,
-    "late": 0.20086869771070154,
-    "climax": 0.08313483977200388
+    "pioneer": 2.5,
+    "early": 0.3,
+    "mid": 0.2,
+    "late": 0.1,
+    "climax": 0.05
   },
   "soilByEra": {
     "pioneer": 0,
-    "early": 0.07194144455037964,
-    "mid": 0.5201599538212467,
-    "late": 0.8031848009540813,
-    "climax": 0.8834326334883175
+    "early": 0.03,
+    "mid": 0.1,
+    "late": 0.35,
+    "climax": 0.65
   },
   "species": {
     "lichen": {
@@ -20,10 +20,10 @@
       "era": "pioneer",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.16982904814962782,
-      "maxAge": 88.86326853688666,
+      "coverMax": 0.15,
+      "maxAge": 0.5,
       "matureAge": 3,
-      "spreadPerYear": 1.725427280824238,
+      "spreadPerYear": 0.8,
       "spreadRadius": 60
     },
     "moss": {
@@ -31,10 +31,10 @@
       "era": "pioneer",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.2667441090717662,
-      "maxAge": 83.57918647576176,
+      "coverMax": 0.2,
+      "maxAge": 2.77420590728507,
       "matureAge": 2,
-      "spreadPerYear": 1.284496583585864,
+      "spreadPerYear": 2.0,
       "spreadRadius": 50
     },
     "dandelion": {
@@ -42,10 +42,10 @@
       "era": "pioneer",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.29415772924290673,
+      "coverMax": 0.2,
       "maxAge": 5,
       "matureAge": 1,
-      "spreadPerYear": 2.9028852150486895,
+      "spreadPerYear": 3.0,
       "spreadRadius": 120
     },
     "fireweed": {
@@ -53,10 +53,10 @@
       "era": "pioneer",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.18602000436433277,
-      "maxAge": 6,
-      "matureAge": 2,
-      "spreadPerYear": 2.660612337556672,
+      "coverMax": 0.2,
+      "maxAge": 2,
+      "matureAge": 1,
+      "spreadPerYear": 1.2,
       "spreadRadius": 100
     },
     "earthball": {
@@ -64,10 +64,10 @@
       "era": "pioneer",
       "layer": "fungal",
       "coverMin": 0,
-      "coverMax": 0.12090280991238062,
+      "coverMax": 0.25,
       "maxAge": 1.0,
       "matureAge": 0.1,
-      "spreadPerYear": 1.2082785250302384,
+      "spreadPerYear": 6.0,
       "spreadRadius": 50
     },
     "grass": {
@@ -75,10 +75,10 @@
       "era": "early",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.5205690702769377,
+      "coverMax": 0.45,
       "maxAge": 15,
       "matureAge": 3,
-      "spreadPerYear": 0.8209781093730031,
+      "spreadPerYear": 1.0,
       "spreadRadius": 80
     },
     "yarrow": {
@@ -86,10 +86,10 @@
       "era": "early",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.19453363424944514,
+      "coverMax": 0.4,
       "maxAge": 8,
       "matureAge": 2,
-      "spreadPerYear": 0.6145326096135235,
+      "spreadPerYear": 0.8,
       "spreadRadius": 70
     },
     "raspberry": {
@@ -97,10 +97,10 @@
       "era": "early",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.49431804225489745,
+      "coverMax": 0.55,
       "maxAge": 15,
       "matureAge": 4,
-      "spreadPerYear": 1.5603937886026111,
+      "spreadPerYear": 0.25,
       "spreadRadius": 90
     },
     "birch": {
@@ -108,33 +108,34 @@
       "era": "early",
       "layer": "canopy",
       "coverMin": 0,
-      "coverMax": 0.4656106887434259,
+      "coverMax": 0.55,
       "maxAge": 80,
       "matureAge": 14,
-      "spreadPerYear": 0.9284467961734293,
+      "spreadPerYear": 0.2,
       "spreadRadius": 150,
-      "soilMin": 0.02
+      "soilMin": 0.01
     },
     "red_maple": {
       "rarity": "common",
       "era": "early",
       "layer": "canopy",
       "coverMin": 0,
-      "coverMax": 0.5223224626228324,
+      "coverMax": 0.9,
       "maxAge": 150,
       "matureAge": 15,
-      "spreadPerYear": 0.9479273626348834,
-      "spreadRadius": 120
+      "spreadPerYear": 0.06,
+      "spreadRadius": 120,
+      "soilMin": 0.02
     },
     "shaggy_inkcap": {
       "rarity": "moderate",
       "era": "early",
       "layer": "fungal",
       "coverMin": 0,
-      "coverMax": 0.7034546739368316,
+      "coverMax": 0.45,
       "maxAge": 0.5,
       "matureAge": 0.05,
-      "spreadPerYear": 1.7361270929110584,
+      "spreadPerYear": 5.0,
       "spreadRadius": 60
     },
     "dogwood": {
@@ -142,10 +143,10 @@
       "era": "early",
       "layer": "shrub",
       "coverMin": 0,
-      "coverMax": 0.30347775100028684,
+      "coverMax": 0.7,
       "maxAge": 40,
       "matureAge": 8,
-      "spreadPerYear": 0.13898246109423618,
+      "spreadPerYear": 0.15,
       "spreadRadius": 80
     },
     "witch_hazel": {
@@ -153,10 +154,10 @@
       "era": "mid",
       "layer": "shrub",
       "coverMin": 0.1,
-      "coverMax": 0.4467879563355059,
+      "coverMax": 1.0,
       "maxAge": 150,
       "matureAge": 10,
-      "spreadPerYear": 0.7402855484962747,
+      "spreadPerYear": 0.08,
       "spreadRadius": 90
     },
     "serviceberry": {
@@ -164,10 +165,10 @@
       "era": "mid",
       "layer": "shrub",
       "coverMin": 0.05,
-      "coverMax": 0.5332970952491081,
+      "coverMax": 1.0,
       "maxAge": 80,
       "matureAge": 10,
-      "spreadPerYear": 0.7827636965304869,
+      "spreadPerYear": 0.1,
       "spreadRadius": 80
     },
     "fern": {
@@ -175,10 +176,10 @@
       "era": "mid",
       "layer": "ground",
       "coverMin": 0.05,
-      "coverMax": 0.6923756018793917,
+      "coverMax": 1.0,
       "maxAge": 40,
       "matureAge": 3,
-      "spreadPerYear": 0.21070504967505577,
+      "spreadPerYear": 0.01,
       "spreadRadius": 90
     },
     "baneberry": {
@@ -186,10 +187,10 @@
       "era": "mid",
       "layer": "ground",
       "coverMin": 0.1,
-      "coverMax": 0.4555164579176284,
+      "coverMax": 1.0,
       "maxAge": 15,
       "matureAge": 3,
-      "spreadPerYear": 0.5629214800575856,
+      "spreadPerYear": 0.08,
       "spreadRadius": 60
     },
     "ash": {
@@ -197,10 +198,10 @@
       "era": "mid",
       "layer": "canopy",
       "coverMin": 0,
-      "coverMax": 0.7346672220881152,
+      "coverMax": 1.0,
       "maxAge": 200,
       "matureAge": 20,
-      "spreadPerYear": 0.06998207323714795,
+      "spreadPerYear": 0.05,
       "spreadRadius": 130
     },
     "stinkhorn": {
@@ -208,10 +209,10 @@
       "era": "mid",
       "layer": "fungal",
       "coverMin": 0.1,
-      "coverMax": 0.8500000000000001,
+      "coverMax": 1.0,
       "maxAge": 0.375,
       "matureAge": 0.05,
-      "spreadPerYear": 0.6669534920252334,
+      "spreadPerYear": 1.5,
       "spreadRadius": 70
     },
     "foxglove": {
@@ -219,12 +220,12 @@
       "era": "mid",
       "layer": "ground",
       "coverMin": 0.05,
-      "coverMax": 0.15178427557263757,
+      "coverMax": 0.5,
       "maxAge": 2,
       "matureAge": 2,
-      "spreadPerYear": 1.4012656357244422,
+      "spreadPerYear": 0.15,
       "spreadRadius": 70,
-      "soilMin": 0.15
+      "soilMin": 0.1
     },
     "bracket_fungus": {
       "rarity": "rare",
@@ -234,7 +235,7 @@
       "coverMax": 1.0,
       "maxAge": 30,
       "matureAge": 5,
-      "spreadPerYear": 0.02223157484910223,
+      "spreadPerYear": 0.05,
       "spreadRadius": 80,
       "maxInstances": 5
     },
@@ -243,69 +244,74 @@
       "era": "late",
       "layer": "canopy",
       "coverMin": 0.1,
-      "coverMax": 0.9012632742072495,
+      "coverMax": 1.0,
       "maxAge": 400,
-      "matureAge": 30,
-      "spreadPerYear": 0.16189114187635617,
-      "spreadRadius": 160
+      "matureAge": 25,
+      "spreadPerYear": 0.01,
+      "spreadRadius": 160,
+      "soilMin": 0.3,
+      "maxInstances": 4
     },
     "trillium": {
       "rarity": "moderate",
       "era": "late",
       "layer": "ground",
       "coverMin": 0.25,
-      "coverMax": 0.7425455652844368,
+      "coverMax": 1.0,
       "maxAge": 40,
       "matureAge": 7,
-      "spreadPerYear": 0.8429805496257075,
-      "spreadRadius": 50
+      "spreadPerYear": 0.04,
+      "spreadRadius": 50,
+      "soilMin": 0.5
     },
     "garlic_mustard": {
       "rarity": "common",
       "era": "late",
       "layer": "ground",
       "coverMin": 0,
-      "coverMax": 0.6261429389660698,
+      "coverMax": 1.0,
       "maxAge": 2,
       "matureAge": 2,
-      "spreadPerYear": 0.7721137418778967,
+      "spreadPerYear": 0.5,
       "spreadRadius": 100,
-      "soilMin": 0.07517727971658815
+      "soilMin": 0.1
     },
     "jack_in_pulpit": {
       "rarity": "moderate",
       "era": "late",
       "layer": "ground",
       "coverMin": 0.2,
-      "coverMax": 0.7008754940208745,
+      "coverMax": 1.0,
       "maxAge": 25,
       "matureAge": 4,
-      "spreadPerYear": 0.3507079370676463,
+      "spreadPerYear": 0.04,
       "spreadRadius": 55,
-      "soilMin": 0.333520262543613
+      "soilMin": 0.35
     },
     "mayapple": {
       "rarity": "moderate",
       "era": "late",
       "layer": "ground",
       "coverMin": 0.15,
-      "coverMax": 0.79544153090136,
+      "coverMax": 1.0,
       "maxAge": 30,
       "matureAge": 3,
-      "spreadPerYear": 0.4922304785776893,
+      "spreadPerYear": 0.06,
       "spreadRadius": 50,
-      "soilMin": 0.3537492765951561
+      "soilMin": 0.45
     },
     "basswood": {
       "rarity": "moderate",
       "era": "late",
       "layer": "canopy",
       "coverMin": 0.15,
-      "coverMax": 0.7754032478661648,
+      "coverMax": 1.0,
       "maxAge": 200,
       "matureAge": 25,
-      "spreadPerYear": 0.4775795360690302,
-      "spreadRadius": 130
+      "spreadPerYear": 0.006,
+      "spreadRadius": 130,
+      "soilMin": 0.5,
+      "maxInstances": 6
     },
     "chanterelle": {
       "rarity": "rare",
@@ -315,8 +321,9 @@
       "coverMax": 1.0,
       "maxAge": 0.5,
       "matureAge": 0.1,
-      "spreadPerYear": 3,
-      "spreadRadius": 40
+      "spreadPerYear": 1.0,
+      "spreadRadius": 40,
+      "soilMin": 0.65
     },
     "honey_fungus": {
       "rarity": "moderate",
@@ -326,32 +333,34 @@
       "coverMax": 1.0,
       "maxAge": 0.5,
       "matureAge": 0.08,
-      "spreadPerYear": 1.7090799781580963,
-      "spreadRadius": 80
+      "spreadPerYear": 0.2,
+      "spreadRadius": 80,
+      "soilMin": 0.5
     },
     "solomons_seal": {
       "rarity": "moderate",
       "era": "climax",
       "layer": "ground",
       "coverMin": 0.3,
-      "coverMax": 0.30000000000000004,
+      "coverMax": 1.0,
       "maxAge": 40,
       "matureAge": 5,
-      "spreadPerYear": 0.10939692620051558,
+      "spreadPerYear": 0.015,
       "spreadRadius": 45,
-      "soilMin": 0.1863120445944896
+      "soilMin": 0.6
     },
     "white_pine": {
       "rarity": "moderate",
       "era": "climax",
       "layer": "canopy",
       "coverMin": 0.1,
-      "coverMax": 0.928351772342554,
+      "coverMax": 0.8,
       "maxAge": 450,
       "matureAge": 30,
-      "spreadPerYear": 0.24225696604608593,
+      "spreadPerYear": 0.04,
       "spreadRadius": 150,
-      "soilMin": 0.1889429952978543
+      "soilMin": 0.2,
+      "maxInstances": 3
     },
     "fly_agaric": {
       "rarity": "rare",
@@ -361,31 +370,34 @@
       "coverMax": 1.0,
       "maxAge": 0.375,
       "matureAge": 0.08,
-      "spreadPerYear": 2,
-      "spreadRadius": 60
+      "spreadPerYear": 1.0,
+      "spreadRadius": 60,
+      "soilMin": 0.65
     },
     "hemlock": {
       "rarity": "rare",
       "era": "climax",
       "layer": "canopy",
       "coverMin": 0.3,
-      "coverMax": 0.6720990359271832,
+      "coverMax": 1.0,
       "maxAge": 800,
       "matureAge": 40,
-      "spreadPerYear": 0.2535836156868937,
-      "spreadRadius": 100
+      "spreadPerYear": 0.06,
+      "spreadRadius": 100,
+      "soilMin": 0.65,
+      "maxInstances": 6
     },
     "buckthorn": {
       "rarity": "moderate",
       "era": "climax",
       "layer": "shrub",
       "coverMin": 0,
-      "coverMax": 0.6852371258855282,
+      "coverMax": 1.0,
       "maxAge": 60,
       "matureAge": 6,
-      "spreadPerYear": 0.36658268527918914,
+      "spreadPerYear": 0.12,
       "spreadRadius": 100,
-      "soilMin": 0.1581264215714553
+      "soilMin": 0.45
     },
     "deathcap": {
       "rarity": "very_rare",
@@ -395,8 +407,9 @@
       "coverMax": 1.0,
       "maxAge": 0.45,
       "matureAge": 0.08,
-      "spreadPerYear": 1.5,
-      "spreadRadius": 70
+      "spreadPerYear": 0.5,
+      "spreadRadius": 70,
+      "soilMin": 0.7
     }
   }
 }
