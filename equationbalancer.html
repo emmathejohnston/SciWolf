@@ -138,6 +138,25 @@
     }
     #atoms-toggle:hover { border-color: var(--accent); color: var(--text); }
 
+    .helper-toggles {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .helper-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .helper-toggle:hover { border-color: var(--accent); color: var(--text); }
+
     .card-label {
       font-size: 0.7rem;
       text-transform: uppercase;
@@ -293,6 +312,193 @@
     }
 
     /* ── Status / success banner ── */
+    /* Molecule visualizer */
+    .molecule-card { display: none; }
+    .molecule-card.visible { display: block; }
+
+    .molecule-legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin: -0.25rem 0 1rem;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.18rem 0.5rem;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .legend-dot {
+      width: 0.72rem;
+      height: 0.72rem;
+      border-radius: 50%;
+      background: var(--atom-color);
+      box-shadow: inset 0 -2px 0 rgba(15, 23, 42, 0.18);
+    }
+
+    .molecule-sides {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      gap: 0.9rem;
+      align-items: stretch;
+    }
+
+    .molecule-side {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.85rem;
+      background: rgba(15, 23, 42, 0.12);
+    }
+
+    html.light .molecule-side { background: rgba(226, 232, 240, 0.45); }
+
+    .molecule-side-title {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.7rem;
+      text-align: center;
+    }
+
+    .molecule-arrow {
+      align-self: center;
+      color: var(--accent);
+      font-size: 1.45rem;
+      font-weight: 800;
+    }
+
+    .molecule-compounds {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .molecule-compound {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .molecule-formula {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 0.3rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .molecule-formula .coefficient {
+      color: var(--accent);
+      font-size: 0.95rem;
+    }
+
+    .molecule-stack {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.42rem;
+      min-width: 0;
+    }
+
+    .molecule-unit {
+      position: relative;
+      width: var(--mol-width, 6.8rem);
+      height: var(--mol-height, 4.6rem);
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 0.65rem;
+      background: rgba(2, 6, 23, 0.12);
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+
+    html.light .molecule-unit { background: rgba(255, 255, 255, 0.6); }
+
+    .molecule-unit.hydrocarbon-unit {
+      width: var(--mol-width, 7.6rem);
+      height: var(--mol-height, 5.2rem);
+    }
+
+    .molecule-bonds {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .molecule-bonds line {
+      stroke: rgba(226, 232, 240, 0.95);
+      stroke-width: 3.2;
+      stroke-linecap: round;
+    }
+
+    .bond-line {
+      position: absolute;
+      left: calc(var(--x1) * 1%);
+      top: calc(var(--y1) * 1%);
+      width: calc(var(--len) * 1%);
+      height: 2px;
+      background: rgba(148, 163, 184, 0.75);
+      transform-origin: 0 50%;
+      transform: rotate(var(--angle));
+      border-radius: 999px;
+    }
+
+    .atom-node {
+      position: absolute;
+      left: calc(var(--x) * 1%);
+      top: calc(var(--y) * 1%);
+      width: var(--size);
+      height: var(--size);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--atom-color);
+      border: 2px solid rgba(255, 255, 255, 0.75);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.22), inset 0 -3px 0 rgba(15, 23, 42, 0.18);
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.58rem;
+      font-weight: 900;
+      line-height: 1;
+      z-index: 1;
+    }
+
+    .molecule-overflow {
+      align-self: center;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 999px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    @media (max-width: 680px) {
+      .molecule-sides { grid-template-columns: 1fr; }
+      .molecule-arrow {
+        transform: rotate(90deg);
+        justify-self: center;
+      }
+      .molecule-unit {
+        width: 6.2rem;
+        height: 4.25rem;
+      }
+    }
+
     .status-banner {
       text-align: center;
       padding: 1rem;
@@ -546,7 +752,26 @@
       <div class="equation-display" id="eq-display"></div>
     </div>
 
-    <button id="atoms-toggle" onclick="toggleAtoms()">Hide helper</button>
+    <div class="helper-toggles">
+      <button id="molecules-toggle" class="helper-toggle" onclick="toggleMolecules()">Show molecules</button>
+      <button id="atoms-toggle" class="helper-toggle" onclick="toggleAtoms()">Hide helper</button>
+    </div>
+
+    <div class="card molecule-card" id="molecules-card">
+      <div class="card-label">Atoms and Bonds</div>
+      <div class="molecule-legend" id="molecule-legend"></div>
+      <div class="molecule-sides">
+        <div class="molecule-side">
+          <div class="molecule-side-title">Reactants</div>
+          <div class="molecule-compounds" id="reactant-molecules"></div>
+        </div>
+        <div class="molecule-arrow">&rarr;</div>
+        <div class="molecule-side">
+          <div class="molecule-side-title">Products</div>
+          <div class="molecule-compounds" id="product-molecules"></div>
+        </div>
+      </div>
+    </div>
 
     <div class="card" id="atoms-card">
       <div class="card-label">Atom Count</div>
@@ -1080,6 +1305,746 @@
     // ─────────────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
 
+    const ELEMENT_COLORS = {
+      H: '#f8fafc', C: '#94a3b8', O: '#fb7185', N: '#60a5fa',
+      S: '#facc15', P: '#fb923c', Cl: '#4ade80', Na: '#38bdf8',
+      K: '#c084fc', Ca: '#fde68a', Mg: '#86efac', Al: '#cbd5e1',
+      Fe: '#f97316', Cu: '#f59e0b', Zn: '#a7f3d0', Pb: '#a78bfa',
+      Ag: '#e2e8f0', Ba: '#bef264', Br: '#f87171', I: '#a855f7',
+      F: '#2dd4bf', Li: '#f9a8d4'
+    };
+
+    function elementColor(el) {
+      return ELEMENT_COLORS[el] || '#67e8f9';
+    }
+
+    const IONIC_METALS = new Set([
+      'Li', 'Na', 'K', 'Mg', 'Ca', 'Ba', 'Al', 'Fe', 'Cu',
+      'Zn', 'Pb', 'Ag', 'Mn', 'Cr', 'Hg'
+    ]);
+
+    function expandFormulaAtoms(formula) {
+      let i = 0;
+
+      function parseGroup() {
+        const atoms = [];
+        while (i < formula.length && formula[i] !== ')') {
+          if (formula[i] === '(') {
+            i++;
+            const sub = parseGroup();
+            i++;
+            let n = '';
+            while (i < formula.length && /\d/.test(formula[i])) n += formula[i++];
+            const mult = n ? parseInt(n) : 1;
+            for (let k = 0; k < mult; k++) atoms.push(...sub);
+          } else if (/[A-Z]/.test(formula[i])) {
+            let el = formula[i++];
+            while (i < formula.length && /[a-z]/.test(formula[i])) el += formula[i++];
+            let n = '';
+            while (i < formula.length && /\d/.test(formula[i])) n += formula[i++];
+            const ct = n ? parseInt(n) : 1;
+            for (let k = 0; k < ct; k++) atoms.push(el);
+          } else {
+            i++;
+          }
+        }
+        return atoms;
+      }
+
+      return parseGroup();
+    }
+
+    function atomLayout(atoms) {
+      const n = atoms.length;
+      if (n === 1) return [{ x: 50, y: 50 }];
+      if (n === 2) return [{ x: 34, y: 50 }, { x: 66, y: 50 }];
+      if (n <= 4) {
+        const centerIndex = atoms.findIndex(el => el !== 'H');
+        const center = centerIndex >= 0 ? centerIndex : 0;
+        const positions = new Array(n);
+        positions[center] = { x: 50, y: 50 };
+        const angles = n === 3 ? [-145, -35] : [-155, -90, -25];
+        let a = 0;
+        atoms.forEach((_, idx) => {
+          if (idx === center) return;
+          const rad = angles[a++] * Math.PI / 180;
+          positions[idx] = { x: 50 + Math.cos(rad) * 30, y: 50 + Math.sin(rad) * 24 };
+        });
+        return positions;
+      }
+
+      if (n <= 8) {
+        return atoms.map((_, idx) => {
+          const rad = (-90 + idx * 360 / n) * Math.PI / 180;
+          return { x: 50 + Math.cos(rad) * 33, y: 50 + Math.sin(rad) * 30 };
+        });
+      }
+
+      return atoms.map((_, idx) => {
+        const cols = Math.ceil(Math.sqrt(n));
+        const rows = Math.ceil(n / cols);
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        return {
+          x: 18 + (cols === 1 ? 0 : col * (64 / (cols - 1))),
+          y: 18 + (rows === 1 ? 0 : row * (64 / (rows - 1)))
+        };
+      });
+    }
+
+    function hydrocarbonModel(formula) {
+      const counts = parseFormula(formula);
+      const cCount = counts.C || 0;
+      const hCount = counts.H || 0;
+      const onlyHydrocarbon = cCount > 0 && hCount > 0 && Object.keys(counts).every(el => el === 'C' || el === 'H');
+      if (!onlyHydrocarbon) return null;
+
+      const atoms = [];
+      const positions = [];
+      const bonds = [];
+      const carbonIds = [];
+      const carbonY = 50;
+      const left = cCount === 1 ? 50 : Math.max(16, 50 - (cCount - 1) * 12);
+      const right = cCount === 1 ? 50 : Math.min(84, 50 + (cCount - 1) * 12);
+
+      for (let i = 0; i < cCount; i++) {
+        carbonIds.push(atoms.length);
+        atoms.push('C');
+        positions.push({
+          x: cCount === 1 ? 50 : left + i * ((right - left) / (cCount - 1)),
+          y: carbonY
+        });
+      }
+
+      for (let i = 0; i < cCount - 1; i++) {
+        bonds.push({ a: carbonIds[i], b: carbonIds[i + 1], order: 1, kind: 'backbone' });
+      }
+
+      const hydrogensPerCarbon = allocateHydrogens(cCount, hCount);
+      hydrogensPerCarbon.forEach((hForCarbon, i) => {
+        const cx = positions[carbonIds[i]].x;
+        const cy = positions[carbonIds[i]].y;
+        hydrogenSlotsForCarbon(i, cCount, hForCarbon).forEach(slot => {
+          const hId = atoms.length;
+          atoms.push('H');
+          positions.push({
+            x: Math.max(6, Math.min(94, cx + slot.dx)),
+            y: Math.max(8, Math.min(92, cy + slot.dy))
+          });
+          bonds.push({ a: carbonIds[i], b: hId, order: 1, kind: 'hydrogen' });
+        });
+      });
+
+      return { atoms, positions, bonds, cCount, noSpread: true, hydrocarbon: true };
+    }
+
+    function allocateHydrogens(carbonCount, hydrogenCount) {
+      const capacity = Array.from({ length: carbonCount }, (_, idx) => {
+        if (carbonCount === 1) return 4;
+        return idx === 0 || idx === carbonCount - 1 ? 3 : 2;
+      });
+      const assigned = new Array(carbonCount).fill(0);
+      let remaining = hydrogenCount;
+
+      while (remaining > 0 && assigned.some((n, idx) => n < capacity[idx])) {
+        for (let idx = 0; idx < carbonCount && remaining > 0; idx++) {
+          if (assigned[idx] >= capacity[idx]) continue;
+          assigned[idx]++;
+          remaining--;
+        }
+      }
+
+      return assigned;
+    }
+
+    function hydrogenSlotsForCarbon(index, carbonCount, hCount) {
+      if (carbonCount === 1) {
+        const slots = [
+          { dx: 0, dy: -31 },
+          { dx: 29, dy: 0 },
+          { dx: 0, dy: 31 },
+          { dx: -29, dy: 0 }
+        ];
+        if (hCount === 1) return [slots[0]];
+        if (hCount === 2) return [slots[0], slots[2]];
+        if (hCount === 3) return [slots[0], slots[1], slots[2]];
+        return slots.slice(0, hCount);
+      }
+
+      const terminalLeft = index === 0;
+      const terminalRight = index === carbonCount - 1;
+      const side = terminalLeft ? -1 : terminalRight ? 1 : 0;
+      if (side === 0) {
+        const middleSlots = [
+          { dx: 0, dy: -32 },
+          { dx: 0, dy: 32 }
+        ];
+        if (hCount === 1) return [middleSlots[0]];
+        return middleSlots.slice(0, hCount);
+      }
+
+      const terminalSlots = [
+        { dx: 0, dy: -32 },
+        { dx: side * 22, dy: 0 },
+        { dx: 0, dy: 32 }
+      ];
+
+      if (hCount === 1) return [terminalSlots[1]];
+      if (hCount === 2) return [terminalSlots[0], terminalSlots[2]];
+      return terminalSlots.slice(0, hCount);
+    }
+
+    function structuralModel(formula) {
+      return hydrocarbonModel(formula) ||
+        knownMoleculeModel(formula) ||
+        polyatomicCompoundModel(formula) ||
+        ionicSimpleModel(formula);
+    }
+
+    function knownMoleculeModel(formula) {
+      const builders = {
+        H2: () => linearModel(['H', 'H'], [1]),
+        O2: () => linearModel(['O', 'O'], [2]),
+        N2: () => linearModel(['N', 'N'], [3]),
+        Cl2: () => linearModel(['Cl', 'Cl'], [1]),
+        Br2: () => linearModel(['Br', 'Br'], [1]),
+        I2: () => linearModel(['I', 'I'], [1]),
+        F2: () => linearModel(['F', 'F'], [1]),
+        CO: () => linearModel(['C', 'O'], [3]),
+        CO2: () => linearModel(['O', 'C', 'O'], [2, 2]),
+        SO2: () => centralLigandModel('S', ['O', 'O'], [-140, -40], 29, [2, 2]),
+        SO3: () => centralLigandModel('S', ['O', 'O', 'O'], [-150, -30, 90], 30, [2, 2, 1]),
+        H2O: () => centralLigandModel('O', ['H', 'H'], [-138, -42], 28),
+        H2O2: () => chainModel(['H', 'O', 'O', 'H'], [1, 1, 1]),
+        OH: () => linearModel(['O', 'H'], [1]),
+        NH4: () => centralLigandModel('N', ['H', 'H', 'H', 'H'], [-90, 0, 90, 180], 30),
+        NO3: () => centralLigandModel('N', ['O', 'O', 'O'], [-150, -30, 90], 30),
+        CO3: () => centralLigandModel('C', ['O', 'O', 'O'], [-150, -30, 90], 30),
+        SO4: () => centralLigandModel('S', ['O', 'O', 'O', 'O'], [-135, -45, 45, 135], 30),
+        PO4: () => centralLigandModel('P', ['O', 'O', 'O', 'O'], [-135, -45, 45, 135], 30),
+        ClO3: () => centralLigandModel('Cl', ['O', 'O', 'O'], [-150, -30, 90], 30),
+        MnO4: () => centralLigandModel('Mn', ['O', 'O', 'O', 'O'], [-135, -45, 45, 135], 30),
+        Cr2O7: () => dichromateModel(),
+        S2O3: () => thiosulfateModel(),
+        HCl: () => linearModel(['H', 'Cl'], [1]),
+        H2SO4: () => acidOxoModel('S', 4, 2),
+        P4O10: () => atomsOnlyModel('P4O10'),
+        C6H12O6: () => atomsOnlyModel('C6H12O6'),
+        H3PO4: () => acidOxoModel('P', 4, 3),
+        H3PO3: () => acidOxoModel('P', 3, 3),
+        NH4NO3: () => groupedModels([
+          { model: centralLigandModel('N', ['H', 'H', 'H', 'H'], [-90, 0, 90, 180], 28), x: 27, y: 50, scale: 0.78 },
+          { model: centralLigandModel('N', ['O', 'O', 'O'], [-140, 0, 140], 31), x: 74, y: 50, scale: 0.78 }
+        ], { widthRem: 12.2, heightRem: 7.8 }),
+        '(NH4)2Cr2O7': () => ammoniumDichromateModel()
+      };
+      return builders[formula] ? builders[formula]() : null;
+    }
+
+    function atomsOnlyModel(formula) {
+      return {
+        atoms: expandFormulaAtoms(formula),
+        positions: atomLayout(expandFormulaAtoms(formula)),
+        bonds: [],
+        noSpread: false
+      };
+    }
+
+    function linearModel(atoms, orders) {
+      const step = atoms.length === 1 ? 0 : 62 / (atoms.length - 1);
+      const positions = atoms.map((_, idx) => ({ x: 19 + step * idx, y: 50 }));
+      const bonds = orders.map((order, idx) => ({ a: idx, b: idx + 1, order }));
+      return { atoms, positions, bonds };
+    }
+
+    function chainModel(atoms, orders) {
+      const step = atoms.length === 1 ? 0 : 66 / (atoms.length - 1);
+      const positions = atoms.map((_, idx) => ({
+        x: 17 + step * idx,
+        y: 50 + (idx % 2 === 0 ? 0 : -8)
+      }));
+      const bonds = orders.map((order, idx) => ({ a: idx, b: idx + 1, order }));
+      return { atoms, positions, bonds };
+    }
+
+    function centralLigandModel(center, ligands, angles, radius = 30, orders = []) {
+      const atoms = [center, ...ligands];
+      const positions = [{ x: 50, y: 50 }];
+      const bonds = [];
+
+      angles.forEach((deg, idx) => {
+        const rad = deg * Math.PI / 180;
+        positions.push({
+          x: 50 + Math.cos(rad) * radius,
+          y: 50 + Math.sin(rad) * radius
+        });
+        bonds.push({ a: 0, b: idx + 1, order: orders[idx] || 1 });
+      });
+
+      return { atoms, positions, bonds };
+    }
+
+    function groupedModels(parts, opts = {}) {
+      const atoms = [];
+      const positions = [];
+      const bonds = [];
+
+      parts.forEach(part => {
+        const offset = atoms.length;
+        part.model.atoms.forEach(atom => atoms.push(atom));
+        part.model.positions.forEach(pos => positions.push({
+          x: part.x + (pos.x - 50) * part.scale,
+          y: part.y + (pos.y - 50) * part.scale
+        }));
+        part.model.bonds.forEach(bond => bonds.push({
+          a: offset + bond.a,
+          b: offset + bond.b,
+          order: bond.order
+        }));
+      });
+
+      return {
+        atoms,
+        positions,
+        bonds,
+        noSpread: true,
+        widthRem: opts.widthRem || 11.8,
+        heightRem: opts.heightRem || 7.4
+      };
+    }
+
+    function acidOxoModel(center, oxygenCount, acidicHydrogens) {
+      const model = centralLigandModel(center, Array(oxygenCount).fill('O'), [-135, -45, 45, 135].slice(0, oxygenCount), 29);
+      const hydrogenAngles = [-160, -20, 20, 160];
+      for (let i = 0; i < acidicHydrogens && i < oxygenCount; i++) {
+        const oxygenIndex = i + 1;
+        const oxygen = model.positions[oxygenIndex];
+        const rad = hydrogenAngles[i] * Math.PI / 180;
+        const hIndex = model.atoms.length;
+        model.atoms.push('H');
+        model.positions.push({
+          x: Math.max(8, Math.min(92, oxygen.x + Math.cos(rad) * 18)),
+          y: Math.max(10, Math.min(90, oxygen.y + Math.sin(rad) * 18))
+        });
+        model.bonds.push({ a: oxygenIndex, b: hIndex, order: 1 });
+      }
+      return model;
+    }
+
+    function dichromateModel() {
+      const atoms = ['Cr', 'Cr', 'O', 'O', 'O', 'O', 'O', 'O', 'O'];
+      const positions = [
+        { x: 34, y: 50 }, { x: 66, y: 50 }, { x: 50, y: 50 },
+        { x: 13, y: 22 }, { x: 13, y: 78 }, { x: 34, y: 10 },
+        { x: 87, y: 22 }, { x: 87, y: 78 }, { x: 66, y: 10 }
+      ];
+      const bonds = [
+        { a: 0, b: 2, order: 1 }, { a: 1, b: 2, order: 1 },
+        { a: 0, b: 3, order: 1 }, { a: 0, b: 4, order: 1 }, { a: 0, b: 5, order: 1 },
+        { a: 1, b: 6, order: 1 }, { a: 1, b: 7, order: 1 }, { a: 1, b: 8, order: 1 }
+      ];
+      return { atoms, positions, bonds };
+    }
+
+    function ammoniumDichromateModel() {
+      const atoms = [];
+      const positions = [];
+      const bonds = [];
+
+      function addAmmonium(cx, cy) {
+        const n = atoms.length;
+        atoms.push('N', 'H', 'H', 'H', 'H');
+        positions.push(
+          { x: cx, y: cy },
+          { x: cx, y: cy - 17 },
+          { x: cx + 17, y: cy },
+          { x: cx, y: cy + 17 },
+          { x: cx - 17, y: cy }
+        );
+        bonds.push(
+          { a: n, b: n + 1, order: 1 },
+          { a: n, b: n + 2, order: 1 },
+          { a: n, b: n + 3, order: 1 },
+          { a: n, b: n + 4, order: 1 }
+        );
+      }
+
+      addAmmonium(16, 28);
+      addAmmonium(16, 72);
+
+      const cr1 = atoms.length;
+      atoms.push('Cr', 'Cr', 'O', 'O', 'O', 'O', 'O', 'O', 'O');
+      positions.push(
+        { x: 57, y: 50 },
+        { x: 80, y: 50 },
+        { x: 68.5, y: 50 },
+        { x: 43, y: 25 },
+        { x: 43, y: 75 },
+        { x: 57, y: 10 },
+        { x: 93, y: 25 },
+        { x: 93, y: 75 },
+        { x: 80, y: 10 }
+      );
+      bonds.push(
+        { a: cr1, b: cr1 + 2, order: 1 },
+        { a: cr1 + 1, b: cr1 + 2, order: 1 },
+        { a: cr1, b: cr1 + 3, order: 1 },
+        { a: cr1, b: cr1 + 4, order: 1 },
+        { a: cr1, b: cr1 + 5, order: 1 },
+        { a: cr1 + 1, b: cr1 + 6, order: 1 },
+        { a: cr1 + 1, b: cr1 + 7, order: 1 },
+        { a: cr1 + 1, b: cr1 + 8, order: 1 }
+      );
+
+      return {
+        atoms,
+        positions,
+        bonds,
+        noSpread: true,
+        widthRem: 17.5,
+        heightRem: 10.2,
+        atomSize: '0.98rem',
+        centerBonds: true
+      };
+    }
+
+    function thiosulfateModel() {
+      const atoms = ['S', 'S', 'O', 'O', 'O'];
+      const positions = [
+        { x: 44, y: 52 }, { x: 78, y: 52 },
+        { x: 23, y: 28 }, { x: 23, y: 76 }, { x: 44, y: 18 }
+      ];
+      const bonds = [
+        { a: 0, b: 1, order: 1 },
+        { a: 0, b: 2, order: 1 },
+        { a: 0, b: 3, order: 1 },
+        { a: 0, b: 4, order: 1 }
+      ];
+      return { atoms, positions, bonds, noSpread: true };
+    }
+
+    function polyatomicCompoundModel(formula) {
+      const groupMatch = formula.match(/^([A-Z][a-z]?)(\d*)\((NO3|OH|SO4|PO4|CO3|ClO3|Cr2O7|MnO4|S2O3)\)(\d*)$/);
+      if (groupMatch) {
+        const metal = groupMatch[1];
+        const metalCount = parseInt(groupMatch[2] || '1');
+        const groupFormula = groupMatch[3];
+        const groupCount = parseInt(groupMatch[4] || '1');
+        return ionicGroupModel(Array(metalCount).fill(metal), groupFormula, groupCount);
+      }
+
+      const simpleMatch = formula.match(/^([A-Z][a-z]?)(\d*)(NO3|OH|SO4|PO4|CO3|ClO3|Cr2O7|MnO4|S2O3)$/);
+      if (simpleMatch && !['H', 'C', 'N', 'O', 'S', 'P'].includes(simpleMatch[1])) {
+        const metal = simpleMatch[1];
+        const metalCount = parseInt(simpleMatch[2] || '1');
+        return ionicGroupModel(Array(metalCount).fill(metal), simpleMatch[3], 1);
+      }
+
+      return null;
+    }
+
+    function ionicGroupModel(metals, groupFormula, groupCount) {
+      const group = knownMoleculeModel(groupFormula);
+      if (!group) return null;
+
+      const atoms = [];
+      const positions = [];
+      const bonds = [];
+      const totalGroups = Math.min(groupCount, 4);
+      const largeGroup = groupFormula === 'Cr2O7' || groupFormula === 'S2O3';
+      const groupCenters = largeGroup && totalGroups === 1 ? [{ x: 55, y: 52 }] : repeatedGroupCenters(totalGroups);
+      const groupScale = largeGroup
+        ? (totalGroups > 1 ? 0.7 : 0.75)
+        : totalGroups >= 3 ? 0.48 : totalGroups === 2 ? 0.52 : 0.76;
+
+      metals.forEach((metal, idx) => {
+        atoms.push(metal);
+        positions.push({
+          x: largeGroup ? 13 : 14,
+          y: metals.length === 1 ? 50 : 27 + idx * (46 / Math.max(1, metals.length - 1))
+        });
+      });
+
+      for (let g = 0; g < totalGroups; g++) {
+        const offset = atoms.length;
+        const center = groupCenters[g];
+        group.atoms.forEach(atom => atoms.push(atom));
+        group.positions.forEach(pos => positions.push({
+          x: center.x + (pos.x - 50) * groupScale,
+          y: center.y + (pos.y - 50) * groupScale
+        }));
+        group.bonds.forEach(bond => bonds.push({
+          a: offset + bond.a,
+          b: offset + bond.b,
+          order: bond.order
+        }));
+      }
+
+      return {
+        atoms,
+        positions,
+        bonds,
+        noSpread: true,
+        widthRem: largeGroup ? 14 : totalGroups >= 3 ? 12.8 : totalGroups === 2 ? 11.2 : 8.8,
+        heightRem: largeGroup ? 8.8 : totalGroups >= 3 ? 9.2 : totalGroups === 2 ? 7.8 : 6.2,
+        atomSize: totalGroups >= 3 ? '0.98rem' : totalGroups === 2 ? '1.05rem' : undefined
+      };
+    }
+
+    function repeatedGroupCenters(count) {
+      if (count <= 1) return [{ x: 60, y: 50 }];
+      if (count === 2) return [{ x: 64, y: 28 }, { x: 64, y: 72 }];
+      if (count === 3) return [{ x: 64, y: 18 }, { x: 64, y: 50 }, { x: 64, y: 82 }];
+      return [{ x: 42, y: 28 }, { x: 78, y: 28 }, { x: 42, y: 72 }, { x: 78, y: 72 }];
+    }
+
+    function ionicSimpleModel(formula) {
+      const counts = parseFormula(formula);
+      const elements = Object.keys(counts);
+      if (!elements.some(el => IONIC_METALS.has(el))) return null;
+      if (elements.length < 2) return null;
+
+      const atoms = expandFormulaAtoms(formula);
+      const positions = [];
+      const count = atoms.length;
+
+      if (count === 2) {
+        positions.push({ x: 36, y: 50 }, { x: 64, y: 50 });
+      } else {
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        atoms.forEach((_, idx) => {
+          const col = idx % cols;
+          const row = Math.floor(idx / cols);
+          positions.push({
+            x: 24 + (cols === 1 ? 0 : col * (52 / (cols - 1))),
+            y: 28 + (rows === 1 ? 0 : row * (44 / (rows - 1)))
+          });
+        });
+      }
+
+      return { atoms, positions, bonds: [], ionic: true };
+    }
+
+    function bondPairsForAtoms(atoms) {
+      const n = atoms.length;
+      if (n < 2) return [];
+      if (n <= 4) {
+        const center = atoms.findIndex(el => el !== 'H');
+        const c = center >= 0 ? center : 0;
+        return atoms.map((_, idx) => idx).filter(idx => idx !== c).map(idx => [c, idx]);
+      }
+      return atoms.slice(1).map((_, idx) => [idx, idx + 1]);
+    }
+
+    function drawBond(svg, start, end, order = 1) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const normalX = -dy / len;
+      const normalY = dx / len;
+      const unitX = dx / len;
+      const unitY = dy / len;
+      const offsets = order === 3 ? [-3, 0, 3] : order === 2 ? [-2.4, 2.4] : [0];
+
+      offsets.forEach(offset => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', start.x - unitX * 1.4 + normalX * offset);
+        line.setAttribute('y1', start.y - unitY * 1.4 + normalY * offset);
+        line.setAttribute('x2', end.x + unitX * 1.4 + normalX * offset);
+        line.setAttribute('y2', end.y + unitY * 1.4 + normalY * offset);
+        svg.appendChild(line);
+      });
+    }
+
+    function drawCenterBond(svg, start, end, order = 1) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const normalX = -dy / len;
+      const normalY = dx / len;
+      const offsets = order === 3 ? [-3, 0, 3] : order === 2 ? [-2.4, 2.4] : [0];
+
+      offsets.forEach(offset => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', start.x + normalX * offset);
+        line.setAttribute('y1', start.y + normalY * offset);
+        line.setAttribute('x2', end.x + normalX * offset);
+        line.setAttribute('y2', end.y + normalY * offset);
+        svg.appendChild(line);
+      });
+    }
+
+    function drawHydrocarbonBond(svg, start, end, kind) {
+      const margin = 7;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+
+      if (kind === 'backbone') {
+        line.setAttribute('x1', start.x + margin);
+        line.setAttribute('y1', start.y);
+        line.setAttribute('x2', end.x - margin);
+        line.setAttribute('y2', end.y);
+      } else {
+        const vertical = Math.abs(end.y - start.y) >= Math.abs(end.x - start.x);
+        if (vertical) {
+          const sign = end.y > start.y ? 1 : -1;
+          line.setAttribute('x1', start.x);
+          line.setAttribute('y1', start.y + sign * margin);
+          line.setAttribute('x2', end.x);
+          line.setAttribute('y2', end.y - sign * margin);
+        } else {
+          const sign = end.x > start.x ? 1 : -1;
+          line.setAttribute('x1', start.x + sign * margin);
+          line.setAttribute('y1', start.y);
+          line.setAttribute('x2', end.x - sign * margin);
+          line.setAttribute('y2', end.y);
+        }
+      }
+
+      svg.appendChild(line);
+    }
+
+    function spreadPositions(positions, minGap = 17, iterations = 42) {
+      const pts = positions.map(p => ({ x: p.x, y: p.y }));
+
+      for (let step = 0; step < iterations; step++) {
+        for (let i = 0; i < pts.length; i++) {
+          for (let j = i + 1; j < pts.length; j++) {
+            const dx = pts[j].x - pts[i].x;
+            const dy = pts[j].y - pts[i].y;
+            const dist = Math.hypot(dx, dy) || 0.01;
+            if (dist >= minGap) continue;
+
+            const push = (minGap - dist) / 2;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            pts[i].x -= ux * push;
+            pts[i].y -= uy * push;
+            pts[j].x += ux * push;
+            pts[j].y += uy * push;
+          }
+        }
+
+        pts.forEach(p => {
+          p.x = Math.max(8, Math.min(92, p.x));
+          p.y = Math.max(10, Math.min(90, p.y));
+        });
+      }
+
+      return pts;
+    }
+
+    function moleculeDimensions(atoms, model) {
+      const atomCount = atoms.length;
+      if (model && model.cCount) {
+        return {
+          width: Math.min(13.2, 5 + model.cCount * 2.05),
+          height: 7.2,
+          gap: 15.5
+        };
+      }
+      if (model && model.widthRem) {
+        return { width: model.widthRem, height: model.heightRem || 7, gap: 14 };
+      }
+      if (atomCount >= 12) return { width: 12.4, height: 8.5, gap: 16.5 };
+      if (atomCount >= 9) return { width: 10.8, height: 7.6, gap: 16 };
+      if (atomCount >= 6) return { width: 8.8, height: 6.4, gap: 16.5 };
+      return { width: 6.8, height: 4.8, gap: 17 };
+    }
+
+    function makeMoleculeUnit(formula) {
+      const model = structuralModel(formula);
+      const atoms = model ? model.atoms : expandFormulaAtoms(formula);
+      const unit = document.createElement('div');
+      unit.className = 'molecule-unit';
+      unit.title = formula;
+      const dims = moleculeDimensions(atoms, model);
+      unit.style.setProperty('--mol-width', `${dims.width}rem`);
+      unit.style.setProperty('--mol-height', `${dims.height}rem`);
+      if (model && model.cCount) {
+        unit.classList.add('hydrocarbon-unit');
+      }
+
+      const rawPositions = model ? model.positions : atomLayout(atoms);
+      const positions = model && model.noSpread ? rawPositions : spreadPositions(rawPositions, dims.gap);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'molecule-bonds');
+      svg.setAttribute('viewBox', '0 0 100 100');
+
+      const bonds = model ? model.bonds : bondPairsForAtoms(atoms).map(([a, b]) => ({ a, b, order: 1 }));
+      bonds.forEach(bond => {
+        if (model && model.hydrocarbon) {
+          drawCenterBond(svg, positions[bond.a], positions[bond.b], bond.order);
+        } else if (model) {
+          drawCenterBond(svg, positions[bond.a], positions[bond.b], bond.order);
+        } else {
+          drawBond(svg, positions[bond.a], positions[bond.b], bond.order);
+        }
+      });
+      unit.appendChild(svg);
+
+      const size = model && model.atomSize ? model.atomSize : model && model.cCount ? '1.25rem' : atoms.length >= 12 ? '1.12rem' : atoms.length > 8 ? '1.22rem' : atoms.length > 4 ? '1.42rem' : '1.7rem';
+      atoms.forEach((el, idx) => {
+        const node = document.createElement('span');
+        node.className = 'atom-node';
+        node.textContent = el;
+        node.style.setProperty('--x', positions[idx].x);
+        node.style.setProperty('--y', positions[idx].y);
+        node.style.setProperty('--size', size);
+        node.style.setProperty('--atom-color', elementColor(el));
+        unit.appendChild(node);
+      });
+
+      return unit;
+    }
+
+    function renderMoleculeSide(targetId, formulas, sideCoeffs) {
+      const target = $(targetId);
+      target.innerHTML = '';
+      formulas.forEach((formula, idx) => {
+        const coeff = sideCoeffs[idx];
+        const compound = document.createElement('div');
+        compound.className = 'molecule-compound';
+
+        const label = document.createElement('div');
+        label.className = 'molecule-formula';
+        label.innerHTML = `<span class="coefficient">${coeff}</span><span>${renderFormula(formula)}</span>`;
+        compound.appendChild(label);
+
+        const stack = document.createElement('div');
+        stack.className = 'molecule-stack';
+        const visibleCount = Math.min(coeff, 12);
+        for (let i = 0; i < visibleCount; i++) stack.appendChild(makeMoleculeUnit(formula));
+        if (coeff > visibleCount) {
+          const more = document.createElement('div');
+          more.className = 'molecule-overflow';
+          more.textContent = `+${coeff - visibleCount}`;
+          stack.appendChild(more);
+        }
+
+        compound.appendChild(stack);
+        target.appendChild(compound);
+      });
+    }
+
+    function renderMoleculeLegend(eq) {
+      const legend = $('molecule-legend');
+      legend.innerHTML = '';
+      getElements(eq).forEach(el => {
+        const chip = document.createElement('span');
+        chip.className = 'legend-chip';
+        chip.innerHTML = `<span class="legend-dot" style="--atom-color:${elementColor(el)}"></span>${el}`;
+        legend.appendChild(chip);
+      });
+    }
+
+    function renderMolecules(eq) {
+      if (!$('molecules-card').classList.contains('visible')) return;
+      renderMoleculeLegend(eq);
+      renderMoleculeSide('reactant-molecules', eq.reactants, coeffs.slice(0, eq.reactants.length));
+      renderMoleculeSide('product-molecules', eq.products, coeffs.slice(eq.reactants.length));
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Build a compound widget (coefficient spinner + formula)
     // ─────────────────────────────────────────────────────────────
@@ -1205,6 +2170,7 @@
     function update() {
       const eq      = queue[eqIndex];
       const balanced = renderAtomTable(eq);
+      renderMolecules(eq);
       const reducible = balanced && gcdArray(coeffs) > 1;
       const banner = $('status-banner');
       const nextBtn = $('next-btn');
@@ -1253,6 +2219,7 @@
       $('eq-name').textContent = eq.name;
       renderEquation(eq);
       renderAtomTable(eq);
+      renderMolecules(eq);
 
       // Progress
       const n = queue.length;
@@ -1269,6 +2236,7 @@
         // Show completion
         $('equation-card').style.display = 'none';
         $('atoms-card').style.display    = 'none';
+        $('molecules-card').classList.remove('visible');
         $('status-banner').classList.remove('visible');
         $('next-btn').classList.remove('visible');
         $('progress-fill').style.width   = '100%';
@@ -1323,6 +2291,15 @@
       btn.textContent    = hide ? 'Show helper' : 'Hide helper';
     }
 
+    function toggleMolecules() {
+      const card = $('molecules-card');
+      const btn = $('molecules-toggle');
+      const show = !card.classList.contains('visible');
+      card.classList.toggle('visible', show);
+      btn.textContent = show ? 'Hide molecules' : 'Show molecules';
+      if (show && queue[eqIndex]) renderMolecules(queue[eqIndex]);
+    }
+
     function startLevel(level) {
       queue   = shuffled(EQUATIONS.filter(e => e.difficulty === level)).slice(0, QUESTIONS_PER_ROUND);
       eqIndex = 0;
@@ -1330,7 +2307,9 @@
       document.getElementById('main-content').style.display      = 'contents';
       $('equation-card').style.display = '';
       $('atoms-card').style.display    = '';
+      $('molecules-card').classList.remove('visible');
       document.getElementById('atoms-toggle').textContent = 'Hide helper';
+      document.getElementById('molecules-toggle').textContent = 'Show molecules';
       $('completion').classList.remove('visible');
       startTimer();
       loadEquation(0);
