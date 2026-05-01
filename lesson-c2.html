@@ -359,6 +359,35 @@
       nav, .sim-launch, .print-btn { display: none !important; }
       .page { max-width: none; padding: 0; }
     }
+    /* -- Read-aloud & dictation buttons ----------------------- */
+    .q-num { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .tts-btn {
+      width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--sub); cursor: pointer; font-size: 0.82rem;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .tts-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .tts-btn.speaking { color: var(--accent); border-color: var(--accent); background: rgba(56,189,248,0.1); }
+    .dictation-wrap { position: relative; }
+    .dictation-wrap .answer-box { padding-right: 44px; }
+    .stt-btn {
+      position: absolute; top: 8px; right: 8px;
+      width: 28px; height: 28px; border-radius: 7px;
+      display: none; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--sub); cursor: pointer; font-size: 0.88rem;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .stt-supported .stt-btn { display: flex; }
+    .stt-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .stt-btn.listening {
+      color: #f87171; border-color: #f87171;
+      background: rgba(248,113,113,0.1);
+      animation: mic-pulse 1s ease-in-out infinite;
+    }
+    @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
   </style>
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -624,6 +653,85 @@
     const today = new Date().toISOString().split('T')[0];
     dateField.value = today;
     localStorage.setItem(SAVE_PREFIX + 'student-date', today);
+  }
+  // -- Read-aloud (TTS) ----------------------------------------
+  const synth = window.speechSynthesis;
+  let activeTtsBtn = null;
+
+  function readAloud(text, ttsButton) {
+    if (!synth || !text) return;
+    if (activeTtsBtn) activeTtsBtn.classList.remove('speaking');
+    if (synth.speaking && activeTtsBtn === ttsButton) {
+      synth.cancel();
+      activeTtsBtn = null;
+      return;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    activeTtsBtn = ttsButton;
+    ttsButton.classList.add('speaking');
+    utterance.onend = utterance.onerror = () => {
+      ttsButton.classList.remove('speaking');
+      if (activeTtsBtn === ttsButton) activeTtsBtn = null;
+    };
+    synth.speak(utterance);
+  }
+
+  document.querySelectorAll('.q-num').forEach((numEl) => {
+    const question = numEl.closest('.q');
+    if (!question || numEl.querySelector('.tts-btn')) return;
+    const textEl = question.querySelector('.q-text');
+    const subEl = question.querySelector('.q-sub');
+    if (!textEl) return;
+    const ttsButton = document.createElement('button');
+    ttsButton.className = 'tts-btn';
+    ttsButton.type = 'button';
+    ttsButton.setAttribute('aria-label', 'Read question aloud');
+    ttsButton.textContent = '🔊';
+    ttsButton.addEventListener('click', () => {
+      readAloud(textEl.textContent + (subEl ? ' ' + subEl.textContent : ''), ttsButton);
+    });
+    numEl.appendChild(ttsButton);
+  });
+
+  // -- Dictation (STT) -----------------------------------------
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (Recognition) {
+    document.body.classList.add('stt-supported');
+    document.querySelectorAll('.answer-box').forEach((textarea) => {
+      if (textarea.closest('.dictation-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'dictation-wrap';
+      textarea.parentNode.insertBefore(wrap, textarea);
+      wrap.appendChild(textarea);
+      const sttButton = document.createElement('button');
+      sttButton.className = 'stt-btn';
+      sttButton.type = 'button';
+      sttButton.setAttribute('aria-label', 'Dictate answer');
+      sttButton.textContent = '🎙';
+      wrap.appendChild(sttButton);
+      let rec = null;
+      sttButton.addEventListener('click', () => {
+        if (rec) {
+          rec.stop();
+          return;
+        }
+        rec = new Recognition();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = 'en-CA';
+        sttButton.classList.add('listening');
+        rec.onresult = (event) => {
+          const transcript = Array.from(event.results).slice(event.resultIndex).map(result => result[0].transcript).join('');
+          const separator = textarea.value && !textarea.value.endsWith(' ') ? ' ' : '';
+          textarea.value += separator + transcript;
+          textarea.dispatchEvent(new Event('input'));
+        };
+        rec.onerror = () => { sttButton.classList.remove('listening'); rec = null; };
+        rec.onend = () => { sttButton.classList.remove('listening'); rec = null; };
+        rec.start();
+      });
+    });
   }
 </script>
 </body>
