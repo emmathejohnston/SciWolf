@@ -267,6 +267,7 @@
       text-align: center; padding: 1px 4px; margin: 0 3px;
       transition: border-color 0.15s;
     }
+    .coef-input { width: 38px; }
     .rxn-input:focus { outline: none; border-bottom-color: var(--pink); }
     .rxn-input::placeholder { color: var(--muted); font-size: 0.72rem; }
 
@@ -458,6 +459,7 @@
         border-bottom: 1pt solid #333; background: white;
         color: #111; font-size: 10pt; width: 80px;
       }
+      .coef-input { width: 32px; }
 
       /* Questions */
       .q { background: white; border: 0.5pt solid #ccc; break-inside: avoid; padding: 8pt 10pt; margin-bottom: 6pt; border-radius: 0; }
@@ -766,12 +768,16 @@
 
       <div class="rxn-label">Chemical Equation — balance it</div>
       <div class="rxn-line">
+        <input class="rxn-input coef-input" id="ra-k1" placeholder="#">
         <span class="given">NaOH</span>
         <span class="plus">+</span>
+        <input class="rxn-input coef-input" id="ra-k2" placeholder="#">
         <span class="given">HCl</span>
         <span class="arrow">→</span>
+        <input class="rxn-input coef-input" id="ra-k3" placeholder="#">
         <input class="rxn-input" id="ra-c1" placeholder="product 1">
         <span class="plus">+</span>
+        <input class="rxn-input coef-input" id="ra-k4" placeholder="#">
         <input class="rxn-input" id="ra-c2" placeholder="product 2">
       </div>
 
@@ -818,14 +824,19 @@
 
       <div class="rxn-label">Chemical Equation — fill in the products and balance</div>
       <div class="rxn-line">
+        <input class="rxn-input coef-input" id="rb-k1" placeholder="#">
         <span class="given">CaCO₃</span>
         <span class="plus">+</span>
+        <input class="rxn-input coef-input" id="rb-k2" placeholder="#">
         <span class="given">H₂SO₄</span>
         <span class="arrow">→</span>
+        <input class="rxn-input coef-input" id="rb-k3" placeholder="#">
         <input class="rxn-input" id="rb-c1" placeholder="salt">
         <span class="plus">+</span>
+        <input class="rxn-input coef-input" id="rb-k4" placeholder="#">
         <span class="given">H₂O</span>
         <span class="plus">+</span>
+        <input class="rxn-input coef-input" id="rb-k5" placeholder="#">
         <input class="rxn-input" id="rb-c2" placeholder="gas">
       </div>
 
@@ -938,8 +949,8 @@
     't-bak-ph',  't-bak-col',  't-bak-type',  't-bak-str',
     't-ble-ph',  't-ble-col',  't-ble-type',  't-ble-str',
     't-dra-ph',  't-dra-col',  't-dra-type',  't-dra-str',
-    'ra-w1','ra-w2','ra-c1','ra-c2',
-    'rb-w1','rb-w2','rb-c1','rb-c2',
+    'ra-w1','ra-w2','ra-k1','ra-k2','ra-k3','ra-k4','ra-c1','ra-c2',
+    'rb-w1','rb-w2','rb-k1','rb-k2','rb-k3','rb-k4','rb-k5','rb-c1','rb-c2',
     'q1','q2','q3','q4','q5','q6','q7','q8',
   ];
 
